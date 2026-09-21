@@ -1,0 +1,206 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 25s linear infinite;
+}
+
+@keyframes slideRight {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideRightReverse {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-right {
+  animation: slideRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-right-reverse {
+  animation: slideRightReverse 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+@keyframes float-slow-1 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(40px, -60px) scale(1.1);
+  }
+}
+
+@keyframes float-slow-2 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-50px, 40px) scale(0.95);
+  }
+}
+
+@keyframes float-slow-3 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(30px, 30px) scale(1.05);
+  }
+}
+
+.animate-float-1 {
+  animation: float-slow-1 15s ease-in-out infinite;
+}
+
+.animate-float-2 {
+  animation: float-slow-2 18s ease-in-out infinite;
+}
+
+.animate-float-3 {
+  animation: float-slow-3 20s ease-in-out infinite;
+}
+
+.grid-bg-overlay {
+  background-image: 
+    linear-gradient(to right, rgba(92, 26, 27, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(92, 26, 27, 0.02) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+/* Global transparent page container rule to let ShadedBackground shine through */
+main.min-h-screen.bg-ivory {
+  background-color: transparent !important;
+}
+
+/* Also target layout.jsx wrapper if any */
+div.flex-1.bg-ivory {
+  background-color: transparent !important;
+}
+
+/* Dedicated Print Layout Overrides for Print Label Page */
+body.print-mode-active {
+  background-color: #f3f4f6 !important; /* light gray screen background */
+}
+
+@media print {
+  body.print-mode-active {
+    background-color: white !important;
+  }
+  
+  /* Guarantee browser hides default headers/footers */
+  nav, footer, header, .sticky, .fixed, .pointer-events-none {
+    display: none !important;
+  }
+}
+
+/* Hide navigation, header, footer, background decorations in print-mode */
+body.print-mode-active nav,
+body.print-mode-active footer,
+body.print-mode-active header,
+body.print-mode-active .sticky,
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes waveHand {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(16deg); }
+  20% { transform: rotate(-10deg); }
+  30% { transform: rotate(16deg); }
+  40% { transform: rotate(-6deg); }
+  50% { transform: rotate(12deg); }
+  60% { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.animate-wave {
+  display: inline-block;
+  transform-origin: 70% 70%;
+  animation: waveHand 2.2s infinite ease-in-out;
+}
+
+/* ------------------------------------------------------------- */
+/* SKELETON SHIMMER LOADER */
+/* ------------------------------------------------------------- */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    #f5f5f4 0%,
+    #e7e5e4 50%,
+    #f5f5f4 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+.skeleton-box {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    #f5f5f4 0%,
+    #e7e5e4 50%,
+    #f5f5f4 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+  z-index: 1;
+}
