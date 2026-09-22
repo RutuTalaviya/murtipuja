@@ -31,7 +31,8 @@ async function getProducts(req, res, next) {
       filter._id = { $in: idsArray };
     }
 
-    // Category filter: support ObjectId, slug, or Main Category name (e.g. Hanuman, Ram, Shiva)
+    // Category filter: support ObjectId, slug, or Main Category name (e.g. Shiva, Ram, Hanuman)
+    // When a main category is selected, all products in that category AND in all its subcategories are included!
     if (category) {
       if (mongoose.Types.ObjectId.isValid(category)) {
         const childCats = await Category.find({ parentCategory: category }).select("_id").lean();
@@ -41,6 +42,7 @@ async function getProducts(req, res, next) {
 
         filter.$or = [
           { category: { $in: catIds } },
+          { subCategory: { $in: catIds } },
           ...(deityPattern ? [{ deity: deityPattern }] : []),
         ];
       } else {
@@ -55,6 +57,7 @@ async function getProducts(req, res, next) {
 
           filter.$or = [
             { category: { $in: catIds } },
+            { subCategory: { $in: catIds } },
             { deity: new RegExp(`^${catDoc.name}`, "i") },
             { deity: new RegExp(`^${catDoc.slug}`, "i") },
           ];

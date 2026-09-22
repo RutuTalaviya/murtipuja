@@ -14,12 +14,24 @@ function shuffleArray(array) {
   return arr;
 }
 
-// Check if a product matches a category
-function isProductInCategory(product, category) {
+// Check if a product matches a category (including all its subcategories)
+function isProductInCategory(product, category, allCategories = []) {
   if (!product || !category) return false;
   const catIdStr = category._id ? category._id.toString() : "";
   const catNameLower = (category.name || "").toLowerCase().trim();
   const catSlugLower = (category.slug || "").toLowerCase().trim();
+
+  // Subcategory IDs belonging to this main category
+  const childCategoryIds = allCategories
+    .filter(
+      (c) =>
+        c.parentCategory &&
+        (c.parentCategory._id?.toString?.() === catIdStr ||
+          c.parentCategory?.toString?.() === catIdStr)
+    )
+    .map((c) => c._id?.toString?.() || "");
+
+  const allValidCategoryIds = [catIdStr, ...childCategoryIds].filter(Boolean);
 
   // 1. Match against product.category array or object
   if (Array.isArray(product.category)) {
@@ -28,7 +40,7 @@ function isProductInCategory(product, category) {
       const name = (c?.name || "").toLowerCase().trim();
       const slug = (c?.slug || "").toLowerCase().trim();
       return (
-        id === catIdStr ||
+        allValidCategoryIds.includes(id) ||
         (catNameLower && name === catNameLower) ||
         (catSlugLower && slug === catSlugLower)
       );
@@ -36,10 +48,23 @@ function isProductInCategory(product, category) {
     if (match) return true;
   } else if (product.category) {
     const id = product.category?._id ? product.category._id.toString() : product.category.toString?.();
-    if (id === catIdStr) return true;
+    if (allValidCategoryIds.includes(id)) return true;
   }
 
-  // 2. Match against product.deity string
+  // 2. Match against product.subCategory array or object
+  if (Array.isArray(product.subCategory)) {
+    const match = product.subCategory.some((sub) => {
+      const id = sub?._id ? sub._id.toString() : sub?.toString?.();
+      const name = (sub?.name || typeof sub === "string" ? sub : "").toLowerCase().trim();
+      return allValidCategoryIds.includes(id) || (catNameLower && name.includes(catNameLower));
+    });
+    if (match) return true;
+  } else if (product.subCategory) {
+    const id = product.subCategory?._id ? product.subCategory._id.toString() : product.subCategory.toString?.();
+    if (allValidCategoryIds.includes(id)) return true;
+  }
+
+  // 3. Match against product.deity string
   if (product.deity) {
     const deityLower = product.deity.toLowerCase().trim();
     if (
@@ -64,12 +89,12 @@ export default function HomeCategoryShowcase({ categories = [], products = [] })
     return categories.filter((cat) => !cat.parentCategory);
   }, [categories]);
 
-  // Group products by category
+  // Group products by category (including all subcategories)
   const categoryGroups = useMemo(() => {
     const groups = [];
 
     mainCategories.forEach((cat) => {
-      const catProducts = products.filter((p) => isProductInCategory(p, cat));
+      const catProducts = products.filter((p) => isProductInCategory(p, cat, categories));
       if (catProducts.length > 0) {
         groups.push({
           category: cat,
