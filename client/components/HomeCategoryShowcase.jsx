@@ -55,7 +55,8 @@ function isProductInCategory(product, category, allCategories = []) {
   if (Array.isArray(product.subCategory)) {
     const match = product.subCategory.some((sub) => {
       const id = sub?._id ? sub._id.toString() : sub?.toString?.();
-      const name = (sub?.name || typeof sub === "string" ? sub : "").toLowerCase().trim();
+      const rawName = typeof sub === "string" ? sub : sub?.name || "";
+      const name = String(rawName).toLowerCase().trim();
       return allValidCategoryIds.includes(id) || (catNameLower && name.includes(catNameLower));
     });
     if (match) return true;
