@@ -150,7 +150,7 @@ export default async function ProductDetailPage({ params }) {
       <div className="w-full space-y-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-12 items-start">
           {/* Left: Product Image & Vertical Gallery */}
-          <div className="lg:col-span-7 xl:col-span-7 w-full flex justify-center">
+          <div className="lg:col-span-7 xl:col-span-7 w-full flex justify-center lg:justify-start lg:pl-2 xl:pl-4">
             <ImageGallery images={product.images} videos={product.videos || []} title={product.title} />
           </div>
  

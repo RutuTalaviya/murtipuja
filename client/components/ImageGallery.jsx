@@ -203,6 +203,85 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
     setIsDragging(false);
   };
 
+  // Touch Handling for Mobile Gestures (Pinch to Zoom, Double Tap, Pan, Swipe)
+  const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
+  const touchDistanceRef = useRef(0);
+  const initialScaleRef = useRef(1);
+
+  const handleTouchStart = (e) => {
+    const now = Date.now();
+    if (e.touches.length === 2) {
+      // 2 fingers: Pinch to zoom start
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const dist = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+      touchDistanceRef.current = dist;
+      initialScaleRef.current = lightboxScale;
+    } else if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      // Double-tap detection
+      if (now - touchStartRef.current.time < 300) {
+        handleToggleZoom(e);
+        touchStartRef.current.time = 0;
+        return;
+      }
+      touchStartRef.current = {
+        x: touch.clientX,
+        y: touch.clientY,
+        time: now,
+      };
+      if (lightboxScale > 1) {
+        setIsDragging(true);
+        dragStartRef.current = {
+          x: touch.clientX - lightboxPos.x,
+          y: touch.clientY - lightboxPos.y,
+        };
+      }
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2 && touchDistanceRef.current > 0) {
+      e.preventDefault();
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const dist = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+      const ratio = dist / touchDistanceRef.current;
+      const newScale = Math.max(1, Math.min(4, initialScaleRef.current * ratio));
+      setLightboxScale(newScale);
+      if (newScale === 1) {
+        setLightboxPos({ x: 0, y: 0 });
+      }
+    } else if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      if (lightboxScale > 1 && isDragging) {
+        e.preventDefault();
+        setLightboxPos({
+          x: touch.clientX - dragStartRef.current.x,
+          y: touch.clientY - dragStartRef.current.y,
+        });
+      }
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    setIsDragging(false);
+    touchDistanceRef.current = 0;
+    if (lightboxScale === 1 && e.changedTouches?.length === 1) {
+      const touch = e.changedTouches[0];
+      const deltaX = touch.clientX - touchStartRef.current.x;
+      const deltaY = Math.abs(touch.clientY - touchStartRef.current.y);
+      // Horizontal swipe detected (min 45px distance and predominantly horizontal)
+      if (Math.abs(deltaX) > 45 && deltaY < 80) {
+        if (deltaX < 0) {
+          handleNext();
+        } else {
+          handlePrev();
+        }
+      }
+    }
+  };
+
   if (!mediaList || mediaList.length === 0) {
     return (
       <div className="relative aspect-square bg-neutral-100 rounded-none overflow-hidden border-2 border-black flex items-center justify-center text-neutral-400 font-extrabold text-xs uppercase tracking-wider">
@@ -214,7 +293,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
   const activeMedia = mediaList[activeIndex] || mediaList[0];
 
   return (
-    <div className="w-full flex flex-col md:flex-row gap-3 sm:gap-4 md:gap-5 items-start font-display">
+    <div className="w-full flex flex-col md:flex-row gap-3 sm:gap-4 md:gap-6 items-start font-display md:pl-3 lg:pl-6">
       {/* ------------------------------------------------------------- */}
       {/* 1. LEFT VERTICAL THUMBNAILS (Desktop) */}
       {/* ------------------------------------------------------------- */}
@@ -387,58 +466,59 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
       {/* ------------------------------------------------------------- */}
       {mounted && isLightboxOpen && createPortal(
         <div
-          className="fixed inset-0 flex flex-col justify-between bg-black/95 backdrop-blur-md font-display select-none transition-opacity duration-200"
+          className="fixed inset-0 flex flex-col justify-between bg-black/95 backdrop-blur-md font-display select-none transition-opacity duration-200 h-[100dvh] w-screen overflow-hidden z-[999999]"
           style={{
             position: "fixed",
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            width: "100vw",
-            height: "100vh",
             zIndex: 999999,
           }}
         >
           {/* Top Bar Controls */}
-          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/15 bg-black/50 backdrop-blur-sm z-20">
-            <div className="flex items-center gap-3">
-              <span className="bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 border border-white/20">
-                HD ZOOM VIEW
+          <div className="flex items-center justify-between px-3 py-2.5 sm:px-6 sm:py-3.5 border-b border-white/15 bg-black/70 backdrop-blur-sm z-30">
+            {/* Left: Product title & counter */}
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 pr-2">
+              <span className="bg-orange-500 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-2 py-0.5 sm:py-1 border border-white/20 flex-shrink-0">
+                HD VIEW
               </span>
-              <h3 className="text-white text-sm sm:text-base font-extrabold uppercase tracking-wide truncate max-w-[200px] sm:max-w-md">
+              <h3 className="text-white text-xs sm:text-sm md:text-base font-extrabold uppercase tracking-wide truncate max-w-[120px] xs:max-w-[180px] sm:max-w-xs md:max-w-md">
                 {title}
               </h3>
-              <span className="text-neutral-400 text-xs font-bold hidden sm:inline">
-                ({activeIndex + 1} / {mediaList.length})
+              <span className="text-neutral-400 text-[10px] sm:text-xs font-bold flex-shrink-0">
+                ({activeIndex + 1}/{mediaList.length})
               </span>
             </div>
 
-            {/* Zoom Controls & Close Button */}
-            <div className="flex items-center gap-2 sm:gap-3">
+            {/* Right: Zoom Controls & Close Button */}
+            <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
               {activeMedia.type !== "video" && (
                 <div className="flex items-center bg-neutral-900 border border-neutral-700 rounded-none overflow-hidden">
                   <button
                     onClick={handleZoomOut}
                     disabled={lightboxScale <= 1}
-                    className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-white hover:bg-orange-500 hover:text-white transition-colors disabled:opacity-30 disabled:hover:bg-transparent font-black text-sm cursor-pointer"
+                    className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 flex items-center justify-center text-white hover:bg-orange-500 hover:text-white transition-colors disabled:opacity-30 disabled:hover:bg-transparent font-black text-xs sm:text-sm cursor-pointer"
                     title="Zoom Out (-)"
+                    aria-label="Zoom Out"
                   >
                     −
                   </button>
-                  <span className="text-[11px] font-extrabold text-neutral-300 px-2 min-w-[42px] text-center">
+                  <span className="text-[10px] sm:text-[11px] font-extrabold text-neutral-300 px-1.5 sm:px-2 min-w-[34px] sm:min-w-[42px] text-center">
                     {Math.round(lightboxScale * 100)}%
                   </span>
                   <button
                     onClick={handleZoomIn}
                     disabled={lightboxScale >= 4}
-                    className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-white hover:bg-orange-500 hover:text-white transition-colors disabled:opacity-30 disabled:hover:bg-transparent font-black text-sm cursor-pointer"
+                    className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 flex items-center justify-center text-white hover:bg-orange-500 hover:text-white transition-colors disabled:opacity-30 disabled:hover:bg-transparent font-black text-xs sm:text-sm cursor-pointer"
                     title="Zoom In (+)"
+                    aria-label="Zoom In"
                   >
                     +
                   </button>
                   <button
                     onClick={handleResetZoom}
-                    className="px-2.5 h-8 sm:h-9 border-l border-neutral-700 text-[10px] font-extrabold text-neutral-300 hover:bg-orange-500 hover:text-white transition-colors flex items-center justify-center cursor-pointer uppercase"
+                    className="hidden xs:flex px-2 sm:px-2.5 h-7 sm:h-8 md:h-9 border-l border-neutral-700 text-[9px] sm:text-[10px] font-extrabold text-neutral-300 hover:bg-orange-500 hover:text-white transition-colors items-center justify-center cursor-pointer uppercase"
                     title="Reset Zoom"
                   >
                     Reset
@@ -446,14 +526,14 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                 </div>
               )}
 
-              {/* Close Button with Orange Hover */}
+              {/* Close Button */}
               <button
                 onClick={closeLightbox}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-none border border-neutral-600 bg-neutral-900 text-white hover:bg-orange-500 hover:text-white hover:border-orange-500 flex items-center justify-center transition-colors cursor-pointer"
+                className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-none border border-neutral-600 bg-neutral-900 text-white hover:bg-orange-500 hover:text-white hover:border-orange-500 flex items-center justify-center transition-colors cursor-pointer"
                 aria-label="Close Lightbox"
                 title="Close (Esc)"
               >
-                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -466,8 +546,11 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
             onMouseDown={handleMouseDown}
             onMouseMove={handleLightboxMouseMove}
             onMouseUp={handleMouseUp}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
             onDoubleClick={handleToggleZoom}
-            className={`relative flex-1 w-full h-full overflow-hidden flex items-center justify-center p-4 ${
+            className={`relative flex-1 w-full h-full overflow-hidden flex items-center justify-center p-2 sm:p-4 touch-none ${
               lightboxScale > 1
                 ? isDragging
                   ? "cursor-grabbing"
@@ -486,7 +569,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
               </div>
             ) : (
               <div
-                className="relative w-full h-full max-w-[85vw] max-h-[75vh] flex items-center justify-center transition-transform duration-100 ease-out"
+                className="relative w-full h-full max-w-[94vw] max-h-[68vh] sm:max-w-[85vw] sm:max-h-[75vh] flex items-center justify-center transition-transform duration-100 ease-out"
                 style={{
                   transform: `translate(${lightboxPos.x}px, ${lightboxPos.y}px) scale(${lightboxScale})`,
                 }}
@@ -495,7 +578,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                 <img
                   src={activeMedia.url}
                   alt={activeMedia.alt || title}
-                  className="max-w-full max-h-full object-contain pointer-events-none drop-shadow-2xl"
+                  className="max-w-full max-h-full object-contain pointer-events-none drop-shadow-2xl select-none"
                   draggable={false}
                 />
               </div>
@@ -509,7 +592,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                     e.stopPropagation();
                     handlePrev();
                   }}
-                  className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-13 sm:h-13 bg-black/60 hover:bg-orange-500 text-white border-2 border-white/30 hover:border-orange-500 rounded-none flex items-center justify-center font-black text-lg transition-all z-20 shadow-xl cursor-pointer"
+                  className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-11 sm:h-11 md:w-12 md:h-12 bg-black/60 hover:bg-orange-500 active:bg-orange-500 text-white border border-white/30 hover:border-orange-500 rounded-none flex items-center justify-center font-black text-sm sm:text-base md:text-lg transition-all z-20 shadow-xl cursor-pointer"
                   aria-label="Previous image"
                 >
                   ←
@@ -519,7 +602,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                     e.stopPropagation();
                     handleNext();
                   }}
-                  className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-13 sm:h-13 bg-black/60 hover:bg-orange-500 text-white border-2 border-white/30 hover:border-orange-500 rounded-none flex items-center justify-center font-black text-lg transition-all z-20 shadow-xl cursor-pointer"
+                  className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-11 sm:h-11 md:w-12 md:h-12 bg-black/60 hover:bg-orange-500 active:bg-orange-500 text-white border border-white/30 hover:border-orange-500 rounded-none flex items-center justify-center font-black text-sm sm:text-base md:text-lg transition-all z-20 shadow-xl cursor-pointer"
                   aria-label="Next image"
                 >
                   →
@@ -527,11 +610,12 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
               </>
             )}
 
-            {/* Subtle Zoom Instruction Tip */}
+            {/* Responsive Zoom Instruction Tip */}
             {activeMedia.type !== "video" && (
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none z-20">
-                <span className="bg-black/75 text-neutral-300 text-[10px] font-bold px-3 py-1 border border-white/15 backdrop-blur-sm rounded-none">
-                  💡 Scroll to Zoom · Click & Drag to Pan · Double Click to Toggle
+              <div className="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 pointer-events-none z-20 max-w-[90vw]">
+                <span className="bg-black/80 text-neutral-300 text-[9px] sm:text-[10px] font-bold px-2.5 py-1 border border-white/15 backdrop-blur-sm rounded-none whitespace-nowrap block text-center truncate">
+                  <span className="hidden sm:inline">💡 Scroll to Zoom · Drag to Pan · Double Click to Toggle</span>
+                  <span className="sm:hidden">💡 Pinch / Double-Tap to Zoom · Swipe to switch</span>
                 </span>
               </div>
             )}
@@ -539,8 +623,8 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
 
           {/* Bottom Thumbnails Strip */}
           {mediaList.length > 1 && (
-            <div className="p-3 sm:p-4 bg-black/60 border-t border-white/15 backdrop-blur-sm z-20 flex justify-center">
-              <div className="flex gap-2.5 overflow-x-auto no-scrollbar max-w-full py-1">
+            <div className="p-2 sm:p-3 bg-black/70 border-t border-white/15 backdrop-blur-sm z-20 flex justify-center flex-shrink-0">
+              <div className="flex gap-2 sm:gap-2.5 overflow-x-auto no-scrollbar max-w-full py-0.5">
                 {mediaList.map((media, idx) => (
                   <button
                     key={idx}
@@ -550,7 +634,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                       setLightboxScale(1);
                       setLightboxPos({ x: 0, y: 0 });
                     }}
-                    className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-none overflow-hidden border-2 bg-neutral-900 flex-shrink-0 transition-all cursor-pointer ${
+                    className={`relative w-11 h-11 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-none overflow-hidden border-2 bg-neutral-900 flex-shrink-0 transition-all cursor-pointer ${
                       idx === activeIndex
                         ? "border-orange-500 ring-2 ring-orange-500/50 scale-105"
                         : "border-white/20 opacity-60 hover:opacity-100 hover:border-white"
