@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 function SlideImage({ src, alt, priority }) {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -35,6 +36,7 @@ export function CoverflowCarousel({
   autoPlayInterval = 4500,
   className = "",
 }) {
+  const router = useRouter();
   const [activeIndex, setActiveIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [windowWidth, setWindowWidth] = useState(1200);
@@ -42,6 +44,7 @@ export function CoverflowCarousel({
   const containerRef = useRef(null);
   const touchStartX = useRef(null);
   const touchEndX = useRef(null);
+  const touchDistanceRef = useRef(0);
 
   const totalSlides = slides.length;
 
@@ -96,10 +99,14 @@ export function CoverflowCarousel({
   // Touch event handlers for mobile swiping
   const handleTouchStart = (e) => {
     touchStartX.current = e.touches[0].clientX;
+    touchDistanceRef.current = 0;
   };
 
   const handleTouchMove = (e) => {
     touchEndX.current = e.touches[0].clientX;
+    if (touchStartX.current !== null) {
+      touchDistanceRef.current = Math.abs(touchStartX.current - e.touches[0].clientX);
+    }
   };
 
   const handleTouchEnd = () => {
@@ -111,8 +118,22 @@ export function CoverflowCarousel({
     } else if (diff < -threshold) {
       prevSlide();
     }
+    setTimeout(() => {
+      touchDistanceRef.current = 0;
+    }, 100);
     touchStartX.current = null;
     touchEndX.current = null;
+  };
+
+  const handleSlideClick = (index, slide) => {
+    if (touchDistanceRef.current > 15) return;
+    if (index === activeIndex) {
+      if (slide.link) {
+        router.push(slide.link);
+      }
+    } else {
+      goToSlide(index);
+    }
   };
 
   if (!slides || slides.length === 0) return null;
@@ -174,8 +195,8 @@ export function CoverflowCarousel({
             return (
               <div
                 key={slide._id || slide.title || index}
-                onClick={() => goToSlide(index)}
-                className={`absolute w-[260px] sm:w-[330px] md:w-[390px] lg:w-[440px] aspect-[4/5] rounded-none cursor-pointer transition-all duration-500 ease-out flex flex-col justify-end overflow-hidden ${
+                onClick={() => handleSlideClick(index, slide)}
+                className={`absolute w-[260px] sm:w-[330px] md:w-[390px] lg:w-[440px] aspect-[4/5] rounded-none cursor-pointer transition-all duration-500 ease-out flex flex-col justify-end overflow-hidden group ${
                   isCurrent
                     ? "border-2 border-black shadow-2xl ring-4 ring-black/5"
                     : "border border-neutral-300 shadow-md hover:border-black"
@@ -214,10 +235,17 @@ export function CoverflowCarousel({
                   )}
 
                   {/* Bottom Image Caption preview */}
-                  <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 z-10 space-y-1 text-white">
-                    <p className="text-sm sm:text-base md:text-lg font-extrabold uppercase tracking-wider truncate font-display drop-shadow-sm">
-                      {slide.title}
-                    </p>
+                  <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 z-10 space-y-1.5 text-white">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm sm:text-base md:text-lg font-extrabold uppercase tracking-wider truncate font-display drop-shadow-sm group-hover:text-amber-200 transition-colors">
+                        {slide.title}
+                      </p>
+                      {isCurrent && (
+                        <span className="inline-flex items-center gap-1 text-[9.5px] sm:text-[10.5px] font-black uppercase tracking-widest text-black bg-white hover:bg-gold px-2.5 py-1 border border-black shadow-xs group-hover:translate-x-0.5 transition-all flex-shrink-0">
+                          View Drop →
+                        </span>
+                      )}
+                    </div>
                     {slide.price && (
                       <p className="text-xs sm:text-sm md:text-base font-extrabold text-amber-300">
                         {slide.price}

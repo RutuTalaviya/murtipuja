@@ -73,7 +73,7 @@ export default function RelatedDropsCarousel({ products = [], currentDeity = "" 
         {/* 3D Coverflow Carousel */}
         <CoverflowCarousel
           slides={slides}
-          showCaption={true}
+          showCaption={false}
           autoPlay={true}
           autoPlayInterval={5000}
         />
