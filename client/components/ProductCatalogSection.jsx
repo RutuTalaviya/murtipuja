@@ -81,34 +81,101 @@ export default function ProductCatalogSection({
               </h1>
             </div>
 
-            {/* Right Side: Total Count & Controls (Grid Toggle + Sort + Filter) */}
+            {/* Right Side: Total Count & Controls (Sort + Filter) */}
             <div className="flex flex-wrap items-center gap-3 sm:gap-4 justify-between md:justify-end">
               <span className="text-xs font-extrabold uppercase tracking-widest text-neutral-700 hidden lg:inline-block">
                 VIEW ALL ({totalProducts}) →
               </span>
-              <ProductFiltersDrawer
-                totalResults={totalProducts}
-                gridCols={gridCols}
-                onGridChange={handleGridChange}
-              />
+              <ProductFiltersDrawer totalResults={totalProducts} />
             </div>
           </div>
 
-          {/* Quick Category & Deity Filter Tabs Bar */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar pt-2 border-t border-stone-200">
-            {quickTabs.map((tab, idx) => (
-              <Link
-                key={idx}
-                href={tab.href}
-                className={`px-3.5 py-1.5 text-xs uppercase tracking-wider font-extrabold whitespace-nowrap transition-all border ${
-                  tab.active
-                    ? "bg-black text-white border-black"
-                    : "bg-white text-neutral-700 border-stone-300 hover:border-black hover:text-black"
+          {/* Sub-bar below Title: Quick Category Tabs + Grid View Switcher */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-stone-200">
+            {/* Quick Category & Deity Filter Tabs Bar */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar flex-1 min-w-0">
+              {quickTabs.map((tab, idx) => (
+                <Link
+                  key={idx}
+                  href={tab.href}
+                  className={`px-3.5 py-1.5 text-xs uppercase tracking-wider font-extrabold whitespace-nowrap transition-all border ${
+                    tab.active
+                      ? "bg-black text-white border-black"
+                      : "bg-white text-neutral-700 border-stone-300 hover:border-black hover:text-black"
+                  }`}
+                >
+                  {tab.label}
+                </Link>
+              ))}
+            </div>
+
+            {/* Grid View Switcher below Title */}
+            <div className="flex items-center self-end sm:self-center shrink-0 border-2 border-black bg-white divide-x-2 divide-black shadow-xs h-[34px]">
+              {/* 1. 2 Columns View (2-2) */}
+              <button
+                type="button"
+                onClick={() => handleGridChange(2)}
+                title="2 Columns Grid (2-2)"
+                aria-label="2 Columns View"
+                className={`px-2.5 h-full transition-colors flex items-center justify-center ${
+                  gridCols === 2
+                    ? "bg-black text-white"
+                    : "text-neutral-400 hover:text-black hover:bg-neutral-100"
                 }`}
               >
-                {tab.label}
-              </Link>
-            ))}
+                <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
+                  <rect x="2" y="2" width="7" height="7" rx="0.5" />
+                  <rect x="11" y="2" width="7" height="7" rx="0.5" />
+                  <rect x="2" y="11" width="7" height="7" rx="0.5" />
+                  <rect x="11" y="11" width="7" height="7" rx="0.5" />
+                </svg>
+              </button>
+
+              {/* 2. 3 Columns View (3-3 - Middle Icon) */}
+              <button
+                type="button"
+                onClick={() => handleGridChange(3)}
+                title="3 Columns Grid (3-3)"
+                aria-label="3 Columns View"
+                className={`px-2.5 h-full transition-colors flex items-center justify-center ${
+                  gridCols === 3
+                    ? "bg-black text-white"
+                    : "text-neutral-400 hover:text-black hover:bg-neutral-100"
+                }`}
+              >
+                <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
+                  <rect x="2" y="2" width="4.3" height="4.3" rx="0.4" />
+                  <rect x="7.85" y="2" width="4.3" height="4.3" rx="0.4" />
+                  <rect x="13.7" y="2" width="4.3" height="4.3" rx="0.4" />
+                  <rect x="2" y="7.85" width="4.3" height="4.3" rx="0.4" />
+                  <rect x="7.85" y="7.85" width="4.3" height="4.3" rx="0.4" />
+                  <rect x="13.7" y="7.85" width="4.3" height="4.3" rx="0.4" />
+                  <rect x="2" y="13.7" width="4.3" height="4.3" rx="0.4" />
+                  <rect x="7.85" y="13.7" width="4.3" height="4.3" rx="0.4" />
+                  <rect x="13.7" y="13.7" width="4.3" height="4.3" rx="0.4" />
+                </svg>
+              </button>
+
+              {/* 3. 4 Columns View (4-4 - Default Right Icon) */}
+              <button
+                type="button"
+                onClick={() => handleGridChange(4)}
+                title="4 Columns Grid (4-4 Default)"
+                aria-label="4 Columns View"
+                className={`px-2.5 h-full transition-colors flex items-center justify-center ${
+                  gridCols === 4
+                    ? "bg-black text-white"
+                    : "text-neutral-400 hover:text-black hover:bg-neutral-100"
+                }`}
+              >
+                <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
+                  <rect x="2" y="2.5" width="16" height="2" rx="0.4" />
+                  <rect x="2" y="7" width="16" height="2" rx="0.4" />
+                  <rect x="2" y="11.5" width="16" height="2" rx="0.4" />
+                  <rect x="2" y="16" width="16" height="2" rx="0.4" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 
