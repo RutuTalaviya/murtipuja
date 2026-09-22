@@ -124,9 +124,9 @@ export default function ProductFiltersDrawer({ totalResults }) {
       <div className="flex flex-wrap items-center justify-end gap-2.5 sm:gap-3">
         {/* Sort By Dropdown */}
         <div className="relative flex items-center">
-          <label htmlFor="sort-select" className="text-[11px] font-extrabold uppercase tracking-widest text-neutral-500 mr-2 hidden sm:inline-block">
+          {/* <label htmlFor="sort-select" className="text-[11px] font-extrabold uppercase tracking-widest text-neutral-500 mr-2 hidden sm:inline-block">
             Sort:
-          </label>
+          </label> */}
           <div className="relative">
             <select
               id="sort-select"
@@ -355,8 +355,8 @@ export default function ProductFiltersDrawer({ totalResults }) {
                           type="button"
                           onClick={() => updateQuery("subCategory", isSelected ? "" : sub.name)}
                           className={`text-left text-xs py-2.5 px-3.5 rounded-none border-2 transition-all flex justify-between items-center ${isSelected
-                              ? "bg-black border-black text-white font-extrabold uppercase tracking-wider shadow-xs"
-                              : "bg-white border-neutral-200 text-neutral-700 hover:border-orange-500 hover:text-orange-600 font-bold uppercase tracking-wider"
+                            ? "bg-black border-black text-white font-extrabold uppercase tracking-wider shadow-xs"
+                            : "bg-white border-neutral-200 text-neutral-700 hover:border-orange-500 hover:text-orange-600 font-bold uppercase tracking-wider"
                             }`}
                         >
                           <span className="truncate">

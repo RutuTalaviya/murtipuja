@@ -33,7 +33,7 @@ export default function ProductCatalogSection({
   useEffect(() => {
     try {
       const saved = localStorage.getItem("mp_product_grid_cols");
-      if (saved && (saved === "2" || saved === "3" || saved === "4")) {
+      if (saved && (saved === "3" || saved === "4" || saved === "6")) {
         setGridCols(Number(saved));
       }
     } catch {
@@ -109,29 +109,9 @@ export default function ProductCatalogSection({
               ))}
             </div>
 
-            {/* Grid View Switcher below Title */}
+            {/* Grid View Switcher below Title: 3 Columns | 4 Columns (Default) | 6 Columns */}
             <div className="flex items-center self-end sm:self-center shrink-0 border-2 border-black bg-white divide-x-2 divide-black shadow-xs h-[34px]">
-              {/* 1. 2 Columns View (2-2) */}
-              <button
-                type="button"
-                onClick={() => handleGridChange(2)}
-                title="2 Columns Grid (2-2)"
-                aria-label="2 Columns View"
-                className={`px-2.5 h-full transition-colors flex items-center justify-center ${
-                  gridCols === 2
-                    ? "bg-black text-white"
-                    : "text-neutral-400 hover:text-black hover:bg-neutral-100"
-                }`}
-              >
-                <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
-                  <rect x="2" y="2" width="7" height="7" rx="0.5" />
-                  <rect x="11" y="2" width="7" height="7" rx="0.5" />
-                  <rect x="2" y="11" width="7" height="7" rx="0.5" />
-                  <rect x="11" y="11" width="7" height="7" rx="0.5" />
-                </svg>
-              </button>
-
-              {/* 2. 3 Columns View (3-3 - Middle Icon) */}
+              {/* 1. 3 Columns View (3-3) */}
               <button
                 type="button"
                 onClick={() => handleGridChange(3)}
@@ -156,7 +136,7 @@ export default function ProductCatalogSection({
                 </svg>
               </button>
 
-              {/* 3. 4 Columns View (4-4 - Default Right Icon) */}
+              {/* 2. 4 Columns View (4-4 - Default) */}
               <button
                 type="button"
                 onClick={() => handleGridChange(4)}
@@ -173,6 +153,28 @@ export default function ProductCatalogSection({
                   <rect x="2" y="7" width="16" height="2" rx="0.4" />
                   <rect x="2" y="11.5" width="16" height="2" rx="0.4" />
                   <rect x="2" y="16" width="16" height="2" rx="0.4" />
+                </svg>
+              </button>
+
+              {/* 3. 6 Columns View (6-6) */}
+              <button
+                type="button"
+                onClick={() => handleGridChange(6)}
+                title="6 Columns Grid (6-6)"
+                aria-label="6 Columns View"
+                className={`px-2.5 h-full transition-colors flex items-center justify-center ${
+                  gridCols === 6
+                    ? "bg-black text-white"
+                    : "text-neutral-400 hover:text-black hover:bg-neutral-100"
+                }`}
+              >
+                <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
+                  <rect x="2" y="2" width="4" height="6.5" rx="0.5" />
+                  <rect x="8" y="2" width="4" height="6.5" rx="0.5" />
+                  <rect x="14" y="2" width="4" height="6.5" rx="0.5" />
+                  <rect x="2" y="11.5" width="4" height="6.5" rx="0.5" />
+                  <rect x="8" y="11.5" width="4" height="6.5" rx="0.5" />
+                  <rect x="14" y="11.5" width="4" height="6.5" rx="0.5" />
                 </svg>
               </button>
             </div>
@@ -234,10 +236,10 @@ export default function ProductCatalogSection({
         ) : (
           <div
             className={`w-full grid border-t border-l border-stone-300 bg-white transition-all duration-300 ${
-              gridCols === 2
-                ? "grid-cols-1 sm:grid-cols-2"
-                : gridCols === 3
+              gridCols === 3
                 ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                : gridCols === 6
+                ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
                 : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
             }`}
           >
