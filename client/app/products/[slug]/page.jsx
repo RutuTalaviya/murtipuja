@@ -53,21 +53,71 @@ export default async function ProductDetailPage({ params }) {
     console.error("Failed to load finishes:", err);
   }
 
-  // Fetch related products dynamically (prioritizing matching deity, filled up to 10 for single-row carousel)
+  // Fetch related products dynamically (strictly matching the same category / deity only)
   let relatedProducts = [];
   try {
-    const allData = await fetchProducts({ limit: 15 });
-    const allList = (allData.products || []).filter(
+    const primaryCat = Array.isArray(product.category) && product.category.length > 0 ? product.category[0] : product.category;
+    const catQuery = primaryCat?.name || primaryCat?.slug || product.deity || "";
+    
+    // Fetch products filtered by category/deity
+    const relatedData = await fetchProducts({
+      category: catQuery,
+      limit: 15,
+    });
+
+    const currentDeityLower = (product.deity || primaryCat?.name || "").toLowerCase().trim();
+    const catId = primaryCat?._id ? primaryCat._id.toString() : "";
+    const catNameLower = (primaryCat?.name || "").toLowerCase().trim();
+    const catSlugLower = (primaryCat?.slug || "").toLowerCase().trim();
+
+    const allList = (relatedData.products || []).filter(
       (p) => p._id.toString() !== product._id.toString()
     );
-    // Sort so same deity comes first
-    const sameDeity = allList.filter(
-      (p) => p.deity && product.deity && p.deity.toLowerCase() === product.deity.toLowerCase()
-    );
-    const otherDeities = allList.filter(
-      (p) => !product.deity || !p.deity || p.deity.toLowerCase() !== product.deity.toLowerCase()
-    );
-    relatedProducts = [...sameDeity, ...otherDeities].slice(0, 10);
+
+    // Strictly filter to ensure ONLY products belonging to the same category / deity / subcategory
+    relatedProducts = allList.filter((p) => {
+      // 1. Check deity match
+      const pDeityLower = (p.deity || "").toLowerCase().trim();
+      if (
+        pDeityLower &&
+        currentDeityLower &&
+        (pDeityLower === currentDeityLower ||
+          pDeityLower.includes(currentDeityLower) ||
+          currentDeityLower.includes(pDeityLower))
+      ) {
+        return true;
+      }
+
+      // 2. Check main category match
+      const pCats = Array.isArray(p.category) ? p.category : p.category ? [p.category] : [];
+      const pCatMatch = pCats.some((c) => {
+        const id = c?._id ? c._id.toString() : c?.toString?.();
+        const name = (c?.name || typeof c === "string" ? c?.name || c : "").toLowerCase().trim();
+        const slug = (c?.slug || "").toLowerCase().trim();
+        return (
+          (catId && id === catId) ||
+          (catNameLower && name === catNameLower) ||
+          (catSlugLower && slug === catSlugLower) ||
+          (currentDeityLower && (name.includes(currentDeityLower) || slug.includes(currentDeityLower)))
+        );
+      });
+      if (pCatMatch) return true;
+
+      // 3. Check subcategory match
+      const pSubCats = Array.isArray(p.subCategory) ? p.subCategory : p.subCategory ? [p.subCategory] : [];
+      const pSubMatch = pSubCats.some((sub) => {
+        const id = sub?._id ? sub._id.toString() : sub?.toString?.();
+        const name = (sub?.name || typeof sub === "string" ? sub?.name || sub : "").toLowerCase().trim();
+        const parentId = sub?.parentCategory?._id ? sub.parentCategory._id.toString() : sub?.parentCategory?.toString?.();
+        return (
+          (catId && (id === catId || parentId === catId)) ||
+          (currentDeityLower && name.includes(currentDeityLower))
+        );
+      });
+      if (pSubMatch) return true;
+
+      return false;
+    }).slice(0, 10);
   } catch (err) {
     console.error("Failed to load related products:", err);
   }
