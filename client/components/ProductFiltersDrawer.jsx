@@ -189,7 +189,7 @@ export default function ProductFiltersDrawer({ totalResults }) {
             <div className="shrink-0 p-5 sm:p-6 border-b-2 border-black flex justify-between items-center bg-white">
               <div className="flex items-center gap-2">
                 <h3 className="font-display font-extrabold text-base sm:text-lg text-black uppercase tracking-wider">
-                  Filters & Sorting
+                  Product Filters
                 </h3>
                 {activeFilterCount > 0 && (
                   <span className="bg-orange-500 text-white text-[10px] font-extrabold px-2 py-0.5 border border-black">
@@ -222,43 +222,8 @@ export default function ProductFiltersDrawer({ totalResults }) {
             {/* Drawer Body (Scrollable filter controls with min-h-0 and generous bottom padding) */}
             <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 pb-12 space-y-7 divide-y-2 divide-neutral-100">
 
-              {/* 1. Sort Options (Newest First, Price, etc.) */}
-              <div className="pt-2 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-[11px] uppercase font-extrabold tracking-widest text-neutral-400">Sort Products</h4>
-                  {activeSort && (
-                    <button
-                      type="button"
-                      onClick={() => updateQuery("sort", "")}
-                      className="text-[10px] uppercase font-bold text-orange-600 hover:underline"
-                    >
-                      Clear Sort
-                    </button>
-                  )}
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {SORT_OPTIONS.map((opt) => {
-                    const isSelected = activeSort === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => updateQuery("sort", isSelected ? "" : opt.value)}
-                        className={`text-left text-xs py-2.5 px-3.5 rounded-none border-2 transition-all flex justify-between items-center ${isSelected
-                          ? "bg-black border-black text-white font-extrabold uppercase tracking-wider shadow-xs"
-                          : "bg-white border-neutral-200 text-neutral-700 hover:border-orange-500 hover:text-orange-600 font-bold uppercase tracking-wider"
-                          }`}
-                      >
-                        <span>{opt.label}</span>
-                        {isSelected && <span className="text-orange-400 text-xs">✓</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 2. Filter: On Sale Toggle */}
-              <div className="pt-6">
+              {/* 1. Filter: On Sale Toggle */}
+              <div className="pt-2">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs uppercase font-extrabold tracking-wider text-black">On Sale Only</p>
