@@ -18,7 +18,7 @@ const SORT_OPTIONS = [
   { label: "Oldest First", value: "createdAt" },
 ];
 
-export default function ProductFiltersDrawer({ totalResults }) {
+export default function ProductFiltersDrawer({ totalResults, gridCols = 4, onGridChange }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -120,8 +120,78 @@ export default function ProductFiltersDrawer({ totalResults }) {
 
   return (
     <div className="font-display">
-      {/* Top Right Controls Toolbar: Sort By Dropdown + Filters Button */}
-      <div className="flex flex-wrap items-center justify-end gap-3">
+      {/* Top Right Controls Toolbar: Grid View Switcher + Sort By Dropdown + Filters Button */}
+      <div className="flex flex-wrap items-center justify-end gap-2.5 sm:gap-3">
+        {/* Grid View Switcher: 2 Columns (2-2) | 3 Columns (3-3) | 4 Columns (4-4 Default) */}
+        {onGridChange && (
+          <div className="hidden sm:flex items-center border-2 border-black bg-white divide-x-2 divide-black shadow-xs h-[38px]">
+            {/* 1. 2 Columns View (2-2) */}
+            <button
+              type="button"
+              onClick={() => onGridChange(2)}
+              title="2 Columns Grid (2-2)"
+              aria-label="2 Columns View"
+              className={`px-2.5 h-full transition-colors flex items-center justify-center ${
+                gridCols === 2
+                  ? "bg-black text-white"
+                  : "text-neutral-400 hover:text-black hover:bg-neutral-100"
+              }`}
+            >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                <rect x="2" y="2" width="7" height="7" rx="0.5" />
+                <rect x="11" y="2" width="7" height="7" rx="0.5" />
+                <rect x="2" y="11" width="7" height="7" rx="0.5" />
+                <rect x="11" y="11" width="7" height="7" rx="0.5" />
+              </svg>
+            </button>
+
+            {/* 2. 3 Columns View (3-3 - Middle Icon) */}
+            <button
+              type="button"
+              onClick={() => onGridChange(3)}
+              title="3 Columns Grid (3-3)"
+              aria-label="3 Columns View"
+              className={`px-2.5 h-full transition-colors flex items-center justify-center ${
+                gridCols === 3
+                  ? "bg-black text-white"
+                  : "text-neutral-400 hover:text-black hover:bg-neutral-100"
+              }`}
+            >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                <rect x="2" y="2" width="4.3" height="4.3" rx="0.4" />
+                <rect x="7.85" y="2" width="4.3" height="4.3" rx="0.4" />
+                <rect x="13.7" y="2" width="4.3" height="4.3" rx="0.4" />
+                <rect x="2" y="7.85" width="4.3" height="4.3" rx="0.4" />
+                <rect x="7.85" y="7.85" width="4.3" height="4.3" rx="0.4" />
+                <rect x="13.7" y="7.85" width="4.3" height="4.3" rx="0.4" />
+                <rect x="2" y="13.7" width="4.3" height="4.3" rx="0.4" />
+                <rect x="7.85" y="13.7" width="4.3" height="4.3" rx="0.4" />
+                <rect x="13.7" y="13.7" width="4.3" height="4.3" rx="0.4" />
+              </svg>
+            </button>
+
+            {/* 3. 4 Columns View (4-4 - Default Right Icon) */}
+            <button
+              type="button"
+              onClick={() => onGridChange(4)}
+              title="4 Columns Grid (4-4 Default)"
+              aria-label="4 Columns View"
+              className={`px-2.5 h-full transition-colors flex items-center justify-center ${
+                gridCols === 4
+                  ? "bg-black text-white"
+                  : "text-neutral-400 hover:text-black hover:bg-neutral-100"
+              }`}
+            >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                <rect x="2" y="2.5" width="16" height="2" rx="0.4" />
+                <rect x="2" y="7" width="16" height="2" rx="0.4" />
+                <rect x="2" y="11.5" width="16" height="2" rx="0.4" />
+                <rect x="2" y="16" width="16" height="2" rx="0.4" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* Sort By Dropdown */}
         <div className="relative flex items-center">
           <label htmlFor="sort-select" className="text-[11px] font-extrabold uppercase tracking-widest text-neutral-500 mr-2 hidden sm:inline-block">
