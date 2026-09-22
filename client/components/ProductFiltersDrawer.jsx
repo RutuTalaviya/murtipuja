@@ -11,7 +11,6 @@ const PURPOSES = [
 ];
 
 const SORT_OPTIONS = [
-  { label: "Random / Discovery (Default)", value: "random" },
   { label: "Newest First", value: "-createdAt" },
   { label: "Price: Low to High", value: "basePrice" },
   { label: "Price: High to Low", value: "-basePrice" },
@@ -70,7 +69,7 @@ export default function ProductFiltersDrawer({ totalResults }) {
   const activeSubCategory = searchParams.get("subCategory") || "";
   const activePurpose = searchParams.get("purpose") || "";
   const isOnSaleOnly = searchParams.get("onsale") === "true";
-  const activeSort = searchParams.get("sort") || "-createdAt";
+  const activeSort = searchParams.get("sort") || "";
 
   // Count active filters
   let activeFilterCount = 0;
@@ -78,7 +77,7 @@ export default function ProductFiltersDrawer({ totalResults }) {
   if (activeSubCategory) activeFilterCount++;
   if (activePurpose) activeFilterCount++;
   if (isOnSaleOnly) activeFilterCount++;
-  if (searchParams.get("sort") && searchParams.get("sort") !== "-createdAt") activeFilterCount++;
+  if (activeSort) activeFilterCount++;
   if (searchParams.get("minPrice") || searchParams.get("maxPrice")) activeFilterCount++;
 
   function updateQuery(key, value) {
@@ -116,7 +115,6 @@ export default function ProductFiltersDrawer({ totalResults }) {
   function handleClearFilters() {
     setMinPrice("");
     setMaxPrice("");
-    const params = new URLSearchParams();
     router.push(`/products`);
   }
 
@@ -136,6 +134,9 @@ export default function ProductFiltersDrawer({ totalResults }) {
               onChange={handleSortChange}
               className="appearance-none bg-white border-2 border-black text-black font-extrabold text-xs uppercase tracking-wider py-2.5 pl-3.5 pr-8 rounded-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500 hover:border-orange-500 transition-colors"
             >
+              <option value="" className="font-bold py-1">
+                Sort By
+              </option>
               {SORT_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value} className="font-bold py-1">
                   {opt.label}
@@ -228,13 +229,13 @@ export default function ProductFiltersDrawer({ totalResults }) {
               <div className="pt-2 space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-[11px] uppercase font-extrabold tracking-widest text-neutral-400">Sort Products</h4>
-                  {activeSort !== "-createdAt" && (
+                  {activeSort && (
                     <button
                       type="button"
-                      onClick={() => updateQuery("sort", "-createdAt")}
+                      onClick={() => updateQuery("sort", "")}
                       className="text-[10px] uppercase font-bold text-orange-600 hover:underline"
                     >
-                      Reset to Newest
+                      Clear Sort
                     </button>
                   )}
                 </div>
@@ -245,7 +246,7 @@ export default function ProductFiltersDrawer({ totalResults }) {
                       <button
                         key={opt.value}
                         type="button"
-                        onClick={() => updateQuery("sort", opt.value)}
+                        onClick={() => updateQuery("sort", isSelected ? "" : opt.value)}
                         className={`text-left text-xs py-2.5 px-3.5 rounded-none border-2 transition-all flex justify-between items-center ${isSelected
                             ? "bg-black border-black text-white font-extrabold uppercase tracking-wider shadow-xs"
                             : "bg-white border-neutral-200 text-neutral-700 hover:border-orange-500 hover:text-orange-600 font-bold uppercase tracking-wider"

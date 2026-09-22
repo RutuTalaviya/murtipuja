@@ -10,7 +10,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 export async function fetchProducts(searchParams = {}) {
   const params = new URLSearchParams(searchParams).toString();
   const res = await fetch(`${API_URL}/api/products?${params}`, {
-    next: { revalidate: 300 }, // revalidate every 5 minutes
+    cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch products");
   return res.json();
