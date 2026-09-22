@@ -169,12 +169,12 @@ export default function ProductCatalogSection({
                 }`}
               >
                 <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
-                  <rect x="2" y="2" width="4" height="6.5" rx="0.5" />
-                  <rect x="8" y="2" width="4" height="6.5" rx="0.5" />
-                  <rect x="14" y="2" width="4" height="6.5" rx="0.5" />
-                  <rect x="2" y="11.5" width="4" height="6.5" rx="0.5" />
-                  <rect x="8" y="11.5" width="4" height="6.5" rx="0.5" />
-                  <rect x="14" y="11.5" width="4" height="6.5" rx="0.5" />
+                  <rect x="2" y="2" width="16" height="1.6" rx="0.3" />
+                  <rect x="2" y="5.2" width="16" height="1.6" rx="0.3" />
+                  <rect x="2" y="8.4" width="16" height="1.6" rx="0.3" />
+                  <rect x="2" y="11.6" width="16" height="1.6" rx="0.3" />
+                  <rect x="2" y="14.8" width="16" height="1.6" rx="0.3" />
+                  <rect x="2" y="18" width="16" height="1.6" rx="0.3" />
                 </svg>
               </button>
             </div>

@@ -124,9 +124,6 @@ export default function ProductFiltersDrawer({ totalResults }) {
       <div className="flex flex-wrap items-center justify-end gap-2.5 sm:gap-3">
         {/* Sort By Dropdown */}
         <div className="relative flex items-center">
-          {/* <label htmlFor="sort-select" className="text-[11px] font-extrabold uppercase tracking-widest text-neutral-500 mr-2 hidden sm:inline-block">
-            Sort:
-          </label> */}
           <div className="relative">
             <select
               id="sort-select"
