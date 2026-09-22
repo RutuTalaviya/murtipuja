@@ -42,7 +42,7 @@ export default async function ProductsPage({ searchParams }) {
     categorySubtitle = "ARCHITECTURAL DEVOTION";
     pageTitle = "HOME DECOR IDOLS";
   } else if (activeCategoryParam) {
-    categorySubtitle = "MAIN CATEGORY";
+    categorySubtitle = "IDOL SERIES";
     pageTitle = `${activeCategoryParam.toUpperCase()} SACRED SERIES`;
   } else if (params.onsale === "true") {
     categorySubtitle = "LIMITED OPPORTUNITY";
@@ -57,7 +57,7 @@ export default async function ProductsPage({ searchParams }) {
 
   // Active filter tags for quick removal
   const activeTags = [];
-  if (activeCategoryParam) activeTags.push({ label: `Category: ${activeCategoryParam}`, keys: ["category", "deity"] });
+  if (activeCategoryParam) activeTags.push({ label: `Idol Series: ${activeCategoryParam}`, keys: ["category", "deity"] });
   if (params.subCategory) activeTags.push({ label: `Type: ${params.subCategory}`, key: "subCategory" });
   if (params.purpose) {
     const purposeLabel = params.purpose === "pooja-room" ? "Pooja Essentials" : params.purpose === "home-decor" ? "Home Decor" : params.purpose;

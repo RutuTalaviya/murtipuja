@@ -248,8 +248,8 @@ export default function ProductFiltersDrawer({ totalResults }) {
                         type="button"
                         onClick={() => updateQuery("sort", isSelected ? "" : opt.value)}
                         className={`text-left text-xs py-2.5 px-3.5 rounded-none border-2 transition-all flex justify-between items-center ${isSelected
-                            ? "bg-black border-black text-white font-extrabold uppercase tracking-wider shadow-xs"
-                            : "bg-white border-neutral-200 text-neutral-700 hover:border-orange-500 hover:text-orange-600 font-bold uppercase tracking-wider"
+                          ? "bg-black border-black text-white font-extrabold uppercase tracking-wider shadow-xs"
+                          : "bg-white border-neutral-200 text-neutral-700 hover:border-orange-500 hover:text-orange-600 font-bold uppercase tracking-wider"
                           }`}
                       >
                         <span>{opt.label}</span>
@@ -281,9 +281,9 @@ export default function ProductFiltersDrawer({ totalResults }) {
                 </div>
               </div>
 
-              {/* 3. Filter: Main Category */}
+              {/* 3. Filter: Idol Series List */}
               <div className="pt-6 space-y-3">
-                <h4 className="text-[11px] uppercase font-extrabold tracking-widest text-neutral-400">Main Category</h4>
+                <h4 className="text-[11px] uppercase font-extrabold tracking-widest text-neutral-400">Idol Series List</h4>
                 <div className="grid grid-cols-2 gap-2">
                   {deities.map((catName) => {
                     const isActive = activeCategory.toLowerCase() === catName.toLowerCase();
@@ -292,8 +292,8 @@ export default function ProductFiltersDrawer({ totalResults }) {
                         key={catName}
                         onClick={() => updateQuery("category", isActive ? "" : catName)}
                         className={`text-left text-xs py-2.5 px-3.5 rounded-none border-2 transition-all flex justify-between items-center ${isActive
-                            ? "bg-black border-black text-white font-extrabold uppercase tracking-wider"
-                            : "bg-white border-neutral-200 text-neutral-700 hover:border-black font-bold uppercase tracking-wider"
+                          ? "bg-black border-black text-white font-extrabold uppercase tracking-wider"
+                          : "bg-white border-neutral-200 text-neutral-700 hover:border-black font-bold uppercase tracking-wider"
                           }`}
                       >
                         <span>{catName}</span>
@@ -315,8 +315,8 @@ export default function ProductFiltersDrawer({ totalResults }) {
                         key={purpose.value}
                         onClick={() => updateQuery("purpose", isActive ? "" : purpose.value)}
                         className={`text-left text-xs py-2.5 px-3.5 rounded-none border-2 transition-all flex justify-between items-center ${isActive
-                            ? "bg-black border-black text-white font-extrabold uppercase tracking-wider"
-                            : "bg-white border-neutral-200 text-neutral-700 hover:border-black font-bold uppercase tracking-wider"
+                          ? "bg-black border-black text-white font-extrabold uppercase tracking-wider"
+                          : "bg-white border-neutral-200 text-neutral-700 hover:border-black font-bold uppercase tracking-wider"
                           }`}
                       >
                         <span>{purpose.label}</span>
@@ -354,11 +354,10 @@ export default function ProductFiltersDrawer({ totalResults }) {
                           key={sub._id}
                           type="button"
                           onClick={() => updateQuery("subCategory", isSelected ? "" : sub.name)}
-                          className={`text-left text-xs py-2.5 px-3.5 rounded-none border-2 transition-all flex justify-between items-center ${
-                            isSelected
+                          className={`text-left text-xs py-2.5 px-3.5 rounded-none border-2 transition-all flex justify-between items-center ${isSelected
                               ? "bg-black border-black text-white font-extrabold uppercase tracking-wider shadow-xs"
                               : "bg-white border-neutral-200 text-neutral-700 hover:border-orange-500 hover:text-orange-600 font-bold uppercase tracking-wider"
-                          }`}
+                            }`}
                         >
                           <span className="truncate">
                             {sub.name}
