@@ -219,13 +219,13 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
       {/* 1. LEFT VERTICAL THUMBNAILS (Desktop) */}
       {/* ------------------------------------------------------------- */}
       {mediaList.length > 1 && (
-        <div className="hidden md:flex flex-col gap-2.5 sm:gap-3 overflow-x-hidden overflow-y-auto w-18 lg:w-22 max-h-[min(650px,calc(100vh-140px))] no-scrollbar flex-shrink-0 py-0.5">
+        <div className="hidden md:flex flex-col gap-2.5 sm:gap-3 overflow-x-hidden overflow-y-auto w-16 lg:w-20 max-h-[min(540px,calc(100vh-180px))] no-scrollbar flex-shrink-0 py-0.5">
           {mediaList.map((media, idx) => (
             <button
               key={idx}
               onClick={() => setActiveIndex(idx)}
               onMouseEnter={() => setActiveIndex(idx)}
-              className={`relative w-18 h-18 lg:w-22 lg:h-22 rounded-none overflow-hidden border-2 bg-white flex-shrink-0 transition-all cursor-pointer ${
+              className={`relative w-16 h-16 lg:w-20 lg:h-20 rounded-none overflow-hidden border-2 bg-white flex-shrink-0 transition-all cursor-pointer ${
                 idx === activeIndex
                   ? "border-black ring-2 ring-orange-500 scale-[0.98]"
                   : "border-neutral-200 hover:border-black opacity-75 hover:opacity-100"
@@ -257,14 +257,14 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
       {/* ------------------------------------------------------------- */}
       {/* 2. MAIN ACTIVE MEDIA DISPLAY (With Interactive Hover Zoom) */}
       {/* ------------------------------------------------------------- */}
-      <div className="flex-1 w-full max-w-full lg:max-w-[660px] mx-auto space-y-3">
+      <div className="flex-1 w-full max-w-[540px] mx-auto space-y-3">
         <div
           ref={mainImageRef}
           onMouseMove={handleMouseMove}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           onClick={openLightbox}
-          className={`relative w-full aspect-square min-h-[380px] sm:min-h-[460px] md:min-h-[520px] lg:min-h-[580px] max-h-[min(660px,calc(100vh-140px))] bg-neutral-50 rounded-none overflow-hidden border-2 border-black shadow-sm group flex items-center justify-center ${
+          className={`relative w-full aspect-square max-h-[min(540px,calc(100vh-180px))] bg-neutral-50 rounded-none overflow-hidden border-2 border-black shadow-sm group flex items-center justify-center ${
             activeMedia.type === "video" ? "cursor-default" : "cursor-zoom-in"
           }`}
         >
@@ -279,7 +279,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
               key={activeMedia.url}
             />
           ) : (
-            <div className="relative w-full h-full overflow-hidden flex items-center justify-center p-2 sm:p-2.5">
+            <div className="relative w-full h-full overflow-hidden flex items-center justify-center p-3 sm:p-4">
               {!isMainImageLoaded && (
                 <div className="skeleton-box absolute inset-0 z-10 pointer-events-none transition-opacity duration-300" />
               )}
@@ -289,7 +289,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                 fill
                 onLoad={() => setIsMainImageLoaded(true)}
                 onError={() => setIsMainImageLoaded(true)}
-                className={`object-contain p-2 sm:p-2.5 transition-all duration-300 ease-out select-none pointer-events-none ${
+                className={`object-contain p-2 sm:p-3 transition-all duration-300 ease-out select-none pointer-events-none ${
                   isMainImageLoaded ? "opacity-100" : "opacity-0"
                 } ${
                   isHovering ? "scale-[2.2]" : "scale-100"
@@ -299,36 +299,6 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                 }}
                 priority
               />
-            </div>
-          )}
-
-          {/* Top Left Precision Badge */}
-          <div className="absolute top-3 left-3 flex flex-col gap-1.5 pointer-events-none z-10">
-            <span className="bg-black text-white text-[9px] font-extrabold uppercase tracking-widest px-2.5 py-1 border border-black shadow-sm">
-              0.1MM PRECISION
-            </span>
-          </div>
-
-          {/* Top Right Counter Badge & Zoom Hint */}
-          <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 pointer-events-none">
-            {activeMedia.type !== "video" && (
-              <span className="bg-orange-500 text-white text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 border border-black shadow-sm hidden sm:inline-flex items-center gap-1">
-                <span>🔍</span> ZOOM
-              </span>
-            )}
-            {mediaList.length > 1 && (
-              <span className="bg-white/95 text-black text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 border border-black shadow-sm">
-                {activeIndex + 1} / {mediaList.length}
-              </span>
-            )}
-          </div>
-
-          {/* Bottom Zoom Expansion Pill Indicator */}
-          {activeMedia.type !== "video" && (
-            <div className="absolute bottom-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              <span className="bg-black/85 text-white text-[10px] font-bold px-2.5 py-1 rounded-none border border-white/30 backdrop-blur-sm flex items-center gap-1.5 shadow-md">
-                <span>⤢</span> Click for Fullscreen
-              </span>
             </div>
           )}
 
