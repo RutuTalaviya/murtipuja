@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import PagesCmsManager from "@/components/admin/PagesCmsManager";
 import api, {
   getAdminDashboard,
   getAdminOrders,
@@ -1786,6 +1787,30 @@ export default function AdminPage() {
                 }`}
               >
                 {videoReels.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab("pages"); setSelectedOrder(null); setMobileSidebarOpen(false); }}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all bg-white ${
+                activeTab === "pages"
+                  ? "text-maroon font-black border-2 border-maroon shadow-xs ring-2 ring-maroon/10"
+                  : "text-charcoal/80 font-bold border border-slate-200 hover:border-slate-300 hover:bg-slate-50 hover:text-black shadow-2xs"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                {activeTab === "pages" && <span className="w-1.5 h-4 bg-maroon rounded-full shrink-0"></span>}
+                <span className="text-sm">📄</span>
+                <span>Pages CMS</span>
+              </div>
+              <span
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  activeTab === "pages"
+                    ? "bg-maroon/10 text-maroon border-maroon/20 font-black"
+                    : "bg-slate-100 text-charcoal/70 border-slate-200"
+                }`}
+              >
+                6
               </span>
             </button>
           </div>
@@ -5628,6 +5653,11 @@ export default function AdminPage() {
               </div>
             )}
           </div>
+        )}
+
+        {/* Dynamic Pages CMS Tab */}
+        {activeTab === "pages" && (
+          <PagesCmsManager />
         )}
       </main>
     </div>

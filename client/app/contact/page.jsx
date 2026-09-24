@@ -1,11 +1,54 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getPageContent } from "@/lib/api";
+
+const DEFAULT_FAQS = [
+  {
+    q: "How do I return or exchange a product?",
+    a: "We offer a 7-day hassle-free return and exchange policy from the date of delivery. You can initiate a request directly from our returns portal or reach out to us via WhatsApp/email with your Order ID. Please note that an unedited unboxing video is mandatory for transit damage claims.",
+  },
+  {
+    q: "How can I track my order?",
+    a: "Once dispatched, you will receive a tracking link via WhatsApp, SMS, and Email. You can also use our public Track Order page to check real-time updates instantly using your Order ID and registered phone number.",
+  },
+  {
+    q: "Can I order in bulk, and are there discounts?",
+    a: "Yes! We accept bulk orders for corporate gifting, wedding favors, and festive occasions. We offer customized packaging and special tiered discounts on large orders. Please email us at support@murtipuja.com or call us to discuss your requirements.",
+  },
+  {
+    q: "How do I explore a brand partnership or collaboration?",
+    a: "We are always excited to collaborate with designers, spiritual portals, and retail brands. Please send us your proposal or design portfolio at support@murtipuja.com, and our partnerships coordinator will reach out to you.",
+  },
+  {
+    q: "What are your shipping timelines? Do you ship internationally?",
+    a: "We dispatch orders within 48 hours. Standard shipping takes 1-3 working days for metro cities, and 3-5 days for other states. Currently, we ship primarily across India, but you can contact us for special international inquiries.",
+  },
+  {
+    q: "Do you offer customisation and gift packaging?",
+    a: "Yes, we do! We can customize the size of your murtis (from 6 inches up to 24 inches) and print custom finishes (e.g., Gold Leaf, Antique Bronze). We also provide premium gift wrapping with handwritten personalized notes.",
+  },
+];
 
 export default function ContactPage() {
+  const [pageData, setPageData] = useState(null);
   const [openFaqIndex, setOpenFaqIndex] = useState(null);
   const [statusText, setStatusText] = useState("We're closed now · Opens Monday 10 AM");
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const res = await getPageContent("contact");
+        if (res.data?.success && res.data?.data) {
+          setPageData(res.data.data);
+        }
+      } catch (err) {
+        console.error("Failed to load dynamic contact page:", err);
+      }
+    }
+    loadData();
+  }, []);
 
   useEffect(() => {
     const getOfficeStatus = () => {
@@ -37,32 +80,25 @@ export default function ContactPage() {
     setOpenFaqIndex(openFaqIndex === idx ? null : idx);
   };
 
-  const FAQS = [
-    {
-      q: "How do I return or exchange a product?",
-      a: "We offer a 7-day hassle-free return and exchange policy from the date of delivery. You can initiate a request directly from our returns portal or reach out to us via WhatsApp/email with your Order ID. Please note that an unedited unboxing video is mandatory for transit damage claims."
-    },
-    {
-      q: "How can I track my order?",
-      a: "Once dispatched, you will receive a tracking link via WhatsApp, SMS, and Email. You can also use our public Track Order page to check real-time updates instantly using your Order ID and registered phone number."
-    },
-    {
-      q: "Can I order in bulk, and are there discounts?",
-      a: "Yes! We accept bulk orders for corporate gifting, wedding favors, and festive occasions. We offer customized packaging and special tiered discounts on large orders. Please email us at support@murtipuja.com or call us to discuss your requirements."
-    },
-    {
-      q: "How do I explore a brand partnership or collaboration?",
-      a: "We are always excited to collaborate with designers, spiritual portals, and retail brands. Please send us your proposal or design portfolio at support@murtipuja.com, and our partnerships coordinator will reach out to you."
-    },
-    {
-      q: "What are your shipping timelines? Do you ship internationally?",
-      a: "We dispatch orders within 48 hours. Standard shipping takes 1-3 working days for metro cities, and 3-5 days for other states. Currently, we ship primarily across India, but you can contact us for special international inquiries."
-    },
-    {
-      q: "Do you offer customisation and gift packaging?",
-      a: "Yes, we do! We can customize the size of your murtis (from 6 inches up to 24 inches) and print custom finishes (e.g., Gold Leaf, Antique Bronze). We also provide premium gift wrapping with handwritten personalized notes."
-    }
-  ];
+  const hero = pageData?.hero || {
+    badge: "Customer Support & Concierge",
+    headline: "Contact MurtiPuja",
+    description:
+      "Questions about a drop, bulk orders, or custom dimensions — our team in Surat is here to assist.",
+  };
+
+  const contactInfo = pageData?.contactInfo || {
+    email: "support@murtipuja.com",
+    phone: "+91 79901 38678",
+    whatsapp: "+91 79901 38678",
+    address: "MurtiPuja Headquarters, Ring Road, Textile & Diamond City, Surat - 395007, Gujarat, India",
+    openingHours: "Mon–Sat · 10am–7pm IST",
+    supportHours: "Replies within 24 working hours",
+  };
+
+  const faqs = pageData?.faqs && pageData.faqs.length > 0
+    ? pageData.faqs.map(f => ({ q: f.question, a: f.answer }))
+    : DEFAULT_FAQS;
 
   return (
     <main className="min-h-screen bg-[#faf9f6] px-3 sm:px-6 md:px-8 lg:px-12 py-6 sm:py-8 md:py-10 font-display w-full">
@@ -72,13 +108,13 @@ export default function ContactPage() {
         <div className="border-b border-stone-200 pb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
             <p className="text-[10px] uppercase tracking-[0.25em] text-neutral-400 font-extrabold mb-1">
-              Customer Support & Concierge
+              {hero.badge || "Customer Support & Concierge"}
             </p>
             <h1 className="font-display text-3xl sm:text-4xl md:text-5xl text-neutral-900 font-extrabold uppercase tracking-wider">
-              Contact MurtiPuja
+              {hero.headline || pageData?.title || "Contact MurtiPuja"}
             </h1>
             <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider mt-2 max-w-xl">
-              Questions about a drop, bulk orders, or custom dimensions — our team in Surat is here to assist.
+              {hero.description || pageData?.subtitle || "Questions about a drop, bulk orders, or custom dimensions — our team in Surat is here to assist."}
             </p>
           </div>
 
@@ -115,7 +151,7 @@ export default function ContactPage() {
 
             {/* Call Card */}
             <a
-              href="tel:+919664737035"
+              href={`tel:${(contactInfo.phone || "").replace(/\s+/g, "")}`}
               className="flex items-center justify-between p-6 bg-white border border-stone-200 shadow-sm hover:border-stone-400 transition-all group cursor-pointer"
             >
               <div className="flex items-center gap-4">
@@ -124,8 +160,8 @@ export default function ContactPage() {
                 </div>
                 <div className="text-left">
                   <h3 className="font-display text-base text-neutral-900 font-extrabold uppercase tracking-wider">Call Customer Care</h3>
-                  <p className="text-sm font-extrabold text-neutral-900 mt-0.5">+91 96647 37035</p>
-                  <p className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider mt-0.5">Mon–Sat · 10am–7pm IST</p>
+                  <p className="text-sm font-extrabold text-neutral-900 mt-0.5">{contactInfo.phone}</p>
+                  <p className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider mt-0.5">{contactInfo.openingHours || "Mon–Sat · 10am–7pm IST"}</p>
                 </div>
               </div>
               <span className="text-neutral-900 font-bold text-lg group-hover:translate-x-1.5 transition-transform duration-300">→</span>
@@ -133,7 +169,7 @@ export default function ContactPage() {
 
             {/* Email Card */}
             <a
-              href="mailto:support@murtipuja.com"
+              href={`mailto:${contactInfo.email}`}
               className="flex items-center justify-between p-6 bg-white border border-stone-200 shadow-sm hover:border-stone-400 transition-all group cursor-pointer"
             >
               <div className="flex items-center gap-4">
@@ -142,8 +178,8 @@ export default function ContactPage() {
                 </div>
                 <div className="text-left">
                   <h3 className="font-display text-base text-neutral-900 font-extrabold uppercase tracking-wider">Email Concierge</h3>
-                  <p className="text-sm font-extrabold text-neutral-900 mt-0.5">support@murtipuja.com</p>
-                  <p className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider mt-0.5">Replies within 24 working hours</p>
+                  <p className="text-sm font-extrabold text-neutral-900 mt-0.5">{contactInfo.email}</p>
+                  <p className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider mt-0.5">{contactInfo.supportHours || "Replies within 24 working hours"}</p>
                 </div>
               </div>
               <span className="text-neutral-900 font-bold text-lg group-hover:translate-x-1.5 transition-transform duration-300">→</span>
@@ -153,13 +189,11 @@ export default function ContactPage() {
             <div className="p-6 bg-white border border-stone-200 shadow-sm space-y-4">
               <p className="text-[10px] uppercase font-extrabold tracking-widest text-neutral-400 leading-none">Studio & Lab Office</p>
               <h3 className="font-display text-lg text-neutral-900 font-extrabold uppercase tracking-wider">MurtiPuja Headquarters</h3>
-              <div className="text-xs text-neutral-600 space-y-0.5 font-semibold uppercase tracking-wider leading-relaxed">
-                <p>Ring Road, Textile & Diamond City,</p>
-                <p>Surat - 395007</p>
-                <p>Gujarat, India</p>
+              <div className="text-xs text-neutral-600 space-y-0.5 font-semibold uppercase tracking-wider leading-relaxed whitespace-pre-line">
+                <p>{contactInfo.address}</p>
               </div>
               <p className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-extrabold uppercase tracking-widest pt-2 border-t border-stone-100">
-                <span>⏰ Working Hours: Mon–Sat · 10am–7pm IST</span>
+                <span>⏰ Working Hours: {contactInfo.openingHours || "Mon–Sat · 10am–7pm IST"}</span>
               </p>
             </div>
 
@@ -174,7 +208,7 @@ export default function ContactPage() {
 
             {/* Accordion list */}
             <div className="space-y-3 pt-2">
-              {FAQS.map((faq, idx) => {
+              {faqs.map((faq, idx) => {
                 const isFaqOpen = openFaqIndex === idx;
                 return (
                   <div

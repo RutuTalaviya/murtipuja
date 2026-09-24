@@ -1,9 +1,66 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { getPageContent } from "@/lib/api";
 
 export default function AboutUsPage() {
+  const [pageData, setPageData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const res = await getPageContent("about");
+        if (res.data?.success && res.data?.data) {
+          setPageData(res.data.data);
+        }
+      } catch (err) {
+        console.error("Failed to load dynamic about page:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  const hero = pageData?.hero || {
+    badge: "✦ About MurtiPuja · Studio Surat",
+    headline: "Where Sacred Devotion Meets 0.1mm Precision",
+    description:
+      "Preserving Sanatana Dharma's eternal iconography through next-generation 3D additive sculpting and handcrafted sacred finishes. Designed, consecrated, and made in India.",
+  };
+
+  const originSection = pageData?.sections?.[0] || {
+    title: "Our Origin & Vision",
+    subtitle: "Reimagining Divine Sculptures for Modern Sanctuaries",
+    content:
+      "Founded in the historic cultural hub of Surat, Gujarat, MurtiPuja was born out of deep devotion and an engineering passion for micro-perfection. For generations, sacred murtis have inspired temples and homes across India.\n\nHowever, traditional mass-molding processes often lose the intricate micro-details of a deity's expression, ornamentation, or sacred mudras. We set out to change this by combining ancient Shilpa Shastra proportions with state-of-the-art 0.1mm micro-precision 3D printing technology.\n\nEvery single murti that leaves our studio is meticulously calibrated, cured, hand-detailed by skilled artisans, and rigorously inspected before insured dispatch to your doorstep.",
+    items: [
+      "Sub-millimeter facial & ornamental sharpness",
+      "100% shatter-resistant durable engineering",
+      "Authentic sandstone, obsidian & antique finishes",
+    ],
+    metrics: [
+      { value: "0.1 mm", label: "Micro-Precision" },
+      { value: "100%", label: "Crafted in India" },
+      { value: "19,000+", label: "Pincodes Served" },
+    ],
+  };
+
+  const pledgeSection = pageData?.sections?.[1] || {
+    title: "The MurtiPuja Pledge",
+    subtitle: "Devotion in Every Micron",
+    content:
+      "We don't just print sculptures; we craft timeless representations of the divine that elevate your pooja room, home sanctuary, and spiritual meditation space.",
+  };
+
+  const contactInfo = pageData?.contactInfo || {
+    phone: "+91 79901 38678",
+    email: "support@murtipuja.com",
+    address: "MurtiPuja Studio, Ring Road, Surat, Gujarat - 395002",
+  };
+
   return (
     <main className="min-h-screen bg-[#faf9f6] px-4 sm:px-6 md:px-8 lg:px-12 py-8 sm:py-12 md:py-16 font-display w-full">
       <div className="w-full space-y-12 md:space-y-16">
@@ -12,13 +69,13 @@ export default function AboutUsPage() {
         <div className="border-b border-stone-200 pb-10 sm:pb-12 text-center md:text-left flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div className="max-w-3xl space-y-3">
             <span className="text-[10px] uppercase tracking-[0.3em] text-neutral-400 font-extrabold">
-              ✦ About MurtiPuja · Studio Surat
+              {hero.badge || "✦ About MurtiPuja · Studio Surat"}
             </span>
             <h1 className="font-display text-3xl sm:text-4xl md:text-6xl text-neutral-900 font-black uppercase tracking-tight leading-tight">
-              Where Sacred Devotion Meets 0.1mm Precision
+              {hero.headline || pageData?.title || "Where Sacred Devotion Meets 0.1mm Precision"}
             </h1>
             <p className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed max-w-2xl">
-              Preserving Sanatana Dharma&apos;s eternal iconography through next-generation 3D additive sculpting and handcrafted sacred finishes. Designed, consecrated, and made in India.
+              {hero.description || pageData?.subtitle || "Preserving Sanatana Dharma's eternal iconography through next-generation 3D additive sculpting and handcrafted sacred finishes. Designed, consecrated, and made in India."}
             </p>
           </div>
 
@@ -43,68 +100,52 @@ export default function AboutUsPage() {
           {/* Left Text Block */}
           <div className="lg:col-span-7 bg-white border border-stone-200 shadow-sm p-6 sm:p-10 space-y-5">
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">
-              Our Origin & Vision
+              {originSection.title || "Our Origin & Vision"}
             </span>
             <h2 className="font-display text-xl sm:text-2xl md:text-3xl font-extrabold uppercase tracking-wide text-neutral-900 leading-snug">
-              Reimagining Divine Sculptures for Modern Sanctuaries
+              {originSection.subtitle || "Reimagining Divine Sculptures for Modern Sanctuaries"}
             </h2>
-            <div className="space-y-4 text-xs sm:text-sm text-neutral-600 font-medium leading-relaxed">
-              <p>
-                Founded in the historic cultural hub of <strong>Surat, Gujarat</strong>, MurtiPuja was born out of deep devotion and an engineering passion for micro-perfection. For generations, sacred murtis have inspired temples and homes across India.
-              </p>
-              <p>
-                However, traditional mass-molding processes often lose the intricate micro-details of a deity&apos;s expression, ornamentation, or sacred mudras. We set out to change this by combining ancient <strong>Shilpa Shastra</strong> proportions with state-of-the-art <strong>0.1mm micro-precision 3D printing technology</strong>.
-              </p>
-              <p>
-                Every single murti that leaves our studio is meticulously calibrated, cured, hand-detailed by skilled artisans, and rigorously inspected before insured dispatch to your doorstep.
-              </p>
+            <div className="space-y-4 text-xs sm:text-sm text-neutral-600 font-medium leading-relaxed whitespace-pre-line">
+              {originSection.content}
             </div>
 
             {/* Quick Metrics */}
-            <div className="grid grid-cols-3 gap-4 pt-4 border-t border-stone-100 text-center sm:text-left">
-              <div>
-                <p className="font-display text-xl sm:text-2xl font-black text-neutral-900">0.1 mm</p>
-                <p className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-400 mt-0.5">Micro-Precision</p>
+            {originSection.metrics && originSection.metrics.length > 0 && (
+              <div className="grid grid-cols-3 gap-4 pt-4 border-t border-stone-100 text-center sm:text-left">
+                {originSection.metrics.map((m, idx) => (
+                  <div key={idx}>
+                    <p className="font-display text-xl sm:text-2xl font-black text-neutral-900">{m.value}</p>
+                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-400 mt-0.5">{m.label}</p>
+                  </div>
+                ))}
               </div>
-              <div>
-                <p className="font-display text-xl sm:text-2xl font-black text-neutral-900">100%</p>
-                <p className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-400 mt-0.5">Crafted in India</p>
-              </div>
-              <div>
-                <p className="font-display text-xl sm:text-2xl font-black text-neutral-900">19,000+</p>
-                <p className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-400 mt-0.5">Pincodes Served</p>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Right Highlight Box */}
           <div className="lg:col-span-5 bg-neutral-900 text-white p-8 sm:p-10 border border-neutral-900 shadow-sm space-y-6 flex flex-col justify-between">
             <div className="space-y-4">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-400">
-                ✦ The MurtiPuja Pledge
+                ✦ {pledgeSection.title || "The MurtiPuja Pledge"}
               </span>
               <h3 className="font-display text-xl sm:text-2xl font-extrabold uppercase tracking-wider text-white">
-                Devotion in Every Micron
+                {pledgeSection.subtitle || "Devotion in Every Micron"}
               </h3>
               <p className="text-xs sm:text-sm text-neutral-300 font-medium leading-relaxed">
-                &ldquo;We don&apos;t just print sculptures; we craft timeless representations of the divine that elevate your pooja room, home sanctuary, and spiritual meditation space.&rdquo;
+                &ldquo;{pledgeSection.content}&rdquo;
               </p>
             </div>
 
-            <div className="border-t border-white/10 pt-6 space-y-3 text-xs text-neutral-300 font-semibold">
-              <div className="flex items-center gap-2">
-                <span className="text-gold">✓</span>
-                <span>Sub-millimeter facial & ornamental sharpness</span>
+            {originSection.items && originSection.items.length > 0 && (
+              <div className="border-t border-white/10 pt-6 space-y-3 text-xs text-neutral-300 font-semibold">
+                {originSection.items.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <span className="text-gold">✓</span>
+                    <span>{item}</span>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-gold">✓</span>
-                <span>100% shatter-resistant durable engineering</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-gold">✓</span>
-                <span>Authentic sandstone, obsidian & antique finishes</span>
-              </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -237,7 +278,7 @@ export default function AboutUsPage() {
 
           <div className="flex flex-wrap gap-3">
             <a
-              href="https://wa.me/917990138678?text=Hi%20MurtiPuja,%20I%20would%20like%20to%20know%20more%20about%20your%20idols."
+              href={`https://wa.me/${(contactInfo.whatsapp || contactInfo.phone || "").replace(/\D/g, "")}?text=Hi%20MurtiPuja,%20I%20would%20like%20to%20know%20more%20about%20your%20idols.`}
               target="_blank"
               rel="noopener noreferrer"
               className="px-6 py-3.5 bg-black hover:bg-gold hover:text-black text-white text-xs font-extrabold uppercase tracking-widest transition-all shadow-sm flex items-center gap-2"

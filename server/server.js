@@ -26,12 +26,14 @@ require("./models/ComboOffer");
 require("./models/Finish");
 require("./models/NavMenu");
 require("./models/Video");
+require("./models/PageContent");
 
 const categoryRoutes = require("./routes/categoryRoutes");
 const finishRoutes = require("./routes/finishRoutes");
 const navMenuRoutes = require("./routes/navMenuRoutes");
 const bannerRoutes = require("./routes/bannerRoutes");
 const videoRoutes = require("./routes/videoRoutes");
+const pageRoutes = require("./routes/pageRoutes");
 
 connectDB();
 
@@ -104,6 +106,7 @@ app.use("/api/admin", offerRoutes);
 app.use("/api", navMenuRoutes);
 app.use("/api", bannerRoutes);
 app.use("/api", videoRoutes);
+app.use("/api/pages", pageRoutes);
 
 app.use(notFound);
 

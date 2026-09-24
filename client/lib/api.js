@@ -130,6 +130,11 @@ export const updateVideo = (id, data) => api.put(`/api/admin/videos/${id}`, data
 export const deleteVideo = (id) => api.delete(`/api/admin/videos/${id}`);
 export const reorderVideos = (items) => api.put("/api/admin/videos/reorder", { items });
 
+// Dynamic Pages CMS (About, Contact, FAQs, Policies)
+export const getPageContent = (slug) => api.get(`/api/pages/${slug}`);
+export const getAllPages = () => api.get("/api/pages");
+export const updatePageContent = (slug, data) => api.put(`/api/pages/${slug}`, data);
+
 export default api;
 
 
