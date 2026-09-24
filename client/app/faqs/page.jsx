@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
+import { getPageContent } from "@/lib/api";
 
-const FAQ_SECTIONS = [
+const DEFAULT_FAQ_SECTIONS = [
   {
     id: "crafting-materials",
     name: "Crafting, Materials & 3D Tech",
@@ -11,40 +12,40 @@ const FAQ_SECTIONS = [
     questions: [
       {
         q: "What materials are used to sculpt MurtiPuja idols?",
-        a: "Our divine sculptures are 3D-crafted using high-density engineering bio-PLA derived from renewable plant starches, achieving 0.1mm micro-layer precision. After printing, each idol is manually polished and hand-detailed by traditional artisans using premium obsidian black, metallic bronze, copper, and matte stone finishes."
+        a: "Our divine sculptures are 3D-crafted using high-density engineering bio-PLA derived from renewable plant starches, achieving 0.1mm micro-layer precision. After printing, each idol is manually polished and hand-detailed by traditional artisans using premium obsidian black, metallic bronze, copper, and matte stone finishes.",
       },
       {
         q: "Can I perform Abhishek (bathing with water/milk) on these idols?",
-        a: "While our high-density polymer is water-resistant, we recommend dry dusting with a soft microfiber cloth or gentle wiping with a lightly damp cloth. Avoiding full water/milk submersions preserves the artisan matte texture, metallic pigments, and micro-layer surface luster indefinitely."
+        a: "While our high-density polymer is water-resistant, we recommend dry dusting with a soft microfiber cloth or gentle wiping with a lightly damp cloth. Avoiding full water/milk submersions preserves the artisan matte texture, metallic pigments, and micro-layer surface luster indefinitely.",
       },
       {
         q: "How are MurtiPuja idols designed and developed?",
-        a: "Every sculpture begins with extensive study of traditional Vedic iconography and Dhyana Shlokas. Our digital sculptors create high-polygon 3D meshes that capture subtle muscle anatomy, ornaments, and sacred postures. These are brought to life via multi-axis precision 3D printing and finished by hand in our Surat studio."
+        a: "Every sculpture begins with extensive study of traditional Vedic iconography and Dhyana Shlokas. Our digital sculptors create high-polygon 3D meshes that capture subtle muscle anatomy, ornaments, and sacred postures. These are brought to life via multi-axis precision 3D printing and finished by hand in our Surat studio.",
       },
       {
         q: "Are MurtiPuja materials eco-friendly and non-toxic?",
-        a: "Yes, 100%. Our bio-polymers are plant-derived, non-toxic, and free from heavy metals or harsh chemical binders. Unlike conventional Plaster of Paris (PoP) idols that harm water bodies, our idols are durable, heirloom-quality, and environmentally sustainable."
-      }
-    ]
+        a: "Yes, 100%. Our bio-polymers are plant-derived, non-toxic, and free from heavy metals or harsh chemical binders. Unlike conventional Plaster of Paris (PoP) idols that harm water bodies, our idols are durable, heirloom-quality, and environmentally sustainable.",
+      },
+    ],
   },
   {
-    id: "dimensions-customization",
+    id: "dimensions-sizing",
     name: "Dimensions & Sizing",
     description: "Standard dimensions, custom sizing up to 24 inches, and temple setups.",
     questions: [
       {
         q: "What sizes and proportions are available?",
-        a: "Our collector drops typically come in 6-inch (compact mandir/desk edition), 9-inch (standard pooja room edition), and 12-inch (grand centerpiece edition). Exact dimensions (Height × Width × Depth) and weight in grams are listed on each product's page."
+        a: "Our collector drops typically come in 6-inch (compact mandir/desk edition), 9-inch (standard pooja room edition), and 12-inch (grand centerpiece edition). Exact dimensions (Height × Width × Depth) and weight in grams are listed on each product's page.",
       },
       {
         q: "Do you accept custom deity or custom size commissions?",
-        a: "Yes! We create bespoke commissioned murtis ranging from 6 inches up to 24 inches for home sanctums, corporate installations, and overseas temples. Contact our concierge team with your required deity form and dimensions to receive a 3D preview and timeline."
+        a: "Yes! We create bespoke commissioned murtis ranging from 6 inches up to 24 inches for home sanctums, corporate installations, and overseas temples. Contact our concierge team with your required deity form and dimensions to receive a 3D preview and timeline.",
       },
       {
         q: "Do you offer premium gift packaging and personalized notes?",
-        a: "Every MurtiPuja idol arrives securely housed in luxury shockproof rigid foam packaging suitable for gifting. During checkout, you can also add a personalized gift message printed on a sacred blessing card."
-      }
-    ]
+        a: "Every MurtiPuja idol arrives securely housed in luxury shockproof rigid foam packaging suitable for gifting. During checkout, you can also add a personalized gift message printed on a sacred blessing card.",
+      },
+    ],
   },
   {
     id: "limited-drops",
@@ -53,13 +54,13 @@ const FAQ_SECTIONS = [
     questions: [
       {
         q: "What are MurtiPuja Drops?",
-        a: "Drops are strictly limited production batches of exclusive deity designs and rare artisanal finishes. Each drop has a capped unit quantity. Once sold out, that exact edition is archived in The Vault and is never re-manufactured in that exact variant."
+        a: "Drops are strictly limited production batches of exclusive deity designs and rare artisanal finishes. Each drop has a capped unit quantity. Once sold out, that exact edition is archived in The Vault and is never re-manufactured in that exact variant.",
       },
       {
         q: "How do I get early access to upcoming drops?",
-        a: "You can sign up for drop alerts via our WhatsApp concierge or newsletter on the homepage. VIP subscribers receive a 1-hour early access window before drops open to the general public."
-      }
-    ]
+        a: "You can sign up for drop alerts via our WhatsApp concierge or newsletter on the homepage. VIP subscribers receive a 1-hour early access window before drops open to the general public.",
+      },
+    ],
   },
   {
     id: "orders-payments",
@@ -68,21 +69,21 @@ const FAQ_SECTIONS = [
     questions: [
       {
         q: "Which payment methods does MurtiPuja accept?",
-        a: "We accept all 100% secure online payment methods powered by 256-bit SSL encrypted Razorpay checkout: UPI (Google Pay, PhonePe, Paytm, BHIM, Cred), Credit/Debit cards (Visa, MasterCard, RuPay, Amex), and Net Banking across 50+ banks. All orders are 100% prepaid."
+        a: "We accept all 100% secure online payment methods powered by 256-bit SSL encrypted Razorpay checkout: UPI (Google Pay, PhonePe, Paytm, BHIM, Cred), Credit/Debit cards (Visa, MasterCard, RuPay, Amex), and Net Banking across 50+ banks. All orders are 100% prepaid.",
       },
       {
         q: "Does MurtiPuja offer Cash on Delivery (COD)?",
-        a: "No, MurtiPuja operates exclusively on a 100% Prepaid Model. Because each sacred murti is precision 3D-crafted, consecrated, and hand-finished, eliminating COD ensures zero transit cancellations and guarantees 100% Free Insured Express Air Delivery on every single order."
+        a: "No, MurtiPuja operates exclusively on a 100% Prepaid Model. Because each sacred murti is precision 3D-crafted, consecrated, and hand-finished, eliminating COD ensures zero transit cancellations and guarantees 100% Free Insured Express Air Delivery on every single order.",
       },
       {
         q: "Can I modify or cancel my order after placing it?",
-        a: "You can modify your shipping address or cancel your order within 12 hours of placing it before it enters our dispatch queue. Simply email support@murtipuja.com or message our WhatsApp concierge with your Order ID."
+        a: "You can modify your shipping address or cancel your order within 12 hours of placing it before it enters our dispatch queue. Simply email support@murtipuja.com or message our WhatsApp concierge with your Order ID.",
       },
       {
         q: "Will I receive a tax invoice with my order?",
-        a: "Yes, a GST tax invoice with full itemized details and HSN codes is automatically emailed to your registered email upon dispatch and included inside the parcel."
-      }
-    ]
+        a: "Yes, a GST tax invoice with full itemized details and HSN codes is automatically emailed to your registered email upon dispatch and included inside the parcel.",
+      },
+    ],
   },
   {
     id: "shipping-delivery",
@@ -91,21 +92,21 @@ const FAQ_SECTIONS = [
     questions: [
       {
         q: "How long does delivery take across India?",
-        a: "Orders are dispatched within 24 to 48 hours from our Surat studio. Metro cities (Mumbai, Delhi NCR, Bengaluru, Hyderabad, Chennai, Pune, Ahmedabad, Surat) receive delivery within 2–3 business days. All other Indian cities and towns take 3–5 business days."
+        a: "Orders are dispatched within 24 to 48 hours from our Surat studio. Metro cities (Mumbai, Delhi NCR, Bengaluru, Hyderabad, Chennai, Pune, Ahmedabad, Surat) receive delivery within 2–3 business days. All other Indian cities and towns take 3–5 business days.",
       },
       {
         q: "Is shipping free?",
-        a: "Yes! We provide 100% Free Insured Express Shipping across India on all prepaid orders. There are zero hidden courier fees."
+        a: "Yes! We provide 100% Free Insured Express Shipping across India on all prepaid orders. There are zero hidden courier fees.",
       },
       {
         q: "How can I track my shipment in real-time?",
-        a: "Once dispatched, you will receive an SMS and WhatsApp containing your tracking number and AWB link. You can also visit our public [Track Order](/track-order) page anytime to check live delivery milestones without needing an account."
+        a: "Once dispatched, you will receive an SMS and WhatsApp containing your tracking number and AWB link. You can also visit our public Track Order page anytime to check live delivery milestones without needing an account.",
       },
       {
         q: "Is my shipment insured against transit damages?",
-        a: "Yes. Every MurtiPuja parcel is 100% transit-insured. If your package arrives damaged, our concierge team will immediately send a fresh replacement at no extra charge."
-      }
-    ]
+        a: "Yes. Every MurtiPuja parcel is 100% transit-insured. If your package arrives damaged, our concierge team will immediately send a fresh replacement at no extra charge.",
+      },
+    ],
   },
   {
     id: "returns-replacements",
@@ -114,17 +115,17 @@ const FAQ_SECTIONS = [
     questions: [
       {
         q: "What is your return & exchange policy?",
-        a: "We offer a 7-day hassle-free return and replacement policy from the date of delivery. If your item arrives damaged, defective, or incorrect, we arrange a free reverse pickup and dispatch a brand new unit immediately."
+        a: "We offer a 7-day hassle-free return and replacement policy from the date of delivery. If your item arrives damaged, defective, or incorrect, we arrange a free reverse pickup and dispatch a brand new unit immediately.",
       },
       {
         q: "Why is an unboxing video strictly mandatory for all returns & exchanges?",
-        a: "Divine sculptures feature delicate 0.1mm micro-sculpted details and hand-gilded finishes. An unedited, continuous unboxing video starting from the sealed outer box to revealing the idol is strictly compulsory to prevent false claims and enable instant replacement or refund approvals."
+        a: "Divine sculptures feature delicate 0.1mm micro-sculpted details and hand-gilded finishes. An unedited, continuous unboxing video starting from the sealed outer box to revealing the idol is strictly compulsory to prevent false claims and enable instant replacement or refund approvals.",
       },
       {
         q: "How long do refunds take to reflect in my bank account?",
-        a: "Once an approved return is received at our facility, refunds are initiated immediately and credited back to your original payment method (Bank/UPI/Card) within 24–48 hours via Razorpay."
-      }
-    ]
+        a: "Once an approved return is received at our facility, refunds are initiated immediately and credited back to your original payment method (Bank/UPI/Card) within 24–48 hours via Razorpay.",
+      },
+    ],
   },
   {
     id: "support-contact",
@@ -133,26 +134,69 @@ const FAQ_SECTIONS = [
     questions: [
       {
         q: "How do I contact customer support?",
-        a: "Our studio concierge team in Surat is available Monday to Saturday from 10:00 AM to 7:00 PM IST. You can reach us via Phone/WhatsApp at +91 79901 38678, or via email at support@murtipuja.com."
+        a: "Our studio concierge team in Surat is available Monday to Saturday from 10:00 AM to 7:00 PM IST. You can reach us via Phone/WhatsApp at +91 79901 38678 / +91 96647 37035, or via email at support@murtipuja.com.",
       },
       {
         q: "Do you have an offline showroom or store?",
-        a: "MurtiPuja operates primarily as a direct-to-devotee online studio to ensure pristine quality control and direct pricing. Studio visits in Surat are available by prior appointment for bespoke corporate and large temple idol consultations."
-      }
-    ]
-  }
+        a: "MurtiPuja operates primarily as a direct-to-devotee online studio to ensure pristine quality control and direct pricing. Studio visits in Surat are available by prior appointment for bespoke corporate and large temple idol consultations.",
+      },
+    ],
+  },
 ];
 
 export default function FaqsPage() {
+  const [pageData, setPageData] = useState(null);
   const [activeCategory, setActiveCategory] = useState("all");
   const [openItems, setOpenItems] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Load dynamic data
+  useEffect(() => {
+    async function loadFaqs() {
+      try {
+        const res = await getPageContent("faqs");
+        if (res.data?.success && res.data?.data) {
+          setPageData(res.data.data);
+        }
+      } catch (err) {
+        console.error("Failed to load dynamic faqs page:", err);
+      }
+    }
+    loadFaqs();
+  }, []);
+
+  // Compute sections dynamically from database faqs, or fallback
+  const faqSections = useMemo(() => {
+    if (!pageData?.faqs || pageData.faqs.length === 0) {
+      return DEFAULT_FAQ_SECTIONS;
+    }
+
+    // Group items by category
+    const grouped = {};
+    pageData.faqs.forEach((item) => {
+      const cat = item.category || "General Questions";
+      if (!grouped[cat]) {
+        grouped[cat] = [];
+      }
+      grouped[cat].push({
+        q: item.question,
+        a: item.answer,
+      });
+    });
+
+    return Object.entries(grouped).map(([categoryName, questions], idx) => ({
+      id: `category-${idx}-${categoryName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      name: categoryName,
+      description: `${questions.length} questions regarding ${categoryName}`,
+      questions,
+    }));
+  }, [pageData?.faqs]);
 
   const toggleAccordion = (sectionId, qIndex) => {
     const key = `${sectionId}-${qIndex}`;
     setOpenItems((prev) => ({
       ...prev,
-      [key]: !prev[key]
+      [key]: !prev[key],
     }));
   };
 
@@ -160,52 +204,59 @@ export default function FaqsPage() {
   const filteredSections = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    return FAQ_SECTIONS.map((sec) => {
-      // If a specific category is active and it's not this section (and no search query), filter out
-      if (activeCategory !== "all" && sec.id !== activeCategory && !query) {
-        return null;
-      }
+    return faqSections
+      .map((sec) => {
+        if (activeCategory !== "all" && sec.id !== activeCategory && !query) {
+          return null;
+        }
 
-      if (!query) {
-        return sec;
-      }
+        if (!query) {
+          return sec;
+        }
 
-      // Filter questions by query
-      const matchingQuestions = sec.questions.filter(
-        (q) =>
-          q.q.toLowerCase().includes(query) ||
-          q.a.toLowerCase().includes(query) ||
-          sec.name.toLowerCase().includes(query)
-      );
+        // Filter questions by query
+        const matchingQuestions = sec.questions.filter(
+          (q) =>
+            q.q.toLowerCase().includes(query) ||
+            q.a.toLowerCase().includes(query) ||
+            sec.name.toLowerCase().includes(query)
+        );
 
-      if (matchingQuestions.length === 0) return null;
+        if (matchingQuestions.length === 0) return null;
 
-      return {
-        ...sec,
-        questions: matchingQuestions
-      };
-    }).filter(Boolean);
-  }, [activeCategory, searchQuery]);
+        return {
+          ...sec,
+          questions: matchingQuestions,
+        };
+      })
+      .filter(Boolean);
+  }, [faqSections, activeCategory, searchQuery]);
 
   const totalQuestionsCount = useMemo(() => {
-    return FAQ_SECTIONS.reduce((acc, sec) => acc + sec.questions.length, 0);
-  }, []);
+    return faqSections.reduce((acc, sec) => acc + sec.questions.length, 0);
+  }, [faqSections]);
+
+  const heroBadge = pageData?.hero?.badge || "Help Desk & Devotee Knowledge Base";
+  const heroTitle = pageData?.hero?.headline || pageData?.title || "Frequently Asked Questions";
+  const heroDescription =
+    pageData?.hero?.description ||
+    pageData?.subtitle ||
+    "All the answers you need in one place. 0.1mm micro-precision 3D crafting, shipping, payments, returns, and care protocols.";
 
   return (
     <main className="min-h-screen bg-[#faf9f6] text-neutral-900 font-display w-full px-3 sm:px-6 md:px-8 lg:px-12 py-6 sm:py-8 md:py-10">
       <div className="w-full space-y-8 md:space-y-12">
-        
         {/* 1. Full-Width Header */}
         <div className="border-b border-stone-200 pb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
             <p className="text-[10px] uppercase tracking-[0.25em] text-neutral-400 font-extrabold mb-1">
-              Help Desk & Devotee Knowledge Base
+              {heroBadge}
             </p>
             <h1 className="font-display text-3xl sm:text-4xl md:text-5xl text-neutral-900 font-extrabold uppercase tracking-wider">
-              Frequently Asked Questions
+              {heroTitle}
             </h1>
             <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider mt-2 max-w-2xl">
-              All the answers you need in one place. 0.1mm micro-precision 3D crafting, shipping, payments, returns, and care protocols.
+              {heroDescription}
             </p>
           </div>
 
@@ -226,7 +277,7 @@ export default function FaqsPage() {
           </div>
         </div>
 
-        {/* 2. Quick In-Page Search Bar (Full Width) */}
+        {/* 2. Quick In-Page Search Bar */}
         <div className="w-full">
           <div className="relative max-w-2xl">
             <input
@@ -243,7 +294,11 @@ export default function FaqsPage() {
               strokeWidth="2.5"
               viewBox="0 0 24 24"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+              />
             </svg>
             {searchQuery && (
               <button
@@ -258,7 +313,6 @@ export default function FaqsPage() {
 
         {/* 3. Main Full-Width 12-Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start w-full">
-          
           {/* Left Column: Categories Sidebar (3 Columns) */}
           <aside className="lg:col-span-3 lg:sticky lg:top-24 space-y-6">
             <div className="bg-white border border-stone-200 shadow-sm p-4 space-y-2">
@@ -287,7 +341,7 @@ export default function FaqsPage() {
                 </button>
 
                 {/* Individual Category Tabs */}
-                {FAQ_SECTIONS.map((sec) => {
+                {faqSections.map((sec) => {
                   const isActive = activeCategory === sec.id && !searchQuery;
                   return (
                     <button
@@ -315,7 +369,7 @@ export default function FaqsPage() {
             {/* Sidebar Bottom Contact Helper */}
             <div className="bg-white border border-stone-200 shadow-sm p-5 space-y-2">
               <p className="text-xs font-semibold text-neutral-600">
-                Can't find what you're looking for?
+                Can&apos;t find what you&apos;re looking for?
               </p>
               <Link
                 href="/contact"
@@ -350,7 +404,6 @@ export default function FaqsPage() {
             ) : (
               filteredSections.map((sec) => (
                 <div key={sec.id} className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-6">
-                  
                   {/* Category Header */}
                   <div className="flex items-center justify-between border-b border-stone-100 pb-3">
                     <div>
@@ -407,7 +460,7 @@ export default function FaqsPage() {
               ))
             )}
 
-            {/* 4. Bottom "STILL HAVE QUESTIONS?" Banner Card */}
+            {/* 4. Bottom Banner Card */}
             <div className="bg-neutral-900 text-white p-8 sm:p-10 border border-neutral-900 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div className="space-y-1.5 max-w-md">
                 <h3 className="font-display text-xl sm:text-2xl font-extrabold uppercase tracking-tight text-white">
@@ -435,10 +488,8 @@ export default function FaqsPage() {
                 </a>
               </div>
             </div>
-
           </section>
         </div>
-
       </div>
     </main>
   );

@@ -134,7 +134,10 @@ export const reorderVideos = (items) => api.put("/api/admin/videos/reorder", { i
 export const getPageContent = (slug) => api.get(`/api/pages/${slug}`);
 export const getAllPages = () => api.get("/api/pages");
 export const updatePageContent = (slug, data) => api.put(`/api/pages/${slug}`, data);
+export const resetPageToDefault = (slug) => api.post(`/api/pages/${slug}/reset-default`);
+export const resetAllPagesToDefaults = () => api.post("/api/pages/reset-all-defaults");
 
 export default api;
+
 
 

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { getPageContent } from "@/lib/api";
 
-const RETURN_FAQS = [
+const DEFAULT_RETURN_FAQS = [
   {
     q: "What is the return and exchange window for MurtiPuja idols?",
     a: "We provide a 7-Day Hassle-Free Window starting from the exact calendar day your shipment is marked as delivered by the courier partner. You can request a size exchange, finish swap, or transit damage claim within this 7-day period.",
@@ -31,27 +32,61 @@ const RETURN_FAQS = [
 ];
 
 export default function RefundPolicyPage() {
+  const [pageData, setPageData] = useState(null);
   const [openFaq, setOpenFaq] = useState(null);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const res = await getPageContent("refund-policy");
+        if (res.data?.success && res.data?.data) {
+          setPageData(res.data.data);
+        }
+      } catch (err) {
+        console.error("Failed to load dynamic refund policy:", err);
+      }
+    }
+    loadData();
+  }, []);
 
   const toggleFaq = (idx) => {
     setOpenFaq(openFaq === idx ? null : idx);
   };
 
+  const badge = pageData?.hero?.badge || "Customer Protection & Devotee Satisfaction";
+  const title = pageData?.hero?.headline || pageData?.title || "Return & Exchange Rules & Policy";
+  const description =
+    pageData?.hero?.description ||
+    pageData?.subtitle ||
+    "Official guidelines · 7-Day trial guarantee · Mandatory unboxing video protocol · 100% free doorstep reverse pickup.";
+
+  const faqsList = useMemo(() => {
+    if (pageData?.faqs && pageData.faqs.length > 0) {
+      return pageData.faqs.map((f) => ({
+        q: f.question,
+        a: f.answer,
+      }));
+    }
+    return DEFAULT_RETURN_FAQS;
+  }, [pageData?.faqs]);
+
+  const sections = pageData?.sections || [];
+  const bodyText = pageData?.body;
+
   return (
     <main className="min-h-screen bg-[#faf9f6] px-3 sm:px-6 md:px-8 lg:px-12 py-6 sm:py-8 md:py-10 font-display w-full">
       <div className="w-full space-y-8 md:space-y-12">
-        
         {/* 1. Full-Width Header */}
         <div className="border-b border-stone-200 pb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
             <p className="text-[10px] uppercase tracking-[0.25em] text-neutral-400 font-extrabold mb-1">
-              Customer Protection & Devotee Satisfaction
+              {badge}
             </p>
             <h1 className="font-display text-3xl sm:text-4xl md:text-5xl text-neutral-900 font-extrabold uppercase tracking-wider">
-              Return & Exchange Rules & Policy
+              {title}
             </h1>
             <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider mt-2 max-w-2xl">
-              Official guidelines · 7-Day trial guarantee · Mandatory unboxing video protocol · 100% free doorstep reverse pickup.
+              {description}
             </p>
           </div>
 
@@ -117,112 +152,134 @@ export default function RefundPolicyPage() {
 
         {/* 3. Main Policy Structure (2 Columns) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start w-full">
-          
           {/* Left Column: Detailed Policy Sections (8 Columns) */}
           <div className="lg:col-span-8 space-y-6">
-            
-            {/* Section 1: 7-Day Window */}
-            <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-3">
-              <div className="flex items-center gap-3">
-                <span className="w-7 h-7 bg-black text-white font-extrabold text-xs flex items-center justify-center">
-                  1
-                </span>
-                <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
-                  7-Day Trial & Exchange Window
-                </h2>
-              </div>
-              <p className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed pl-0 sm:pl-10">
-                Every MurtiPuja sculpture is covered by our <strong>7-Day Trial & Exchange Guarantee</strong>. You have 7 full calendar days from the exact delivery timestamp to file an exchange for size, variant, or finish on our <Link href="/return-and-exchange" className="text-black font-extrabold underline hover:text-gold">Return Claim Portal</Link>.
-              </p>
-            </div>
-
-            {/* Section 2: Mandatory Unboxing Video Protocol */}
-            <div className="bg-stone-50/70 border border-stone-200 shadow-sm p-6 sm:p-8 space-y-4">
-              <div className="flex items-center gap-3">
-                <span className="w-7 h-7 bg-red-600 text-white font-extrabold text-xs flex items-center justify-center">
-                  2
-                </span>
-                <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider flex items-center gap-2">
-                  <span>📹</span>
-                  <span>Compulsory Unboxing Video Guidelines</span>
-                </h2>
-              </div>
-              <p className="text-xs sm:text-sm text-neutral-700 font-semibold leading-relaxed pl-0 sm:pl-10">
-                Because sacred spiritual idols are precision 3D-sculpted with micro-fine details, an unboxing video is <strong>strictly mandatory</strong> to validate courier transit handling and approve claims immediately.
-              </p>
-              
-              <div className="pl-0 sm:pl-10 grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <div className="bg-white p-4 border border-stone-200 space-y-1">
-                  <p className="text-xs font-black uppercase text-neutral-900">1. Start Before Unsealing</p>
-                  <p className="text-[11px] text-neutral-500 font-semibold">Video must start before cutting the outer courier tape.</p>
+            {sections.length > 0 ? (
+              sections.map((sec, idx) => (
+                <div key={idx} className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 bg-black text-white font-extrabold text-xs flex items-center justify-center">
+                      {idx + 1}
+                    </span>
+                    <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
+                      {sec.title}
+                    </h2>
+                  </div>
+                  <div className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed pl-0 sm:pl-10 whitespace-pre-line">
+                    {sec.content}
+                  </div>
                 </div>
-                <div className="bg-white p-4 border border-stone-200 space-y-1">
-                  <p className="text-xs font-black uppercase text-neutral-900">2. Show Shipping Label</p>
-                  <p className="text-[11px] text-neutral-500 font-semibold">Ensure AWB barcode and recipient details are visible.</p>
-                </div>
-                <div className="bg-white p-4 border border-stone-200 space-y-1">
-                  <p className="text-xs font-black uppercase text-neutral-900">3. Single Continuous Shot</p>
-                  <p className="text-[11px] text-neutral-500 font-semibold">No video cuts, pauses, or edits permitted during unpacking.</p>
-                </div>
-                <div className="bg-white p-4 border border-stone-200 space-y-1">
-                  <p className="text-xs font-black uppercase text-neutral-900">4. Inspect on Camera</p>
-                  <p className="text-[11px] text-neutral-500 font-semibold">Carefully lift the idol from foam inserts and inspect.</p>
+              ))
+            ) : bodyText ? (
+              <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-4">
+                <div className="text-xs sm:text-sm text-neutral-700 leading-relaxed font-sans whitespace-pre-line">
+                  {bodyText}
                 </div>
               </div>
-            </div>
+            ) : (
+              <>
+                {/* Section 1: 7-Day Window */}
+                <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 bg-black text-white font-extrabold text-xs flex items-center justify-center">
+                      1
+                    </span>
+                    <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
+                      7-Day Trial & Exchange Window
+                    </h2>
+                  </div>
+                  <p className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed pl-0 sm:pl-10">
+                    Every MurtiPuja sculpture is covered by our <strong>7-Day Trial & Exchange Guarantee</strong>. You have 7 full calendar days from the exact delivery timestamp to file an exchange for size, variant, or finish on our <Link href="/return-and-exchange" className="text-black font-extrabold underline hover:text-gold">Return Claim Portal</Link>.
+                  </p>
+                </div>
 
-            {/* Section 3: Free Reverse Doorstep Pickup */}
-            <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-3">
-              <div className="flex items-center gap-3">
-                <span className="w-7 h-7 bg-black text-white font-extrabold text-xs flex items-center justify-center">
-                  3
-                </span>
-                <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
-                  100% Free Doorstep Reverse Pickup
-                </h2>
-              </div>
-              <p className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed pl-0 sm:pl-10">
-                You never pay for reverse shipping on verified claims. Our logistics partners (Blue Dart, Delhivery, DTDC) will arrive at your address with a pre-printed AWB within 24–48 hours of claim registration.
-              </p>
-            </div>
+                {/* Section 2: Mandatory Unboxing Video Protocol */}
+                <div className="bg-stone-50/70 border border-stone-200 shadow-sm p-6 sm:p-8 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 bg-red-600 text-white font-extrabold text-xs flex items-center justify-center">
+                      2
+                    </span>
+                    <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider flex items-center gap-2">
+                      <span>📹</span>
+                      <span>Compulsory Unboxing Video Guidelines</span>
+                    </h2>
+                  </div>
+                  <p className="text-xs sm:text-sm text-neutral-700 font-semibold leading-relaxed pl-0 sm:pl-10">
+                    Because sacred spiritual idols are precision 3D-sculpted with micro-fine details, an unboxing video is <strong>strictly mandatory</strong> to validate courier transit handling and approve claims immediately.
+                  </p>
+                  
+                  <div className="pl-0 sm:pl-10 grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div className="bg-white p-4 border border-stone-200 space-y-1">
+                      <p className="text-xs font-black uppercase text-neutral-900">1. Start Before Unsealing</p>
+                      <p className="text-[11px] text-neutral-500 font-semibold">Video must start before cutting the outer courier tape.</p>
+                    </div>
+                    <div className="bg-white p-4 border border-stone-200 space-y-1">
+                      <p className="text-xs font-black uppercase text-neutral-900">2. Show Shipping Label</p>
+                      <p className="text-[11px] text-neutral-500 font-semibold">Ensure AWB barcode and recipient details are visible.</p>
+                    </div>
+                    <div className="bg-white p-4 border border-stone-200 space-y-1">
+                      <p className="text-xs font-black uppercase text-neutral-900">3. Single Continuous Shot</p>
+                      <p className="text-[11px] text-neutral-500 font-semibold">No video cuts, pauses, or edits permitted during unpacking.</p>
+                    </div>
+                    <div className="bg-white p-4 border border-stone-200 space-y-1">
+                      <p className="text-xs font-black uppercase text-neutral-900">4. Inspect on Camera</p>
+                      <p className="text-[11px] text-neutral-500 font-semibold">Carefully lift the idol from foam inserts and inspect.</p>
+                    </div>
+                  </div>
+                </div>
 
-            {/* Section 4: Eligibility Criteria */}
-            <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-3">
-              <div className="flex items-center gap-3">
-                <span className="w-7 h-7 bg-black text-white font-extrabold text-xs flex items-center justify-center">
-                  4
-                </span>
-                <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
-                  Product Condition & Eligibility
-                </h2>
-              </div>
-              <ul className="list-disc pl-5 sm:pl-14 text-xs sm:text-sm text-neutral-600 font-semibold space-y-2 leading-relaxed">
-                <li>The deity sculpture must be unused, clean, and in original brand-new physical condition.</li>
-                <li>All original packaging materials, shockproof foam inserts, certificates, and accessories must be safely returned.</li>
-                <li>Custom bespoke deity orders with personalized devotional engravings cannot be returned for cash refunds unless transit-damaged.</li>
-              </ul>
-            </div>
+                {/* Section 3: Free Reverse Doorstep Pickup */}
+                <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 bg-black text-white font-extrabold text-xs flex items-center justify-center">
+                      3
+                    </span>
+                    <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
+                      100% Free Doorstep Reverse Pickup
+                    </h2>
+                  </div>
+                  <p className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed pl-0 sm:pl-10">
+                    You never pay for reverse shipping on verified claims. Our logistics partners (Blue Dart, Delhivery, DTDC) will arrive at your address with a pre-printed AWB within 24–48 hours of claim registration.
+                  </p>
+                </div>
 
-            {/* Section 5: 100% Prepaid Model & Razorpay Refund */}
-            <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-3">
-              <div className="flex items-center gap-3">
-                <span className="w-7 h-7 bg-black text-white font-extrabold text-xs flex items-center justify-center">
-                  5
-                </span>
-                <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
-                  100% Prepaid Model & Razorpay Refund Settlement
-                </h2>
-              </div>
-              <p className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed pl-0 sm:pl-10">
-                MurtiPuja operates exclusively on a 100% prepaid model to ensure expedited air dispatch. Approved refunds are credited directly back to the original source payment method (Bank Account, UPI, or Card via 256-bit SSL Razorpay) within <strong>24 to 48 hours</strong> of warehouse reception.
-              </p>
-            </div>
+                {/* Section 4: Eligibility Criteria */}
+                <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 bg-black text-white font-extrabold text-xs flex items-center justify-center">
+                      4
+                    </span>
+                    <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
+                      Product Condition & Eligibility
+                    </h2>
+                  </div>
+                  <ul className="list-disc pl-5 sm:pl-14 text-xs sm:text-sm text-neutral-600 font-semibold space-y-2 leading-relaxed">
+                    <li>The deity sculpture must be unused, clean, and in original brand-new physical condition.</li>
+                    <li>All original packaging materials, shockproof foam inserts, certificates, and accessories must be safely returned.</li>
+                    <li>Custom bespoke deity orders with personalized devotional engravings cannot be returned for cash refunds unless transit-damaged.</li>
+                  </ul>
+                </div>
 
+                {/* Section 5: 100% Prepaid Model & Razorpay Refund Settlement */}
+                <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 bg-black text-white font-extrabold text-xs flex items-center justify-center">
+                      5
+                    </span>
+                    <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
+                      100% Prepaid Model & Razorpay Refund Settlement
+                    </h2>
+                  </div>
+                  <p className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed pl-0 sm:pl-10">
+                    MurtiPuja operates exclusively on a 100% prepaid model to ensure expedited air dispatch. Approved refunds are credited directly back to the original source payment method (Bank Account, UPI, or Card via 256-bit SSL Razorpay) within <strong>24 to 48 hours</strong> of warehouse reception.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Right Column: Quick Action Box (4 Columns) */}
           <div className="lg:col-span-4 space-y-6">
-            
             {/* Direct CTA Card */}
             <div className="bg-neutral-900 text-white border border-neutral-900 shadow-sm p-6 space-y-4">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-400">
@@ -275,9 +332,7 @@ export default function RefundPolicyPage() {
                 💬 Chat on WhatsApp
               </a>
             </div>
-
           </div>
-
         </div>
 
         {/* 4. Full-Width FAQ Accordions */}
@@ -292,12 +347,12 @@ export default function RefundPolicyPage() {
               </h2>
             </div>
             <span className="text-xs font-extrabold uppercase text-neutral-500">
-              {RETURN_FAQS.length} Questions Answered
+              {faqsList.length} Questions Configured
             </span>
           </div>
 
           <div className="border border-stone-200 divide-y divide-stone-200 bg-white shadow-sm w-full">
-            {RETURN_FAQS.map((faq, idx) => {
+            {faqsList.map((faq, idx) => {
               const isOpen = openFaq === idx;
               return (
                 <div key={idx} className="transition-colors">
@@ -322,7 +377,6 @@ export default function RefundPolicyPage() {
             })}
           </div>
         </div>
-
       </div>
     </main>
   );

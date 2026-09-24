@@ -1,23 +1,50 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { getPageContent } from "@/lib/api";
 
 export default function ShippingPolicyPage() {
+  const [pageData, setPageData] = useState(null);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const res = await getPageContent("shipping-policy");
+        if (res.data?.success && res.data?.data) {
+          setPageData(res.data.data);
+        }
+      } catch (err) {
+        console.error("Failed to load dynamic shipping policy:", err);
+      }
+    }
+    loadData();
+  }, []);
+
+  const badge = pageData?.hero?.badge || "Logistics & Dispatch Standards";
+  const title = pageData?.hero?.headline || pageData?.title || "Shipping & Delivery Policy";
+  const description =
+    pageData?.hero?.description ||
+    pageData?.subtitle ||
+    "100% Insured express transit across 19,000+ Indian pincodes · Dispatched from our Surat design lab · Zero shipping fees.";
+
+  const sections = pageData?.sections || [];
+  const bodyText = pageData?.body;
+
   return (
     <main className="min-h-screen bg-[#faf9f6] px-3 sm:px-6 md:px-8 lg:px-12 py-6 sm:py-8 md:py-10 font-display w-full">
       <div className="w-full space-y-8 md:space-y-12">
-        
         {/* 1. Full-Width Header */}
         <div className="border-b border-stone-200 pb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
             <p className="text-[10px] uppercase tracking-[0.25em] text-neutral-400 font-extrabold mb-1">
-              Logistics & Dispatch Standards
+              {badge}
             </p>
             <h1 className="font-display text-3xl sm:text-4xl md:text-5xl text-neutral-900 font-extrabold uppercase tracking-wider">
-              Shipping & Delivery Policy
+              {title}
             </h1>
             <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider mt-2 max-w-2xl">
-              100% Insured express transit across 19,000+ Indian pincodes · Dispatched from our Surat design lab · Zero shipping fees.
+              {description}
             </p>
           </div>
 
@@ -63,107 +90,130 @@ export default function ShippingPolicyPage() {
 
         {/* 3. Main Full-Width Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start w-full">
-          
           {/* Left Main Content (8 Columns) */}
-          <div className="lg:col-span-8 space-y-8">
-            
-            {/* Section 1: Dispatch */}
-            <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-3">
-              <div className="flex items-center gap-3">
-                <span className="w-7 h-7 bg-neutral-900 text-white font-extrabold text-xs flex items-center justify-center">
-                  1
-                </span>
-                <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
-                  Order Processing & Dispatch Timelines
-                </h2>
-              </div>
-              <p className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed pl-0 sm:pl-10">
-                All in-stock MurtiPuja drops undergo multi-stage optical surface inspection, manual micro-layer detailing, and protective sealing before leaving our Surat facility. Orders are dispatched within <strong>24 to 48 working hours</strong> after payment verification.
-              </p>
-            </div>
-
-            {/* Section 2: Regional Estimates */}
-            <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-4">
-              <div className="flex items-center gap-3">
-                <span className="w-7 h-7 bg-neutral-900 text-white font-extrabold text-xs flex items-center justify-center">
-                  2
-                </span>
-                <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
-                  Estimated Delivery Timelines Across India
-                </h2>
-              </div>
-              
-              <div className="pl-0 sm:pl-10 grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-                <div className="bg-stone-50/70 border border-stone-200 p-4 space-y-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">Within Gujarat</span>
-                  <p className="font-display text-xl font-extrabold text-neutral-900">1 – 2 Days</p>
-                  <p className="text-[11px] text-neutral-500 font-semibold">Surat, Ahmedabad, Vadodara, Rajkot</p>
+          <div className="lg:col-span-8 space-y-6">
+            {/* If dynamic sections are present, render them */}
+            {sections.length > 0 ? (
+              sections.map((sec, idx) => (
+                <div key={idx} className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 bg-neutral-900 text-white font-extrabold text-xs flex items-center justify-center">
+                      {idx + 1}
+                    </span>
+                    <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
+                      {sec.title}
+                    </h2>
+                  </div>
+                  <div className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed pl-0 sm:pl-10 whitespace-pre-line">
+                    {sec.content}
+                  </div>
                 </div>
-
-                <div className="bg-stone-50/70 border border-stone-200 p-4 space-y-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">Metro Cities</span>
-                  <p className="font-display text-xl font-extrabold text-neutral-900">2 – 3 Days</p>
-                  <p className="text-[11px] text-neutral-500 font-semibold">Mumbai, Delhi NCR, Bengaluru, Hyderabad, Pune</p>
-                </div>
-
-                <div className="bg-stone-50/70 border border-stone-200 p-4 space-y-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">Rest of India</span>
-                  <p className="font-display text-xl font-extrabold text-neutral-900">3 – 5 Days</p>
-                  <p className="text-[11px] text-neutral-500 font-semibold">All Tier 2, Tier 3 & Rural Pin Codes</p>
+              ))
+            ) : bodyText ? (
+              <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-4">
+                <div className="text-xs sm:text-sm text-neutral-700 leading-relaxed font-sans whitespace-pre-line">
+                  {bodyText}
                 </div>
               </div>
-            </div>
+            ) : (
+              <>
+                {/* Section 1: Dispatch */}
+                <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 bg-neutral-900 text-white font-extrabold text-xs flex items-center justify-center">
+                      1
+                    </span>
+                    <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
+                      Order Processing & Dispatch Timelines
+                    </h2>
+                  </div>
+                  <p className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed pl-0 sm:pl-10">
+                    All in-stock MurtiPuja drops undergo multi-stage optical surface inspection, manual micro-layer detailing, and protective sealing before leaving our Surat facility. Orders are dispatched within <strong>24 to 48 working hours</strong> after payment verification.
+                  </p>
+                </div>
 
-            {/* Section 3: Packaging & Courier Partners */}
-            <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-4">
-              <div className="flex items-center gap-3">
-                <span className="w-7 h-7 bg-neutral-900 text-white font-extrabold text-xs flex items-center justify-center">
-                  3
-                </span>
-                <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
-                  Transit Couriers & Sacred Packaging
-                </h2>
-              </div>
-              <p className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed pl-0 sm:pl-10">
-                We partner exclusively with air express logistics providers including <strong>Blue Dart Express</strong> and <strong>Delhivery Air</strong>. Each divine idol is encapsulated in custom-molded high-density foam, encased in tamper-evident sealed packaging with sacred unboxing documentation.
-              </p>
-            </div>
+                {/* Section 2: Regional Estimates */}
+                <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 bg-neutral-900 text-white font-extrabold text-xs flex items-center justify-center">
+                      2
+                    </span>
+                    <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
+                      Estimated Delivery Timelines Across India
+                    </h2>
+                  </div>
+                  
+                  <div className="pl-0 sm:pl-10 grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                    <div className="bg-stone-50/70 border border-stone-200 p-4 space-y-1">
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">Within Gujarat</span>
+                      <p className="font-display text-xl font-extrabold text-neutral-900">1 – 2 Days</p>
+                      <p className="text-[11px] text-neutral-500 font-semibold">Surat, Ahmedabad, Vadodara, Rajkot</p>
+                    </div>
 
-            {/* Section 4: Real-Time Tracking */}
-            <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-4">
-              <div className="flex items-center gap-3">
-                <span className="w-7 h-7 bg-neutral-900 text-white font-extrabold text-xs flex items-center justify-center">
-                  4
-                </span>
-                <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
-                  Real-Time Tracking & Notifications
-                </h2>
-              </div>
-              <p className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed pl-0 sm:pl-10">
-                As soon as your shipment is scanned at the hub, an SMS & WhatsApp notification containing your AWB tracking link is triggered. You can also track transit milestones directly on our portal via your registered phone number.
-              </p>
-            </div>
+                    <div className="bg-stone-50/70 border border-stone-200 p-4 space-y-1">
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">Metro Cities</span>
+                      <p className="font-display text-xl font-extrabold text-neutral-900">2 – 3 Days</p>
+                      <p className="text-[11px] text-neutral-500 font-semibold">Mumbai, Delhi NCR, Bengaluru, Hyderabad, Pune</p>
+                    </div>
 
-            {/* Section 5: Transit Damage Policy */}
-            <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-4">
-              <div className="flex items-center gap-3">
-                <span className="w-7 h-7 bg-neutral-900 text-white font-extrabold text-xs flex items-center justify-center">
-                  5
-                </span>
-                <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
-                  Transit Damage Policy
-                </h2>
-              </div>
-              <p className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed pl-0 sm:pl-10">
-                In the rare event of transit damage, MurtiPuja provides a <strong>100% free instant replacement</strong> or refund. Simply file a claim within 7 days of delivery with your continuous unboxing video via our dedicated <Link href="/return-and-exchange" className="text-neutral-900 underline font-extrabold hover:text-gold">Claims Portal</Link>.
-              </p>
-            </div>
+                    <div className="bg-stone-50/70 border border-stone-200 p-4 space-y-1">
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">Rest of India</span>
+                      <p className="font-display text-xl font-extrabold text-neutral-900">3 – 5 Days</p>
+                      <p className="text-[11px] text-neutral-500 font-semibold">All Tier 2, Tier 3 & Rural Pin Codes</p>
+                    </div>
+                  </div>
+                </div>
 
+                {/* Section 3: Packaging & Courier Partners */}
+                <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 bg-neutral-900 text-white font-extrabold text-xs flex items-center justify-center">
+                      3
+                    </span>
+                    <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
+                      Transit Couriers & Sacred Packaging
+                    </h2>
+                  </div>
+                  <p className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed pl-0 sm:pl-10">
+                    We partner exclusively with air express logistics providers including <strong>Blue Dart Express</strong> and <strong>Delhivery Air</strong>. Each divine idol is encapsulated in custom-molded high-density foam, encased in tamper-evident sealed packaging with sacred unboxing documentation.
+                  </p>
+                </div>
+
+                {/* Section 4: Real-Time Tracking */}
+                <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 bg-neutral-900 text-white font-extrabold text-xs flex items-center justify-center">
+                      4
+                    </span>
+                    <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
+                      Real-Time Tracking & Notifications
+                    </h2>
+                  </div>
+                  <p className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed pl-0 sm:pl-10">
+                    As soon as your shipment is scanned at the hub, an SMS & WhatsApp notification containing your AWB tracking link is triggered. You can also track transit milestones directly on our portal via your registered phone number.
+                  </p>
+                </div>
+
+                {/* Section 5: Transit Damage Policy */}
+                <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 bg-neutral-900 text-white font-extrabold text-xs flex items-center justify-center">
+                      5
+                    </span>
+                    <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
+                      Transit Damage Policy
+                    </h2>
+                  </div>
+                  <p className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed pl-0 sm:pl-10">
+                    In the rare event of transit damage, MurtiPuja provides a <strong>100% free instant replacement</strong> or refund. Simply file a claim within 7 days of delivery with your continuous unboxing video via our dedicated <Link href="/return-and-exchange" className="text-neutral-900 underline font-extrabold hover:text-gold">Claims Portal</Link>.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Right Column / Quick Action Sidebar (4 Columns) */}
           <div className="lg:col-span-4 space-y-6">
-            
             {/* Track Order Card */}
             <Link
               href="/track-order"
@@ -239,9 +289,7 @@ export default function ShippingPolicyPage() {
                 </Link>
               </div>
             </div>
-
           </div>
-
         </div>
 
         {/* 4. Full-Width Bottom Action Banner */}
@@ -270,7 +318,6 @@ export default function ShippingPolicyPage() {
             </Link>
           </div>
         </div>
-
       </div>
     </main>
   );
