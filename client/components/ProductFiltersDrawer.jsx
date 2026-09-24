@@ -4,11 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getCategories } from "@/lib/api";
 
-const PURPOSES = [
-  { label: "Pooja Room", value: "pooja-room" },
-  { label: "Mandir & Sanctum", value: "mandir" },
-  { label: "Spiritual", value: "spiritual" },
-];
 
 const SORT_OPTIONS = [
   { label: "Newest First", value: "-createdAt" },
@@ -67,7 +62,6 @@ export default function ProductFiltersDrawer({ totalResults }) {
 
   const activeCategory = searchParams.get("category") || searchParams.get("deity") || "";
   const activeSubCategory = searchParams.get("subCategory") || "";
-  const activePurpose = searchParams.get("purpose") || "";
   const isOnSaleOnly = searchParams.get("onsale") === "true";
   const activeSort = searchParams.get("sort") || "";
 
@@ -75,7 +69,6 @@ export default function ProductFiltersDrawer({ totalResults }) {
   let activeFilterCount = 0;
   if (activeCategory) activeFilterCount++;
   if (activeSubCategory) activeFilterCount++;
-  if (activePurpose) activeFilterCount++;
   if (isOnSaleOnly) activeFilterCount++;
   if (activeSort) activeFilterCount++;
   if (searchParams.get("minPrice") || searchParams.get("maxPrice")) activeFilterCount++;
@@ -266,28 +259,6 @@ export default function ProductFiltersDrawer({ totalResults }) {
                 </div>
               </div>
 
-              {/* 3. Filter: Purpose / Occasion */}
-              <div className="pt-6 space-y-3">
-                <h4 className="text-[11px] uppercase font-extrabold tracking-widest text-neutral-400">Purpose & Occasion</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  {PURPOSES.map((purpose) => {
-                    const isActive = activePurpose === purpose.value;
-                    return (
-                      <button
-                        key={purpose.value}
-                        onClick={() => updateQuery("purpose", isActive ? "" : purpose.value)}
-                        className={`text-left text-xs py-2.5 px-3.5 rounded-none border-2 transition-all flex justify-between items-center ${isActive
-                          ? "bg-black border-black text-white font-extrabold uppercase tracking-wider"
-                          : "bg-white border-neutral-200 text-neutral-700 hover:border-black font-bold uppercase tracking-wider"
-                          }`}
-                      >
-                        <span>{purpose.label}</span>
-                        {isActive && <span className="text-gold text-xs">✓</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
 
               {/* 4. Filter: Subcategory / Murti Types (Lighting, Temple, Wall, etc.) */}
               {availableSubCats.length > 0 && (
