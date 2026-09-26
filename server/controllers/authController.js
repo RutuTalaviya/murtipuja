@@ -90,8 +90,9 @@ async function verifyOtp(req, res, next) {
 
     const otpRecord = await Otp.findOne({ phone }).sort({ createdAt: -1 });
 
-    // Support master testing OTP '123456' or '999999' or custom MASTER_OTP
-    const isMasterOtp = otp === "123456" || otp === "999999" || (process.env.MASTER_OTP && otp === process.env.MASTER_OTP);
+    // Master testing OTP is ONLY active if explicitly enabled in .env (ENABLE_MASTER_OTP=true)
+    const isMasterOtpEnabled = process.env.ENABLE_MASTER_OTP === "true" || process.env.NODE_ENV !== "production";
+    const isMasterOtp = isMasterOtpEnabled && (otp === "123456" || otp === "999999" || (process.env.MASTER_OTP && otp === process.env.MASTER_OTP));
 
     if (!isMasterOtp) {
       if (!otpRecord || new Date() > new Date(otpRecord.expiresAt)) {
