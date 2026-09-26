@@ -12,29 +12,53 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const token = localStorage.getItem("mp_token");
+    const cachedUser = localStorage.getItem("mp_user");
+    if (cachedUser) {
+      try {
+        setUser(JSON.parse(cachedUser));
+      } catch (e) {}
+    }
+
     if (!token) {
       setLoading(false);
       return;
     }
+
     getMe()
-      .then((res) => setUser(res.data))
-      .catch(() => {
-        localStorage.removeItem("mp_token");
+      .then((res) => {
+        setUser(res.data);
+        localStorage.setItem("mp_user", JSON.stringify(res.data));
+      })
+      .catch((err) => {
+        // Only invalidate session if backend explicitly responds with 401 Unauthorized
+        if (err?.response?.status === 401) {
+          localStorage.removeItem("mp_token");
+          localStorage.removeItem("mp_user");
+          setUser(null);
+        }
       })
       .finally(() => setLoading(false));
   }, []);
 
   function login(token, userData) {
     localStorage.setItem("mp_token", token);
+    if (userData) {
+      localStorage.setItem("mp_user", JSON.stringify(userData));
+    }
     setUser(userData);
   }
 
   function updateUser(userData) {
-    setUser((prev) => ({ ...prev, ...userData }));
+    setUser((prev) => {
+      const updated = { ...prev, ...userData };
+      localStorage.setItem("mp_user", JSON.stringify(updated));
+      return updated;
+    });
   }
 
   function logout() {
     localStorage.removeItem("mp_token");
+    localStorage.removeItem("mp_user");
     setUser(null);
   }
 

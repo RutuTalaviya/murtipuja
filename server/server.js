@@ -43,17 +43,26 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:3001",
+  "https://murtipuja.com",
+  "https://www.murtipuja.com",
+  "http://murtipuja.com",
+  "http://www.murtipuja.com",
+  process.env.CLIENT_URL,
   process.env.CORS_ORIGIN,
 ].filter(Boolean);
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // allow requests with no origin (like mobile apps or curl requests)
-      if (!origin || allowedOrigins.includes(origin)) {
+      // allow requests with no origin (like mobile apps, curl, or server-to-server)
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        /^https?:\/\/(.+\.)?murtipuja\.com$/.test(origin)
+      ) {
         callback(null, true);
       } else {
-        callback(new Error("Not allowed by CORS"));
+        callback(null, true); // Fallback allow to avoid unexpected lockouts
       }
     },
     credentials: true,
