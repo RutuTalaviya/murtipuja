@@ -35,6 +35,9 @@ async function sendOtp(req, res, next) {
     await Otp.create({
       phone,
       hashedOtp,
+      expiresAt: getExpiryDate(),
+    });
+
     // Always write generated OTP to otp.log and PM2 console for seamless monitoring
     const fs = require("fs");
     const path = require("path");
