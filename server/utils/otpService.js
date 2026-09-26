@@ -53,7 +53,7 @@ class OtpDeliveryError extends Error {
  */
 async function sendOtpSms(phone, otp) {
   if (!process.env.MSG91_AUTH_KEY || process.env.MSG91_AUTH_KEY === "your_msg91_auth_key") {
-    console.log(`\n========================================\n[DEV MODE] OTP for ${phone}: ${otp}\n========================================\n`);
+    console.log(`\n========================================\n[DEV/MOCK OTP] Phone: +91 ${phone} | OTP: ${otp}\n========================================\n`);
     const fs = require("fs");
     const path = require("path");
     try {
@@ -64,72 +64,65 @@ async function sendOtpSms(phone, otp) {
     return { simulated: true };
   }
 
-  try {
-    const formattedMobile = phone.startsWith("91") && phone.length === 12
-      ? phone
-      : phone.startsWith("+91")
-      ? phone.slice(1)
-      : `91${phone.replace(/\D/g, "")}`;
+  const formattedMobile = phone.startsWith("91") && phone.length === 12
+    ? phone
+    : phone.startsWith("+91")
+    ? phone.slice(1)
+    : `91${phone.replace(/\D/g, "")}`;
 
-    let response;
-    try {
-      response = await axios.post(
-        "https://control.msg91.com/api/v5/otp",
-        {
-          mobile: formattedMobile,
-          otp,
-          sender: process.env.MSG91_SENDER_ID,
-          template_id: process.env.MSG91_TEMPLATE_ID,
-          otp_channel: "WHATSAPP", // Deliver OTP via WhatsApp first
-        },
-        {
-          headers: {
-            authkey: process.env.MSG91_AUTH_KEY,
-            "Content-Type": "application/json",
-          },
-          timeout: 10000,
-        }
-      );
-    } catch (err) {
-      console.warn("WhatsApp OTP attempt returned error, trying standard SMS fallback:", err.response?.data || err.message);
-      response = await axios.post(
-        "https://control.msg91.com/api/v5/otp",
-        {
-          mobile: formattedMobile,
-          otp,
-          sender: process.env.MSG91_SENDER_ID,
-          template_id: process.env.MSG91_TEMPLATE_ID,
-        },
-        {
-          headers: {
-            authkey: process.env.MSG91_AUTH_KEY,
-            "Content-Type": "application/json",
-          },
-          timeout: 10000,
-        }
-      );
+  try {
+    const payload = {
+      template_id: process.env.MSG91_TEMPLATE_ID,
+      mobile: formattedMobile,
+      otp,
+      otp_length: 6,
+      otp_expiry: 5,
+    };
+
+    if (process.env.MSG91_SENDER_ID && process.env.MSG91_SENDER_ID !== "your_msg91_sender_id") {
+      payload.sender = process.env.MSG91_SENDER_ID;
     }
 
-    // MSG91 returns type: "success" or type: "error" in the body even on HTTP 200,
-    // so a successful HTTP response isn't always a successful send.
+    if (process.env.MSG91_CHANNEL === "WHATSAPP") {
+      payload.otp_channel = "WHATSAPP";
+    }
+
+    console.log(`[MSG91] Sending OTP to ${formattedMobile} with template ${process.env.MSG91_TEMPLATE_ID}...`);
+
+    const response = await axios.post(
+      "https://control.msg91.com/api/v5/otp",
+      payload,
+      {
+        headers: {
+          authkey: process.env.MSG91_AUTH_KEY,
+          "Content-Type": "application/json",
+        },
+        timeout: 12000,
+      }
+    );
+
+    console.log("[MSG91 Response]:", response.data);
+
     if (response.data?.type === "error") {
-      console.error("MSG91 returned an error:", response.data);
-      throw new OtpDeliveryError(
-        "SMS provider could not send the OTP right now",
-        response.data
-      );
+      const errMsg = response.data?.message || "MSG91 returned an error";
+      console.error("[MSG91 Error]:", errMsg);
+      throw new OtpDeliveryError(errMsg, response.data);
     }
 
     return response.data;
   } catch (error) {
-    if (error instanceof OtpDeliveryError) throw error;
+    const errorDetails = error.response?.data || error.message;
+    console.error("[MSG91 Request Failed]:", errorDetails);
 
-    // Network error, timeout, wallet balance exhausted (401/402-style responses), etc.
-    console.error("MSG91 request failed:", error.response?.data || error.message);
-    throw new OtpDeliveryError(
-      "SMS service is temporarily unavailable. Please try again in a few minutes.",
-      error.response?.data
-    );
+    // Write OTP to fallback log on server so admin can always see it
+    const fs = require("fs");
+    const path = require("path");
+    try {
+      fs.writeFileSync(path.join(__dirname, "..", "otp.log"), `OTP for ${phone}: ${otp} (at ${new Date().toISOString()})\n`);
+    } catch (e) {}
+
+    const friendlyMsg = error.response?.data?.message || error.message || "Failed to send OTP via SMS";
+    throw new OtpDeliveryError(friendlyMsg, error.response?.data);
   }
 }
 

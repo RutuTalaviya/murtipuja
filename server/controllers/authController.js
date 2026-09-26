@@ -45,24 +45,20 @@ async function sendOtp(req, res, next) {
     try {
       await sendOtpSms(phone, otp);
     } catch (smsError) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn(`[DEV NOTE] SMS delivery warning (${smsError.message}), but allowing dev OTP ${otp} or master OTP 123456`);
+      console.error(`[OTP Error] Failed to send SMS to ${phone}:`, smsError.message, smsError.providerResponse || "");
+      
+      if (process.env.NODE_ENV !== "production" || process.env.ALLOW_DEV_FALLBACK === "true") {
+        console.warn(`[OTP NOTE] SMS failed (${smsError.message}), but allowing generated OTP for testing.`);
         return res.status(200).json({
-          message: "OTP sent successfully",
+          message: `OTP sent (Dev/Log mode: ${otp})`,
           devOtp: otp,
         });
       }
 
-      // Clean up the OTP record since it was never actually delivered in production
-      await Otp.deleteMany({ phone });
-
-      if (smsError instanceof OtpDeliveryError) {
-        console.error(`OTP delivery failed for ${phone}:`, smsError.providerResponse || smsError.message);
-        return res.status(503).json({
-          message: "We couldn't send the OTP right now. Please try again in a few minutes.",
-        });
-      }
-      throw smsError;
+      // In production, return clean descriptive message
+      return res.status(400).json({
+        message: smsError.message || "Could not deliver OTP. Please check your SMS provider setup.",
+      });
     }
 
     return res.status(200).json({
@@ -70,7 +66,8 @@ async function sendOtp(req, res, next) {
       ...(process.env.NODE_ENV !== "production" ? { devOtp: otp } : {}),
     });
   } catch (error) {
-    next(error);
+    console.error("[sendOtp unhandled error]:", error);
+    return res.status(400).json({ message: error.message || "Failed to process OTP request" });
   }
 }
 
