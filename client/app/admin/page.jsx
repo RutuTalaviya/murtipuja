@@ -1803,7 +1803,7 @@ export default function AdminPage() {
               <div className="flex items-center gap-2.5">
                 {activeTab === "categories" && <span className="w-1.5 h-4 bg-maroon rounded-full shrink-0"></span>}
                 <span className="text-sm">📁</span>
-                <span>Categories & Sub</span>
+                <span>Categories, Sub & Tags</span>
               </div>
               <span
                 className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
@@ -2079,7 +2079,7 @@ export default function AdminPage() {
               {activeTab === "dashboard"
                 ? "Dashboard Analytics & Overview"
                 : activeTab === "categories"
-                ? "Categories & Subcategories Management"
+                ? "Categories, Subcategories & Tags Management"
                 : activeTab === "nav-menu"
                 ? "Navigation Menu Bar CMS"
                 : activeTab.replace(/-/g, " ")}
@@ -2719,7 +2719,7 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* Form Selector Tabs (Main Category Form vs Subcategory Form) */}
+              {/* Form Selector Tabs (Main Category Form vs Subcategory Form vs Product Tag Form) */}
               <div className="flex rounded-xl p-1 bg-white border border-slate-200 gap-1 shadow-2xs">
                 <button
                   type="button"
@@ -2734,7 +2734,7 @@ export default function AdminPage() {
                     : "text-charcoal/70 border border-slate-200 hover:text-black hover:border-slate-300 hover:bg-slate-50"
                     }`}
                 >
-                  <span>Add Main Category</span>
+                  <span>Main Cat</span>
                 </button>
                 <button
                   type="button"
@@ -2750,7 +2750,19 @@ export default function AdminPage() {
                     : "text-charcoal/70 border border-slate-200 hover:text-black hover:border-slate-300 hover:bg-slate-50"
                     }`}
                 >
-                  <span>Add Subcategory</span>
+                  <span>Subcategory</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryFormTab("tag");
+                  }}
+                  className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 bg-white ${categoryFormTab === "tag"
+                    ? "text-maroon font-black border-2 border-maroon shadow-xs ring-2 ring-maroon/10"
+                    : "text-charcoal/70 border border-slate-200 hover:text-black hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                >
+                  <span>Product Tag</span>
                 </button>
               </div>
 
@@ -2817,7 +2829,7 @@ export default function AdminPage() {
                     {catLoading ? "Saving..." : editingCategory ? "Update Main Category" : "Create Main Category"}
                   </button>
                 </form>
-              ) : (
+              ) : categoryFormTab === "sub" ? (
                 /* FORM 2: SUBCATEGORY FORM */
                 <form onSubmit={handleCreateCategory} className="space-y-3.5 animate-fade-in">
                   <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl space-y-1">
@@ -2914,6 +2926,82 @@ export default function AdminPage() {
                   >
                     {catLoading ? "Saving..." : editingCategory ? "Update Subcategory" : "Create Subcategory"}
                   </button>
+                </form>
+              ) : (
+                /* FORM 3: PRODUCT TAG FORM */
+                <form onSubmit={handleCreateOrUpdateTag} className="space-y-3.5 animate-fade-in">
+                  <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl space-y-1">
+                    <p className="text-xs font-bold text-emerald-950">
+                      {editingTag ? "Edit Product Tag" : "Product Tag Form"}
+                    </p>
+                    <p className="text-[10.5px] text-emerald-800 leading-snug">
+                      Use this to add searchable tags like <strong>Lighting Shiv</strong>, <strong>Bestseller</strong>, <strong>Pooja Room</strong>, <strong>Car Dashboard</strong>.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">Tag Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Lighting Shiv"
+                      value={newTagName}
+                      onChange={(e) => {
+                        setNewTagName(e.target.value);
+                        if (!editingTag) {
+                          setNewTagSlug(
+                            e.target.value
+                              .toLowerCase()
+                              .replace(/[^a-z0-9]+/g, "-")
+                              .replace(/(^-|-$)/g, "")
+                          );
+                        }
+                      }}
+                      className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs font-semibold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">Tag Slug *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. lighting-shiv"
+                      value={newTagSlug}
+                      onChange={(e) => setNewTagSlug(e.target.value.toLowerCase())}
+                      className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs font-mono text-charcoal/80"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">Description (Optional)</label>
+                    <textarea
+                      rows="2"
+                      placeholder="e.g. Backlit halo and illuminated Shiv idols"
+                      value={newTagDesc}
+                      onChange={(e) => setNewTagDesc(e.target.value)}
+                      className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs resize-none"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={tagLoading || !newTagName.trim()}
+                      className="flex-1 bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] uppercase tracking-wider font-bold py-2.5 rounded-xl transition-all shadow-md disabled:opacity-50"
+                    >
+                      {tagLoading ? "Saving..." : editingTag ? "Update Tag" : "Create Product Tag"}
+                    </button>
+                    {editingTag && (
+                      <button
+                        type="button"
+                        onClick={resetTagForm}
+                        className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-charcoal text-xs font-bold rounded-xl"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 </form>
               )}
             </div>
@@ -3060,6 +3148,90 @@ export default function AdminPage() {
                   </table>
                 </div>
               )}
+
+              {/* Product Tags & Filter Badges Overview & Manager */}
+              <div className="p-5 border-t border-charcoal/10 bg-amber-50/50 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
+                      <span>🏷️ Product Filter Tags & Badges Library</span>
+                      <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded font-bold">
+                        {availableTags.length} Tags Active
+                      </span>
+                    </h4>
+                    <p className="text-[10.5px] text-amber-800">
+                      Manage tags like <strong>Lighting Shiv</strong>, <strong>Bestseller</strong>, <strong>Pooja Room</strong>, <strong>Car Dashboard</strong>. Used in Product Form, Navbar & Filters.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetTagForm();
+                      setCategoryFormTab("tag");
+                    }}
+                    className="text-[10px] bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-3 py-1.5 rounded-lg transition-all uppercase tracking-wider self-start sm:self-auto cursor-pointer"
+                  >
+                    ➕ Add New Tag
+                  </button>
+                </div>
+
+                {availableTags.length === 0 ? (
+                  <div className="bg-white p-4 rounded-xl border border-dashed border-amber-300 text-center text-xs text-charcoal/60">
+                    No custom tags created yet. Click "➕ Add New Tag" or use the Product Tag form on the left to create your first tag.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
+                    {availableTags.map((tagName) => {
+                      const tagObj = tagObjects.find((t) => (typeof t === "string" ? t : t.name) === tagName) || {
+                        name: tagName,
+                        slug: tagName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
+                      };
+
+                      return (
+                        <div
+                          key={tagName}
+                          className="bg-white p-3 rounded-xl border border-amber-300/80 shadow-2xs flex flex-col justify-between space-y-2 hover:border-amber-400 transition-all"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-charcoal truncate">{tagName}</span>
+                            <span className="text-[9px] font-mono text-charcoal/50 bg-amber-50 px-1.5 py-0.5 rounded">
+                              /{tagObj.slug}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1 border-t border-charcoal/5 text-[10px]">
+                            <Link
+                              href={`/products?tag=${encodeURIComponent(tagName)}`}
+                              target="_blank"
+                              className="text-amber-800 hover:text-amber-950 font-bold flex items-center gap-1"
+                            >
+                              <span>Live Filter</span>
+                              <span className="text-[9px]">↗</span>
+                            </Link>
+
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleEditTag(tagObj)}
+                                className="text-gold hover:text-gold/80 font-bold uppercase cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteTag(tagObj)}
+                                className="text-red-600 hover:text-red-800 font-bold uppercase cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
