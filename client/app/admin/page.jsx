@@ -24,6 +24,10 @@ import api, {
   deleteFinish,
   getProducts,
   getProductTags,
+  getTags,
+  createTag,
+  updateTag,
+  deleteTag,
   createProduct,
   updateProduct,
   deleteProduct,
@@ -220,6 +224,7 @@ export default function AdminPage() {
   // Product Tags & Custom Badges State
   const [productTags, setProductTags] = useState([]);
   const [availableTags, setAvailableTags] = useState([
+    "Lighting Shiv",
     "Bestseller",
     "New Launch",
     "Trending",
@@ -235,6 +240,14 @@ export default function AdminPage() {
     "Limited Edition",
   ]);
   const [customTagInput, setCustomTagInput] = useState("");
+
+  // Tags Manager state in Categories & Tags Tab
+  const [tagObjects, setTagObjects] = useState([]);
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagSlug, setNewTagSlug] = useState("");
+  const [newTagDesc, setNewTagDesc] = useState("");
+  const [editingTag, setEditingTag] = useState(null);
+  const [tagLoading, setTagLoading] = useState(false);
 
   // Quick Inline Category & Subcategory Creation in Product Modal
   const [quickCatOpen, setQuickCatOpen] = useState(false);
@@ -264,7 +277,7 @@ export default function AdminPage() {
       getAdminNavMenu(),
       getAdminBanners(),
       getAdminVideos(),
-      getProductTags().catch(() => ({ data: [] })),
+      getTags().catch(() => ({ data: [] })),
     ])
       .then(([statsRes, ordersRes, catRes, finishRes, prodRes, comboRes, couponRes, offerRes, navRes, bannerRes, videoRes, tagsRes]) => {
         setStats(statsRes.data);
@@ -279,7 +292,9 @@ export default function AdminPage() {
         setBanners(bannerRes.data?.data || bannerRes.data || []);
         setVideoReels(videoRes.data?.data || videoRes.data || []);
         if (tagsRes?.data && Array.isArray(tagsRes.data) && tagsRes.data.length > 0) {
-          setAvailableTags(tagsRes.data);
+          setTagObjects(tagsRes.data);
+          const names = tagsRes.data.map((t) => (typeof t === "string" ? t : t.name));
+          setAvailableTags(Array.from(new Set([...names, "Lighting Shiv", "Bestseller", "New Launch", "Trending", "Pooja Room", "Car Dashboard"])));
         }
       })
       .catch((err) => {
@@ -594,6 +609,85 @@ export default function AdminPage() {
     } catch (err) {
       setActionError("Failed to delete category.");
     }
+  }
+
+  // Tag Form Reset
+  function resetTagForm() {
+    setNewTagName("");
+    setNewTagSlug("");
+    setNewTagDesc("");
+    setEditingTag(null);
+  }
+
+  // Handle Tag creation or update
+  async function handleCreateOrUpdateTag(e) {
+    if (e) e.preventDefault();
+    if (!newTagName.trim()) return;
+    setActionError("");
+    setTagLoading(true);
+    try {
+      const generatedSlug =
+        newTagSlug.trim() ||
+        newTagName
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "");
+
+      const payload = {
+        name: newTagName.trim(),
+        slug: generatedSlug,
+        description: newTagDesc.trim(),
+      };
+
+      if (editingTag && editingTag._id && !editingTag._id.startsWith("prod-tag-")) {
+        const res = await updateTag(editingTag._id, payload);
+        const updated = res.data;
+        setTagObjects((prev) => prev.map((t) => (t._id === editingTag._id ? updated : t)));
+        setAvailableTags((prev) => prev.map((t) => (t === editingTag.name ? updated.name : t)));
+        setActionSuccess(`Tag "${updated.name}" updated successfully!`);
+      } else {
+        const res = await createTag(payload);
+        const created = res.data;
+        setTagObjects((prev) => [...prev.filter((t) => t.name.toLowerCase() !== created.name.toLowerCase()), created]);
+        if (!availableTags.includes(created.name)) {
+          setAvailableTags((prev) => [...prev, created.name]);
+        }
+        setActionSuccess(`Tag "${created.name}" created successfully!`);
+      }
+      setTimeout(() => setActionSuccess(""), 3500);
+      resetTagForm();
+    } catch (err) {
+      setActionError(err.response?.data?.message || "Failed to save tag.");
+    } finally {
+      setTagLoading(false);
+    }
+  }
+
+  // Handle Tag deletion
+  async function handleDeleteTag(tagItem) {
+    if (!window.confirm(`Are you sure you want to delete tag "${tagItem.name}"?`)) return;
+    setActionError("");
+    try {
+      if (tagItem._id && !tagItem._id.startsWith("prod-tag-")) {
+        await deleteTag(tagItem._id);
+      }
+      setTagObjects((prev) => prev.filter((t) => t.name !== tagItem.name));
+      setAvailableTags((prev) => prev.filter((t) => t !== tagItem.name));
+      setProductTags((prev) => prev.filter((t) => t !== tagItem.name));
+      setActionSuccess(`Tag "${tagItem.name}" deleted.`);
+      setTimeout(() => setActionSuccess(""), 3500);
+    } catch (err) {
+      setActionError("Failed to delete tag.");
+    }
+  }
+
+  function handleEditTag(tagItem) {
+    setEditingTag(tagItem);
+    setNewTagName(tagItem.name || "");
+    setNewTagSlug(tagItem.slug || "");
+    setNewTagDesc(tagItem.description || "");
+    setCategoryFormTab("tag");
   }
 
   // Handle finish creation or update
@@ -2640,8 +2734,8 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* Form Selector Tabs (Main Category Form vs Subcategory Form) */}
-              <div className="flex rounded-xl p-1 bg-white border border-slate-200 gap-1.5 shadow-2xs">
+              {/* Form Selector Tabs (Main Category Form vs Subcategory Form vs Product Tag Form) */}
+              <div className="flex rounded-xl p-1 bg-white border border-slate-200 gap-1 shadow-2xs">
                 <button
                   type="button"
                   onClick={() => {
@@ -2650,12 +2744,12 @@ export default function AdminPage() {
                     }
                     setCategoryFormTab("main");
                   }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 bg-white ${categoryFormTab === "main"
+                  className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 bg-white ${categoryFormTab === "main"
                     ? "text-maroon font-black border-2 border-maroon shadow-xs ring-2 ring-maroon/10"
                     : "text-charcoal/70 border border-slate-200 hover:text-black hover:border-slate-300 hover:bg-slate-50"
                     }`}
                 >
-                  <span>Add Main Category</span>
+                  <span>Main Cat</span>
                 </button>
                 <button
                   type="button"
@@ -2666,12 +2760,24 @@ export default function AdminPage() {
                     }
                     setCategoryFormTab("sub");
                   }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 bg-white ${categoryFormTab === "sub"
+                  className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 bg-white ${categoryFormTab === "sub"
                     ? "text-maroon font-black border-2 border-maroon shadow-xs ring-2 ring-maroon/10"
                     : "text-charcoal/70 border border-slate-200 hover:text-black hover:border-slate-300 hover:bg-slate-50"
                     }`}
                 >
-                  <span>Add Subcategory</span>
+                  <span>Subcategory</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryFormTab("tag");
+                  }}
+                  className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 bg-white ${categoryFormTab === "tag"
+                    ? "text-maroon font-black border-2 border-maroon shadow-xs ring-2 ring-maroon/10"
+                    : "text-charcoal/70 border border-slate-200 hover:text-black hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                >
+                  <span>Product Tag</span>
                 </button>
               </div>
 
@@ -2681,7 +2787,7 @@ export default function AdminPage() {
                   <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl space-y-1">
                     <p className="text-xs font-bold text-amber-950">Main Category Form</p>
                     <p className="text-[10.5px] text-amber-800 leading-snug">
-                      Use this to create top-level categories like <strong>Ram</strong>, <strong>Shiva</strong>, <strong>Ganesh</strong>, <strong>Krishna</strong>, <strong>Hanuman</strong>.
+                      Use this to create top-level categories like <strong>Car Desk Idol</strong>, <strong>Ram</strong>, <strong>Shiva</strong>, <strong>Ganesh</strong>, <strong>Krishna</strong>, <strong>Hanuman</strong>.
                     </p>
                   </div>
 
@@ -2690,7 +2796,7 @@ export default function AdminPage() {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Ram"
+                      placeholder="e.g. Car Desk Idol or Ram"
                       value={newCatName}
                       onChange={(e) => {
                         setNewCatName(e.target.value);
@@ -2712,7 +2818,7 @@ export default function AdminPage() {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. ram"
+                      placeholder="e.g. car-desk-idol"
                       value={newCatSlug}
                       onChange={(e) => setNewCatSlug(e.target.value.toLowerCase())}
                       className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs font-mono text-charcoal/80"
@@ -2723,7 +2829,7 @@ export default function AdminPage() {
                     <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">Description (Optional)</label>
                     <textarea
                       rows="2"
-                      placeholder="e.g. Lord Ram Ayodhya murtis & devotional series"
+                      placeholder="e.g. Premium devotional idols for car dashboard & desks"
                       value={newCatDesc}
                       onChange={(e) => setNewCatDesc(e.target.value)}
                       className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs resize-none"
@@ -2738,19 +2844,19 @@ export default function AdminPage() {
                     {catLoading ? "Saving..." : editingCategory ? "Update Main Category" : "Create Main Category"}
                   </button>
                 </form>
-              ) : (
+              ) : categoryFormTab === "sub" ? (
                 /* FORM 2: SUBCATEGORY FORM */
                 <form onSubmit={handleCreateCategory} className="space-y-3.5 animate-fade-in">
                   <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl space-y-1">
-                    <p className="text-xs font-bold text-blue-950">Subcategory / Murti Type Form</p>
+                    <p className="text-xs font-bold text-blue-950">Subcategory / Deity Murti Form</p>
                     <p className="text-[10.5px] text-blue-800 leading-snug">
-                      Use this to add specific product types like <strong>Lighting Murti</strong>, <strong>Temple / Mandir</strong>, <strong>Wall Murti</strong> under a selected category.
+                      Use this to add specific subcategories (e.g. <strong>Shiv</strong> under <strong>Car Desk Idol</strong>, or <strong>Lighting Murti</strong>).
                     </p>
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">
-                      Parent Category * (Under which Category?)
+                      Parent Category * (Under which Main Category?)
                     </label>
                     <select
                       required
@@ -2770,7 +2876,7 @@ export default function AdminPage() {
                       }}
                       className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-white outline-none focus:ring-1 focus:ring-gold text-xs font-bold text-charcoal"
                     >
-                      <option value="">-- Select Parent Category (e.g. Ram) --</option>
+                      <option value="">-- Select Parent Category (e.g. Car Desk Idol) --</option>
                       {categories
                         .filter((c) => !c.parentCategory && (!editingCategory || c._id !== editingCategory._id))
                         .map((parent) => (
@@ -2786,7 +2892,7 @@ export default function AdminPage() {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Lighting / LED Murti or Wall Murti"
+                      placeholder="e.g. Shiv or Lighting Murti"
                       value={newCatName}
                       onChange={(e) => {
                         setNewCatName(e.target.value);
@@ -2810,7 +2916,7 @@ export default function AdminPage() {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. ram-lighting-murti"
+                      placeholder="e.g. car-desk-shiv or shiv"
                       value={newCatSlug}
                       onChange={(e) => setNewCatSlug(e.target.value.toLowerCase())}
                       className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs font-mono text-charcoal/80"
@@ -2821,7 +2927,7 @@ export default function AdminPage() {
                     <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">Description (Optional)</label>
                     <textarea
                       rows="2"
-                      placeholder="e.g. Backlit halo and illuminated LED murtis"
+                      placeholder="e.g. Lord Shiva idols designed for car dashboards & desks"
                       value={newCatDesc}
                       onChange={(e) => setNewCatDesc(e.target.value)}
                       className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs resize-none"
@@ -2835,6 +2941,82 @@ export default function AdminPage() {
                   >
                     {catLoading ? "Saving..." : editingCategory ? "Update Subcategory" : "Create Subcategory"}
                   </button>
+                </form>
+              ) : (
+                /* FORM 3: PRODUCT TAG FORM */
+                <form onSubmit={handleCreateOrUpdateTag} className="space-y-3.5 animate-fade-in">
+                  <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl space-y-1">
+                    <p className="text-xs font-bold text-emerald-950">
+                      {editingTag ? "Edit Product Tag" : "Product Tag Form"}
+                    </p>
+                    <p className="text-[10.5px] text-emerald-800 leading-snug">
+                      Use this to add searchable tags like <strong>Lighting Shiv</strong>, <strong>Bestseller</strong>, <strong>Pooja Room</strong>, <strong>Car Dashboard</strong>.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">Tag Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Lighting Shiv"
+                      value={newTagName}
+                      onChange={(e) => {
+                        setNewTagName(e.target.value);
+                        if (!editingTag) {
+                          setNewTagSlug(
+                            e.target.value
+                              .toLowerCase()
+                              .replace(/[^a-z0-9]+/g, "-")
+                              .replace(/(^-|-$)/g, "")
+                          );
+                        }
+                      }}
+                      className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs font-semibold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">Tag Slug *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. lighting-shiv"
+                      value={newTagSlug}
+                      onChange={(e) => setNewTagSlug(e.target.value.toLowerCase())}
+                      className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs font-mono text-charcoal/80"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">Description (Optional)</label>
+                    <textarea
+                      rows="2"
+                      placeholder="e.g. Backlit halo and illuminated Shiv idols"
+                      value={newTagDesc}
+                      onChange={(e) => setNewTagDesc(e.target.value)}
+                      className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs resize-none"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={tagLoading || !newTagName.trim()}
+                      className="flex-1 bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] uppercase tracking-wider font-bold py-2.5 rounded-xl transition-all shadow-md disabled:opacity-50"
+                    >
+                      {tagLoading ? "Saving..." : editingTag ? "Update Tag" : "Create Product Tag"}
+                    </button>
+                    {editingTag && (
+                      <button
+                        type="button"
+                        onClick={resetTagForm}
+                        className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-charcoal text-xs font-bold rounded-xl"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 </form>
               )}
             </div>
@@ -2982,9 +3164,9 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* Product Tags & Filter Badges Overview */}
-              <div className="p-5 border-t border-charcoal/10 bg-amber-50/50 space-y-3">
-                <div className="flex justify-between items-center">
+              {/* Product Tags & Filter Badges Overview & Manager */}
+              <div className="p-5 border-t border-charcoal/10 bg-amber-50/50 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <h4 className="text-xs font-black uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
                       <span>🏷️ Product Filter Tags & Badges Library</span>
@@ -2993,30 +3175,70 @@ export default function AdminPage() {
                       </span>
                     </h4>
                     <p className="text-[10.5px] text-amber-800">
-                      These tags are automatically suggested when adding new products, and power the store filter drawer and navbar.
+                      Manage tags like <strong>Lighting Shiv</strong>, <strong>Bestseller</strong>, <strong>Pooja Room</strong>, <strong>Car Dashboard</strong>. Used in Product Form, Navbar & Filters.
                     </p>
                   </div>
-                  <Link
-                    href="/products"
-                    target="_blank"
-                    className="text-[10px] bg-black text-gold hover:bg-neutral-800 font-bold px-3 py-1.5 rounded transition-all uppercase tracking-wider"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetTagForm();
+                      setCategoryFormTab("tag");
+                    }}
+                    className="text-[10px] bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-3 py-1.5 rounded-lg transition-all uppercase tracking-wider self-start sm:self-auto"
                   >
-                    View Store Filters ↗
-                  </Link>
+                    ➕ Add New Tag
+                  </button>
                 </div>
 
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {availableTags.map((tag) => (
-                    <Link
-                      key={tag}
-                      href={`/products?tag=${encodeURIComponent(tag)}`}
-                      target="_blank"
-                      className="bg-white hover:bg-black hover:text-gold text-charcoal text-xs font-bold px-3 py-1.5 rounded-lg border border-amber-300 shadow-2xs transition-all flex items-center gap-1.5 group"
-                    >
-                      <span>{tag}</span>
-                      <span className="text-charcoal/30 group-hover:text-gold text-[10px]">↗</span>
-                    </Link>
-                  ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
+                  {availableTags.map((tagName) => {
+                    const tagObj = tagObjects.find((t) => (typeof t === "string" ? t : t.name) === tagName) || {
+                      name: tagName,
+                      slug: tagName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
+                    };
+
+                    return (
+                      <div
+                        key={tagName}
+                        className="bg-white p-3 rounded-xl border border-amber-300/80 shadow-2xs flex flex-col justify-between space-y-2 hover:border-amber-400 transition-all"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-charcoal truncate">{tagName}</span>
+                          <span className="text-[9px] font-mono text-charcoal/50 bg-amber-50 px-1.5 py-0.5 rounded">
+                            /{tagObj.slug}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1 border-t border-charcoal/5 text-[10px]">
+                          <Link
+                            href={`/products?tag=${encodeURIComponent(tagName)}`}
+                            target="_blank"
+                            className="text-amber-800 hover:text-amber-950 font-bold flex items-center gap-1"
+                          >
+                            <span>Live Filter</span>
+                            <span className="text-[9px]">↗</span>
+                          </Link>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleEditTag(tagObj)}
+                              className="text-gold hover:text-gold/80 font-bold uppercase"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteTag(tagObj)}
+                              className="text-red-600 hover:text-red-800 font-bold uppercase"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

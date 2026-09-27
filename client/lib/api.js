@@ -103,7 +103,11 @@ export const updateFinish = (id, name, slug, colorCode) => api.put(`/api/finishe
 export const deleteFinish = (id) => api.delete(`/api/finishes/${id}`);
 
 export const getProducts = (params) => api.get("/api/products", { params });
-export const getProductTags = () => api.get("/api/products/tags");
+export const getProductTags = () => api.get("/api/tags");
+export const getTags = () => api.get("/api/tags");
+export const createTag = (data) => api.post("/api/tags", typeof data === "string" ? { name: data } : data);
+export const updateTag = (id, data) => api.put(`/api/tags/${id}`, data);
+export const deleteTag = (id) => api.delete(`/api/tags/${id}`);
 export const createProduct = (data) => api.post("/api/products", data);
 export const updateProduct = (id, data) => api.put(`/api/products/${id}`, data);
 export const deleteProduct = (id) => api.delete(`/api/products/${id}`);
