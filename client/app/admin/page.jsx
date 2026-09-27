@@ -1818,7 +1818,7 @@ export default function AdminPage() {
               <div className="flex items-center gap-2.5">
                 {activeTab === "categories" && <span className="w-1.5 h-4 bg-maroon rounded-full shrink-0"></span>}
                 <span className="text-sm">📁</span>
-                <span>Categories & Sub</span>
+                <span>Categories, Sub & Tags</span>
               </div>
               <span
                 className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
@@ -2094,7 +2094,7 @@ export default function AdminPage() {
               {activeTab === "dashboard"
                 ? "Dashboard Analytics & Overview"
                 : activeTab === "categories"
-                ? "Categories & Subcategories Management"
+                ? "Categories, Subcategories & Tags Management"
                 : activeTab === "nav-menu"
                 ? "Navigation Menu Bar CMS"
                 : activeTab.replace(/-/g, " ")}
