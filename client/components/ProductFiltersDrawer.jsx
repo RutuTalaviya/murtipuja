@@ -60,7 +60,12 @@ export default function ProductFiltersDrawer({ totalResults }) {
         }
 
         if (tagRes.status === "fulfilled" && Array.isArray(tagRes.value?.data) && tagRes.value.data.length > 0) {
-          setAvailableTags(tagRes.value.data);
+          const names = tagRes.value.data
+            .map((item) => (typeof item === "string" ? item : item?.name))
+            .filter(Boolean);
+          if (names.length > 0) {
+            setAvailableTags(Array.from(new Set(names)));
+          }
         }
       } catch (err) {
         console.error("Failed to load filter metadata:", err);
@@ -344,22 +349,27 @@ export default function ProductFiltersDrawer({ totalResults }) {
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {availableTags.map((tag) => {
+                    {availableTags.map((tagItem, idx) => {
+                      const tagName = typeof tagItem === "string" ? tagItem : tagItem?.name || "";
+                      if (!tagName) return null;
+                      const tagSlug = typeof tagItem === "string"
+                        ? tagItem.replace(/\s+/g, "-").toLowerCase()
+                        : (tagItem?.slug || tagName.replace(/\s+/g, "-").toLowerCase());
                       const isSelected =
-                        activeTag.toLowerCase() === tag.toLowerCase() ||
-                        activeTag.toLowerCase() === tag.replace(/\s+/g, "-").toLowerCase();
+                        activeTag.toLowerCase() === tagName.toLowerCase() ||
+                        activeTag.toLowerCase() === tagSlug;
                       return (
                         <button
-                          key={tag}
+                          key={idx}
                           type="button"
-                          onClick={() => updateQuery("tag", isSelected ? "" : tag)}
+                          onClick={() => updateQuery("tag", isSelected ? "" : tagName)}
                           className={`text-xs py-1.5 px-3 rounded-none border-2 transition-all flex items-center gap-1.5 font-bold uppercase tracking-wider ${
                             isSelected
                               ? "bg-black border-black text-white shadow-xs"
                               : "bg-white border-neutral-200 text-neutral-700 hover:border-orange-500 hover:text-orange-600"
                           }`}
                         >
-                          <span>{tag}</span>
+                          <span>{tagName}</span>
                           {isSelected ? (
                             <span className="text-orange-400 text-xs">✓</span>
                           ) : (
