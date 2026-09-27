@@ -243,32 +243,15 @@ async function deleteProduct(req, res, next) {
   }
 }
 
-/** GET /api/products/tags - Get all distinct product tags and popular suggestions */
+/** GET /api/products/tags - Get all distinct product tags */
 async function getAvailableTags(req, res, next) {
   try {
-    const DEFAULT_SUGGESTED_TAGS = [
-      "Bestseller",
-      "New Launch",
-      "Trending",
-      "Pooja Room",
-      "Car Dashboard",
-      "Mandir Sacred",
-      "Gift Hamper",
-      "Wall Hanging",
-      "LED Backlit",
-      "Brass Finish",
-      "Marble Look",
-      "Antique Bronze",
-      "Limited Edition",
-    ];
-
     const dbTags = await Product.distinct("tags");
-    const validDbTags = (dbTags || []).filter(Boolean).map((t) => t.trim());
+    const validDbTags = (dbTags || [])
+      .filter((t) => t && typeof t === "string" && t.trim().length > 0)
+      .map((t) => t.trim());
 
-    // Combine unique list
-    const combinedSet = new Set([...validDbTags, ...DEFAULT_SUGGESTED_TAGS]);
-    const tags = Array.from(combinedSet);
-
+    const tags = Array.from(new Set(validDbTags));
     return res.status(200).json(tags);
   } catch (error) {
     next(error);

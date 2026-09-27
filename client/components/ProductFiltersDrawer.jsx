@@ -20,19 +20,7 @@ export default function ProductFiltersDrawer({ totalResults }) {
   const [isOpen, setIsOpen] = useState(false);
   const [deities, setDeities] = useState(["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman"]);
   const [availableSubCats, setAvailableSubCats] = useState([]);
-  const [availableTags, setAvailableTags] = useState([
-    "Bestseller",
-    "New Launch",
-    "Trending",
-    "Pooja Room",
-    "Car Dashboard",
-    "Mandir Sacred",
-    "Gift Hamper",
-    "Brass Finish",
-    "Marble Look",
-    "Antique Bronze",
-    "Limited Edition",
-  ]);
+  const [availableTags, setAvailableTags] = useState([]);
 
   // Local state for prices (to avoid URL thrashing on every keystroke)
   const [minPrice, setMinPrice] = useState("");

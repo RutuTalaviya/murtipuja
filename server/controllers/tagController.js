@@ -1,23 +1,6 @@
 const Tag = require("../models/Tag");
 const Product = require("../models/Product");
 
-const DEFAULT_TAGS = [
-  "Lighting Shiv",
-  "Bestseller",
-  "New Launch",
-  "Trending",
-  "Pooja Room",
-  "Car Dashboard",
-  "Mandir Sacred",
-  "Gift Hamper",
-  "Wall Hanging",
-  "LED Backlit",
-  "Brass Finish",
-  "Marble Look",
-  "Antique Bronze",
-  "Limited Edition",
-];
-
 /** GET /api/tags - Get all tags (from Tag collection + Products) */
 async function getTags(req, res, next) {
   try {
@@ -26,21 +9,7 @@ async function getTags(req, res, next) {
 
     const existingNames = new Set(dbTagDocs.map((t) => t.name.trim().toLowerCase()));
 
-    // Seed defaults in background if DB has zero tags
-    if (dbTagDocs.length === 0) {
-      for (const name of DEFAULT_TAGS) {
-        const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-        try {
-          await Tag.create({ name, slug });
-        } catch {
-          // ignore duplicate errors
-        }
-      }
-      const seeded = await Tag.find({ isActive: true }).sort("name").lean();
-      return res.status(200).json(seeded);
-    }
-
-    // Also include any custom tag string saved on existing products that isn't in Tag collection yet
+    // Include any custom tag string saved on existing products that isn't in Tag collection yet
     const extraTags = [];
     (productTags || []).forEach((pt) => {
       if (pt && typeof pt === "string") {
