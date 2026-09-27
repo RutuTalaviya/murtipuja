@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import ProductCard from "@/components/ProductCard";
 import ProductFiltersDrawer from "@/components/ProductFiltersDrawer";
@@ -26,6 +26,7 @@ export default function ProductCatalogSection({
   pageTitle,
   activeTags = [],
   quickTabs = [],
+  availableTags = [],
 }) {
   const [gridCols, setGridCols] = useState(4);
 
@@ -64,6 +65,46 @@ export default function ProductCatalogSection({
     q.set("page", pageNumber);
     q.set("limit", 12);
     return `/products?${q.toString()}`;
+  };
+
+  // Active tag parameter
+  const activeTagParam = params.tag || params.tags || "";
+
+  // Extract clean tag strings
+  const normalizedTags = useMemo(() => {
+    const set = new Set();
+    if (Array.isArray(availableTags)) {
+      availableTags.forEach((t) => {
+        const name = typeof t === "string" ? t : t?.name;
+        if (name && name.trim()) set.add(name.trim());
+      });
+    }
+    // Fallback: extract from loaded products if availableTags is empty
+    if (set.size === 0 && Array.isArray(products)) {
+      products.forEach((p) => {
+        if (Array.isArray(p.tags)) {
+          p.tags.forEach((t) => {
+            const name = typeof t === "string" ? t : t?.name;
+            if (name && name.trim()) set.add(name.trim());
+          });
+        }
+      });
+    }
+    return Array.from(set);
+  }, [availableTags, products]);
+
+  const createTagUrl = (tagName) => {
+    const q = new URLSearchParams(params);
+    if (tagName) {
+      q.set("tag", tagName);
+      q.delete("tags");
+    } else {
+      q.delete("tag");
+      q.delete("tags");
+    }
+    q.delete("page");
+    const qs = q.toString();
+    return `/products${qs ? `?${qs}` : ""}`;
   };
 
   return (
@@ -179,6 +220,49 @@ export default function ProductCatalogSection({
               </button>
             </div>
           </div>
+
+          {/* Quick Tag Filter Bar: Filter products by tag */}
+          {normalizedTags.length > 0 && (
+            <div className="flex items-center gap-2 pt-3 border-t border-stone-200 overflow-x-auto pb-1 no-scrollbar">
+              <span className="text-[10px] font-black uppercase tracking-widest text-amber-950 shrink-0 flex items-center gap-1.5 bg-amber-100/80 px-2.5 py-1 border border-amber-300">
+                <span>🏷️ TAGS:</span>
+              </span>
+
+              {/* All Tags Pill */}
+              <Link
+                href={createTagUrl("")}
+                className={`px-3 py-1 text-[11px] uppercase tracking-wider font-extrabold whitespace-nowrap transition-all border shrink-0 ${
+                  !activeTagParam
+                    ? "bg-black text-white border-black shadow-xs"
+                    : "bg-white text-neutral-700 border-stone-300 hover:border-black hover:text-black"
+                }`}
+              >
+                All Tags
+              </Link>
+
+              {/* Dynamic Tag Pills */}
+              {normalizedTags.map((tagName, idx) => {
+                const isTagActive =
+                  activeTagParam?.toLowerCase() === tagName.toLowerCase() ||
+                  activeTagParam?.toLowerCase() === tagName.replace(/\s+/g, "-").toLowerCase();
+
+                return (
+                  <Link
+                    key={idx}
+                    href={createTagUrl(isTagActive ? "" : tagName)}
+                    className={`px-3 py-1 text-[11px] uppercase tracking-wider font-extrabold whitespace-nowrap transition-all border shrink-0 flex items-center gap-1.5 ${
+                      isTagActive
+                        ? "bg-amber-500 text-black border-black font-black shadow-xs"
+                        : "bg-white text-neutral-700 border-stone-300 hover:border-black hover:text-black"
+                    }`}
+                  >
+                    <span>{tagName}</span>
+                    {isTagActive && <span className="text-black font-black text-xs">✓</span>}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* 2. Active Filter Chips Bar */}

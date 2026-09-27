@@ -1,5 +1,5 @@
 import ProductCatalogSection from "@/components/ProductCatalogSection";
-import { fetchProducts, fetchCategories } from "@/lib/serverApi";
+import { fetchProducts, fetchCategories, fetchTags } from "@/lib/serverApi";
 
 export const metadata = {
   title: "Shop Divine Murtis | MurtiPuja",
@@ -11,14 +11,17 @@ export default async function ProductsPage({ searchParams }) {
   const pageParams = { limit: 12, ...params };
   let data = { products: [], pagination: { total: 0, totalPages: 0, page: 1, limit: 12 } };
   let allCategories = [];
+  let allTags = [];
 
   try {
-    const [prodData, catData] = await Promise.all([
+    const [prodData, catData, tagData] = await Promise.all([
       fetchProducts(pageParams),
       fetchCategories().catch(() => []),
+      fetchTags().catch(() => []),
     ]);
     data = prodData;
     allCategories = Array.isArray(catData) ? catData : [];
+    allTags = Array.isArray(tagData) ? tagData : [];
   } catch (err) {
     console.error("Failed to load products page:", err);
   }
@@ -160,6 +163,7 @@ export default async function ProductsPage({ searchParams }) {
       pageTitle={pageTitle}
       activeTags={activeTags}
       quickTabs={QUICK_PURPOSE_TABS}
+      availableTags={allTags}
     />
   );
 }

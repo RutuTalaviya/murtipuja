@@ -63,4 +63,18 @@ export async function fetchVideos() {
   }
 }
 
+export async function fetchTags() {
+  try {
+    const res = await fetch(`${API_URL}/api/tags`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+
 

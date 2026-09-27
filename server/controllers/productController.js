@@ -2,6 +2,10 @@ const Product = require("../models/Product");
 const Category = require("../models/Category");
 const mongoose = require("mongoose");
 
+function escapeRegex(string) {
+  return string.replace(/[/\-\\^$*+?.()|[\]{}]/g, "\\$&");
+}
+
 /**
  * GET /api/products
  * Query params: page, limit, category, subCategory, deity, purpose, minPrice, maxPrice, sort, search, ids, onsale
@@ -38,7 +42,7 @@ async function getProducts(req, res, next) {
         const childCats = await Category.find({ parentCategory: category }).select("_id").lean();
         const catIds = [category, ...childCats.map((c) => c._id)];
         const catDoc = await Category.findById(category).lean();
-        const deityPattern = catDoc ? new RegExp(`^${catDoc.name}`, "i") : null;
+        const deityPattern = catDoc ? new RegExp(`^${escapeRegex(catDoc.name)}`, "i") : null;
 
         filter.$or = [
           { category: { $in: catIds } },
@@ -48,7 +52,7 @@ async function getProducts(req, res, next) {
       } else {
         // Find category by slug or name
         const catDoc = await Category.findOne({
-          $or: [{ slug: category.toLowerCase() }, { name: new RegExp(`^${category}$`, "i") }],
+          $or: [{ slug: category.toLowerCase() }, { name: new RegExp(`^${escapeRegex(category)}$`, "i") }],
         }).lean();
 
         if (catDoc) {
@@ -58,13 +62,13 @@ async function getProducts(req, res, next) {
           filter.$or = [
             { category: { $in: catIds } },
             { subCategory: { $in: catIds } },
-            { deity: new RegExp(`^${catDoc.name}`, "i") },
-            { deity: new RegExp(`^${catDoc.slug}`, "i") },
+            { deity: new RegExp(`^${escapeRegex(catDoc.name)}`, "i") },
+            { deity: new RegExp(`^${escapeRegex(catDoc.slug)}`, "i") },
           ];
         } else {
           // Fallback to matching deity field or category name pattern
           filter.$or = [
-            { deity: new RegExp(`^${category}`, "i") },
+            { deity: new RegExp(`^${escapeRegex(category)}`, "i") },
           ];
         }
       }
@@ -77,28 +81,28 @@ async function getProducts(req, res, next) {
       } else {
         // Find matching subcategory doc
         const subCatDoc = await Category.findOne({
-          $or: [{ slug: subCategory.toLowerCase() }, { name: new RegExp(`^${subCategory}$`, "i") }],
+          $or: [{ slug: subCategory.toLowerCase() }, { name: new RegExp(`^${escapeRegex(subCategory)}$`, "i") }],
         }).lean();
 
         if (subCatDoc) {
-          filter.$or = filter.$or || [];
           filter.subCategory = subCatDoc._id;
         } else {
-          // Match in purpose or tags
+          // Match in purpose, tags, or deity
           filter.$or = [
-            { purpose: new RegExp(subCategory, "i") },
-            { tags: new RegExp(subCategory, "i") },
+            { purpose: new RegExp(escapeRegex(subCategory), "i") },
+            { tags: new RegExp(escapeRegex(subCategory), "i") },
+            { deity: new RegExp(escapeRegex(subCategory), "i") },
           ];
         }
       }
     }
 
     if (deity && !filter.deity && !filter.$or) {
-      filter.deity = new RegExp(`^${deity}$`, "i");
+      filter.deity = new RegExp(`^${escapeRegex(deity)}$`, "i");
     }
 
     if (purpose) {
-      filter.purpose = new RegExp(purpose, "i");
+      filter.purpose = new RegExp(escapeRegex(purpose), "i");
     }
 
     if (onsale === "true") {
@@ -116,9 +120,12 @@ async function getProducts(req, res, next) {
             .filter(Boolean);
 
       if (tagList.length > 0) {
-        filter.tags = {
-          $in: tagList.map((t) => new RegExp(`^${t.replace(/[-_]/g, " ")}|${t}$`, "i")),
-        };
+        const patterns = tagList.map((t) => {
+          const formatted = t.replace(/[-_]/g, " ").trim();
+          const raw = t.trim();
+          return new RegExp(`^(${escapeRegex(formatted)}|${escapeRegex(raw)})$`, "i");
+        });
+        filter.tags = { $in: patterns };
       }
     }
 
