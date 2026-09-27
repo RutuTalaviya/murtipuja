@@ -23,6 +23,7 @@ import api, {
   updateFinish,
   deleteFinish,
   getProducts,
+  getProductTags,
   createProduct,
   updateProduct,
   deleteProduct,
@@ -216,6 +217,39 @@ export default function AdminPage() {
     { size: "6 inch", finish: "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", image: "" }
   ]);
 
+  // Product Tags & Custom Badges State
+  const [productTags, setProductTags] = useState([]);
+  const [availableTags, setAvailableTags] = useState([
+    "Bestseller",
+    "New Launch",
+    "Trending",
+    "Pooja Room",
+    "Car Dashboard",
+    "Mandir Sacred",
+    "Gift Hamper",
+    "Wall Hanging",
+    "LED Backlit",
+    "Brass Finish",
+    "Marble Look",
+    "Antique Bronze",
+    "Limited Edition",
+  ]);
+  const [customTagInput, setCustomTagInput] = useState("");
+
+  // Quick Inline Category & Subcategory Creation in Product Modal
+  const [quickCatOpen, setQuickCatOpen] = useState(false);
+  const [quickCatName, setQuickCatName] = useState("");
+  const [quickCatSlug, setQuickCatSlug] = useState("");
+  const [quickCatDesc, setQuickCatDesc] = useState("");
+  const [quickCatLoading, setQuickCatLoading] = useState(false);
+
+  const [quickSubOpen, setQuickSubOpen] = useState(false);
+  const [quickSubName, setQuickSubName] = useState("");
+  const [quickSubSlug, setQuickSubSlug] = useState("");
+  const [quickSubDesc, setQuickSubDesc] = useState("");
+  const [quickSubParentId, setQuickSubParentId] = useState("");
+  const [quickSubLoading, setQuickSubLoading] = useState(false);
+
   function fetchDashboardData() {
     setLoading(true);
     Promise.all([
@@ -230,8 +264,9 @@ export default function AdminPage() {
       getAdminNavMenu(),
       getAdminBanners(),
       getAdminVideos(),
+      getProductTags().catch(() => ({ data: [] })),
     ])
-      .then(([statsRes, ordersRes, catRes, finishRes, prodRes, comboRes, couponRes, offerRes, navRes, bannerRes, videoRes]) => {
+      .then(([statsRes, ordersRes, catRes, finishRes, prodRes, comboRes, couponRes, offerRes, navRes, bannerRes, videoRes, tagsRes]) => {
         setStats(statsRes.data);
         setOrders(ordersRes.data);
         setCategories(catRes.data || []);
@@ -243,6 +278,9 @@ export default function AdminPage() {
         setNavMenuItems(navRes.data?.data || []);
         setBanners(bannerRes.data?.data || bannerRes.data || []);
         setVideoReels(videoRes.data?.data || videoRes.data || []);
+        if (tagsRes?.data && Array.isArray(tagsRes.data) && tagsRes.data.length > 0) {
+          setAvailableTags(tagsRes.data);
+        }
       })
       .catch((err) => {
         setError("Failed to fetch admin dashboard data.");
@@ -1246,8 +1284,121 @@ export default function AdminPage() {
     setVariantStock("10");
     setVariantSku("");
     setFormVariants([{ size: "6 inch", finish: "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", image: "" }]);
+    setProductTags([]);
+    setCustomTagInput("");
+    setQuickCatOpen(false);
+    setQuickSubOpen(false);
     setEditingProduct(null);
     setIsAddingProduct(false);
+  }
+
+  // Tag Manager Helpers
+  function handleAddProductTag(tag) {
+    const cleanTag = (tag || "").trim();
+    if (!cleanTag) return;
+    if (!productTags.includes(cleanTag)) {
+      setProductTags((prev) => [...prev, cleanTag]);
+    }
+    if (!availableTags.includes(cleanTag)) {
+      setAvailableTags((prev) => [...prev, cleanTag]);
+    }
+    setCustomTagInput("");
+  }
+
+  function handleRemoveProductTag(tagToRemove) {
+    setProductTags((prev) => prev.filter((t) => t !== tagToRemove));
+  }
+
+  // Quick create main category directly inside product modal
+  async function handleQuickCreateCategory(e) {
+    if (e) e.preventDefault();
+    if (!quickCatName.trim()) {
+      setActionError("Please enter a category name.");
+      return;
+    }
+    setQuickCatLoading(true);
+    setActionError("");
+    try {
+      const slug =
+        quickCatSlug.trim() ||
+        quickCatName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "");
+
+      const res = await createCategory({
+        name: quickCatName.trim(),
+        slug,
+        description: quickCatDesc.trim(),
+        parentCategory: null,
+      });
+
+      const newCat = res.data;
+      setCategories((prev) => [...prev, newCat]);
+      setSelectedCatId(newCat._id);
+      if (!deity || deity === "General") {
+        setDeity(newCat.name);
+      }
+      setQuickCatName("");
+      setQuickCatSlug("");
+      setQuickCatDesc("");
+      setQuickCatOpen(false);
+      setActionSuccess(`Main Category "${newCat.name}" created and assigned!`);
+      setTimeout(() => setActionSuccess(""), 4000);
+    } catch (err) {
+      setActionError(err.response?.data?.message || "Failed to create category.");
+    } finally {
+      setQuickCatLoading(false);
+    }
+  }
+
+  // Quick create subcategory directly inside product modal
+  async function handleQuickCreateSubcategory(e) {
+    if (e) e.preventDefault();
+    const parentId = quickSubParentId || selectedCatId;
+    if (!quickSubName.trim()) {
+      setActionError("Please enter a subcategory name.");
+      return;
+    }
+    if (!parentId) {
+      setActionError("Please select a parent category first.");
+      return;
+    }
+    setQuickSubLoading(true);
+    setActionError("");
+    try {
+      const parentCat = categories.find((c) => c._id === parentId);
+      const prefix = parentCat ? `${parentCat.slug}-` : "";
+      const slug =
+        quickSubSlug.trim() ||
+        `${prefix}${quickSubName}`
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "");
+
+      const res = await createCategory({
+        name: quickSubName.trim(),
+        slug,
+        description: quickSubDesc.trim(),
+        parentCategory: parentId,
+      });
+
+      const newSub = res.data;
+      setCategories((prev) => [...prev, newSub]);
+      if (!selectedSubCatIds.includes(newSub._id)) {
+        setSelectedSubCatIds((prev) => [...prev, newSub._id]);
+      }
+      setQuickSubName("");
+      setQuickSubSlug("");
+      setQuickSubDesc("");
+      setQuickSubOpen(false);
+      setActionSuccess(`Subcategory "${newSub.name}" created and assigned!`);
+      setTimeout(() => setActionSuccess(""), 4000);
+    } catch (err) {
+      setActionError(err.response?.data?.message || "Failed to create subcategory.");
+    } finally {
+      setQuickSubLoading(false);
+    }
   }
 
   // Move image left/right to adjust Primary / Hover order
@@ -1280,6 +1431,7 @@ export default function AdminPage() {
       setGalleryVideos(fullProduct.videos || []);
       setPurposes(fullProduct.purpose || []);
       setIsOnSale(fullProduct.isOnSale || false);
+      setProductTags(Array.isArray(fullProduct.tags) ? fullProduct.tags : []);
       if (fullProduct.variants && fullProduct.variants.length > 0) {
         setFormVariants(fullProduct.variants.map(v => ({
           size: v.size || "6 inch",
@@ -1345,6 +1497,7 @@ export default function AdminPage() {
       category: selectedCatId ? [selectedCatId] : [],
       subCategory: selectedSubCatIds,
       purpose: purposes,
+      tags: productTags,
       isOnSale,
       images: galleryImages.length > 0 ? galleryImages.map(url => ({ url, alt: title })) : [{ url: "/images/shiva.png", alt: title }],
       videos: galleryVideos,
@@ -2828,6 +2981,44 @@ export default function AdminPage() {
                   </table>
                 </div>
               )}
+
+              {/* Product Tags & Filter Badges Overview */}
+              <div className="p-5 border-t border-charcoal/10 bg-amber-50/50 space-y-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
+                      <span>🏷️ Product Filter Tags & Badges Library</span>
+                      <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded font-bold">
+                        {availableTags.length} Tags Active
+                      </span>
+                    </h4>
+                    <p className="text-[10.5px] text-amber-800">
+                      These tags are automatically suggested when adding new products, and power the store filter drawer and navbar.
+                    </p>
+                  </div>
+                  <Link
+                    href="/products"
+                    target="_blank"
+                    className="text-[10px] bg-black text-gold hover:bg-neutral-800 font-bold px-3 py-1.5 rounded transition-all uppercase tracking-wider"
+                  >
+                    View Store Filters ↗
+                  </Link>
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {availableTags.map((tag) => (
+                    <Link
+                      key={tag}
+                      href={`/products?tag=${encodeURIComponent(tag)}`}
+                      target="_blank"
+                      className="bg-white hover:bg-black hover:text-gold text-charcoal text-xs font-bold px-3 py-1.5 rounded-lg border border-amber-300 shadow-2xs transition-all flex items-center gap-1.5 group"
+                    >
+                      <span>{tag}</span>
+                      <span className="text-charcoal/30 group-hover:text-gold text-[10px]">↗</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -3038,7 +3229,74 @@ export default function AdminPage() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">Main Category *</label>
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">Main Category *</label>
+                        <button
+                          type="button"
+                          onClick={() => setQuickCatOpen(!quickCatOpen)}
+                          className="text-[9.5px] bg-maroon/10 hover:bg-maroon hover:text-white text-maroon font-bold px-2 py-0.5 rounded transition-all flex items-center gap-1"
+                        >
+                          <span>{quickCatOpen ? "✕ Close" : "➕ Quick Add Category"}</span>
+                        </button>
+                      </div>
+
+                      {/* Quick Add Main Category Inline Box */}
+                      {quickCatOpen && (
+                        <div className="p-3 bg-amber-50/90 border-2 border-amber-300 rounded-xl space-y-2.5 my-1.5 shadow-sm animate-fade-in">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[11px] font-black text-amber-950 uppercase tracking-wider">
+                              ✨ New Deity / Main Category
+                            </span>
+                            <span className="text-[9px] text-amber-800 font-semibold">Instantly creates & selects</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              placeholder="Category Name (e.g. Ram, Shiva, Durga)"
+                              value={quickCatName}
+                              onChange={(e) => {
+                                setQuickCatName(e.target.value);
+                                setQuickCatSlug(
+                                  e.target.value
+                                    .toLowerCase()
+                                    .replace(/[^a-z0-9]+/g, "-")
+                                    .replace(/(^-|-$)/g, "")
+                                );
+                              }}
+                              className="w-full px-3 py-1.5 border border-amber-300 rounded-lg bg-white outline-none focus:ring-1 focus:ring-gold text-xs font-semibold"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Slug (e.g. ram, shiva)"
+                              value={quickCatSlug}
+                              onChange={(e) => setQuickCatSlug(e.target.value.toLowerCase())}
+                              className="w-full px-3 py-1.5 border border-amber-300 rounded-lg bg-white outline-none focus:ring-1 focus:ring-gold text-xs font-mono"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={quickCatLoading || !quickCatName.trim()}
+                              onClick={handleQuickCreateCategory}
+                              className="bg-maroon hover:bg-maroon-dark text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all shadow disabled:opacity-50"
+                            >
+                              {quickCatLoading ? "Creating..." : "✓ Create & Assign Category"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setQuickCatOpen(false);
+                                setQuickCatName("");
+                                setQuickCatSlug("");
+                              }}
+                              className="text-[10px] text-charcoal/60 hover:text-black font-semibold underline px-2 py-1"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       <select
                         required
                         value={selectedCatId}
@@ -3075,10 +3333,96 @@ export default function AdminPage() {
                           Assign dynamic subcategories (e.g. <strong>Lighting Ram Murti</strong>, <strong>Temple / Mandir</strong>, <strong>Wall Murti</strong>).
                         </p>
                       </div>
-                      <span className="text-[10px] bg-gold/15 text-gold font-bold px-2 py-0.5 rounded">
-                        {selectedSubCatIds.length} Selected
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuickSubParentId(selectedCatId);
+                            setQuickSubOpen(!quickSubOpen);
+                          }}
+                          className="text-[9.5px] bg-blue-100 hover:bg-blue-600 hover:text-white text-blue-900 font-bold px-2 py-0.5 rounded transition-all flex items-center gap-1"
+                        >
+                          <span>{quickSubOpen ? "✕ Close" : "➕ Quick Add Subcategory"}</span>
+                        </button>
+                        <span className="text-[10px] bg-gold/15 text-gold font-bold px-2 py-0.5 rounded">
+                          {selectedSubCatIds.length} Selected
+                        </span>
+                      </div>
                     </div>
+
+                    {/* Quick Add Subcategory Inline Box */}
+                    {quickSubOpen && (
+                      <div className="p-3 bg-blue-50/90 border-2 border-blue-300 rounded-xl space-y-2.5 my-1.5 shadow-sm animate-fade-in">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] font-black text-blue-950 uppercase tracking-wider">
+                            ✨ New Subcategory / Murti Type
+                          </span>
+                          <span className="text-[9px] text-blue-800 font-semibold">Links under selected Category</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <select
+                            value={quickSubParentId || selectedCatId}
+                            onChange={(e) => setQuickSubParentId(e.target.value)}
+                            className="w-full px-3 py-1.5 border border-blue-300 rounded-lg bg-white outline-none focus:ring-1 focus:ring-gold text-xs font-semibold"
+                          >
+                            <option value="">-- Parent Category --</option>
+                            {categories
+                              .filter((c) => !c.parentCategory)
+                              .map((parent) => (
+                                <option key={parent._id} value={parent._id}>
+                                  {parent.name}
+                                </option>
+                              ))}
+                          </select>
+                          <input
+                            type="text"
+                            placeholder="Subcategory Name (e.g. Lighting Murti)"
+                            value={quickSubName}
+                            onChange={(e) => {
+                              setQuickSubName(e.target.value);
+                              const pId = quickSubParentId || selectedCatId;
+                              const parentCat = categories.find((c) => c._id === pId);
+                              const prefix = parentCat ? `${parentCat.slug}-` : "";
+                              setQuickSubSlug(
+                                `${prefix}${e.target.value}`
+                                  .toLowerCase()
+                                  .replace(/[^a-z0-9]+/g, "-")
+                                  .replace(/(^-|-$)/g, "")
+                              );
+                            }}
+                            className="w-full px-3 py-1.5 border border-blue-300 rounded-lg bg-white outline-none focus:ring-1 focus:ring-gold text-xs font-semibold"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Slug (e.g. ram-lighting-murti)"
+                            value={quickSubSlug}
+                            onChange={(e) => setQuickSubSlug(e.target.value.toLowerCase())}
+                            className="w-full px-3 py-1.5 border border-blue-300 rounded-lg bg-white outline-none focus:ring-1 focus:ring-gold text-xs font-mono"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={quickSubLoading || !quickSubName.trim() || !(quickSubParentId || selectedCatId)}
+                            onClick={handleQuickCreateSubcategory}
+                            className="bg-blue-900 hover:bg-blue-950 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all shadow disabled:opacity-50"
+                          >
+                            {quickSubLoading ? "Creating..." : "✓ Create & Assign Subcategory"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickSubOpen(false);
+                              setQuickSubName("");
+                              setQuickSubSlug("");
+                            }}
+                            className="text-[10px] text-charcoal/60 hover:text-black font-semibold underline px-2 py-1"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="flex flex-wrap gap-2 pt-1">
                       {categories
@@ -3108,7 +3452,7 @@ export default function AdminPage() {
                         })}
                       {categories.filter((c) => c.parentCategory).length === 0 && (
                         <p className="text-xs text-charcoal/40 italic">
-                          No subcategories available. Create subcategories in the Categories tab.
+                          No subcategories available. Click "+ Quick Add Subcategory" above to create one.
                         </p>
                       )}
                     </div>
@@ -3344,6 +3688,104 @@ export default function AdminPage() {
                         onChange={(e) => setVariantSku(e.target.value)}
                         className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs font-mono"
                       />
+                    </div>
+                  </div>
+
+                  {/* Product Badges & Tags Manager */}
+                  <div className="space-y-3 bg-charcoal/5 p-4 rounded-xl border border-charcoal/10">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <div>
+                        <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/80 block">
+                          🏷️ Product Badges & Tags (Filters, Navbar & Highlights)
+                        </label>
+                        <p className="text-[10px] text-charcoal/50">
+                          Select from popular spiritual tags or create custom tags (e.g. <strong>Bestseller</strong>, <strong>New Launch</strong>, <strong>Pooja Room</strong>, <strong>Car Dashboard</strong>, <strong>Gift Hamper</strong>).
+                        </p>
+                      </div>
+                      <span className="text-[10px] bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded self-start sm:self-auto">
+                        {productTags.length} Tags Selected
+                      </span>
+                    </div>
+
+                    {/* Active Selected Tags Pills */}
+                    {productTags.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2 p-2.5 bg-white rounded-lg border border-charcoal/10 shadow-2xs">
+                        <span className="text-[9px] font-extrabold uppercase tracking-wider text-charcoal/40">Active:</span>
+                        {productTags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center gap-1.5 bg-black text-gold text-xs font-bold px-2.5 py-1 rounded shadow-xs"
+                          >
+                            <span>{tag}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveProductTag(tag)}
+                              className="text-white hover:text-red-400 font-black text-xs leading-none cursor-pointer"
+                              title={`Remove ${tag}`}
+                            >
+                              &times;
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Quick Suggestion Pills */}
+                    <div className="space-y-1.5">
+                      <p className="text-[9.5px] uppercase font-bold tracking-wider text-charcoal/60">
+                        Click to add popular tags:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {availableTags.map((tag) => {
+                          const isSelected = productTags.includes(tag);
+                          return (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => {
+                                if (isSelected) {
+                                  handleRemoveProductTag(tag);
+                                } else {
+                                  handleAddProductTag(tag);
+                                }
+                              }}
+                              className={`text-xs py-1 px-2.5 rounded-lg border font-semibold transition-all flex items-center gap-1 ${
+                                isSelected
+                                  ? "bg-black text-gold border-black shadow-xs font-bold"
+                                  : "bg-white text-charcoal/80 border-charcoal/15 hover:border-black hover:text-black"
+                              }`}
+                            >
+                              <span>{tag}</span>
+                              {isSelected ? <span>✓</span> : <span className="text-charcoal/30">+</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Custom Tag Input */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <input
+                        type="text"
+                        placeholder="Type custom tag (e.g. Ayodhya Ram, Diwali Gift, Marble Look)..."
+                        value={customTagInput}
+                        onChange={(e) => setCustomTagInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddProductTag(customTagInput);
+                          }
+                        }}
+                        className="flex-1 px-3 py-1.5 border border-charcoal/20 rounded-lg bg-white outline-none focus:ring-1 focus:ring-gold text-xs font-medium"
+                      />
+                      <button
+                        type="button"
+                        disabled={!customTagInput.trim()}
+                        onClick={() => handleAddProductTag(customTagInput)}
+                        className="bg-maroon hover:bg-maroon-dark text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-all shadow disabled:opacity-40 shrink-0 cursor-pointer"
+                      >
+                        ＋ Add Tag
+                      </button>
                     </div>
                   </div>
 

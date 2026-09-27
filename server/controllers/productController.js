@@ -105,6 +105,23 @@ async function getProducts(req, res, next) {
       filter.isOnSale = true;
     }
 
+    // Tag / Tags filter (e.g. ?tag=Bestseller, ?tag=New Arrival, ?tags=Pooja Room,Car Dashboard)
+    const rawTag = req.query.tag || req.query.tags;
+    if (rawTag) {
+      const tagList = Array.isArray(rawTag)
+        ? rawTag
+        : rawTag
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean);
+
+      if (tagList.length > 0) {
+        filter.tags = {
+          $in: tagList.map((t) => new RegExp(`^${t.replace(/[-_]/g, " ")}|${t}$`, "i")),
+        };
+      }
+    }
+
     if (minPrice || maxPrice) {
       filter.basePrice = {};
       if (minPrice) filter.basePrice.$gte = Number(minPrice);
@@ -226,10 +243,43 @@ async function deleteProduct(req, res, next) {
   }
 }
 
+/** GET /api/products/tags - Get all distinct product tags and popular suggestions */
+async function getAvailableTags(req, res, next) {
+  try {
+    const DEFAULT_SUGGESTED_TAGS = [
+      "Bestseller",
+      "New Launch",
+      "Trending",
+      "Pooja Room",
+      "Car Dashboard",
+      "Mandir Sacred",
+      "Gift Hamper",
+      "Wall Hanging",
+      "LED Backlit",
+      "Brass Finish",
+      "Marble Look",
+      "Antique Bronze",
+      "Limited Edition",
+    ];
+
+    const dbTags = await Product.distinct("tags");
+    const validDbTags = (dbTags || []).filter(Boolean).map((t) => t.trim());
+
+    // Combine unique list
+    const combinedSet = new Set([...validDbTags, ...DEFAULT_SUGGESTED_TAGS]);
+    const tags = Array.from(combinedSet);
+
+    return res.status(200).json(tags);
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   getProducts,
   getProductBySlug,
   createProduct,
   updateProduct,
   deleteProduct,
+  getAvailableTags,
 };

@@ -18,12 +18,44 @@ const DEFAULT_SUBCATEGORIES_FOR_RAM = [
 ];
 
 /**
+ * GET /api/categories/tree
+ * Returns all root/main categories with their nested subcategories attached
+ */
+async function getCategoryTree(req, res, next) {
+  try {
+    const allCategories = await Category.find({ isActive: { $ne: false } }).sort({ createdAt: 1 }).lean();
+    
+    const mainCategories = allCategories.filter((cat) => !cat.parentCategory);
+    const subCategories = allCategories.filter((cat) => cat.parentCategory);
+
+    const tree = mainCategories.map((main) => {
+      const subs = subCategories.filter(
+        (sub) => sub.parentCategory.toString() === main._id.toString()
+      );
+      return {
+        ...main,
+        subcategories: subs,
+      };
+    });
+
+    return res.status(200).json(tree);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * GET /api/categories
  * Query options: ?parent=<id|null>, ?mainOnly=true, ?slug=<slug>
  */
 async function getCategories(req, res, next) {
   try {
-    const { parent, mainOnly, slug } = req.query;
+    const { parent, mainOnly, slug, tree } = req.query;
+    
+    if (tree === "true") {
+      return getCategoryTree(req, res, next);
+    }
+
     let filter = { isActive: { $ne: false } };
 
     if (slug) {
@@ -42,25 +74,6 @@ async function getCategories(req, res, next) {
       .populate("parentCategory", "name slug icon")
       .sort({ createdAt: 1 })
       .lean();
-
-    // If Ram exists but has no subcategories seeded yet, auto-seed default subcategories
-    const ramCat = await Category.findOne({ slug: "ram" });
-    if (ramCat) {
-      const existingSubCount = await Category.countDocuments({ parentCategory: ramCat._id });
-      if (existingSubCount === 0) {
-        console.log("Seeding default subcategories for Ram...");
-        const subCatsToSeed = DEFAULT_SUBCATEGORIES_FOR_RAM.map((sub) => ({
-          ...sub,
-          parentCategory: ramCat._id,
-        }));
-        await Category.insertMany(subCatsToSeed);
-        categories = await Category.find(filter)
-          .populate("parentCategory", "name slug icon")
-          .sort({ createdAt: 1 })
-          .lean();
-      }
-    }
-
 
     return res.status(200).json(categories);
   } catch (error) {
@@ -186,6 +199,7 @@ async function deleteCategory(req, res, next) {
 
 module.exports = {
   getCategories,
+  getCategoryTree,
   createCategory,
   updateCategory,
   deleteCategory,

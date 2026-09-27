@@ -31,10 +31,14 @@ export default async function ProductsPage({ searchParams }) {
   let pageTitle = "ALL SCULPTURES";
 
   const activeCategoryParam = params.category || params.deity;
+  const activeTagParam = params.tag || params.tags;
 
   if (params.subCategory) {
     categorySubtitle = activeCategoryParam ? `${activeCategoryParam.toUpperCase()} SUBCATEGORY` : "MURTI TYPE COLLECTION";
     pageTitle = `${params.subCategory.toUpperCase()} COLLECTION`;
+  } else if (activeTagParam) {
+    categorySubtitle = "CURATED SELECTION";
+    pageTitle = `${activeTagParam.toUpperCase()} SPECIAL`;
   } else if (params.purpose === "pooja-room") {
     categorySubtitle = "SACRED ESSENTIALS";
     pageTitle = "POOJA ROOM COLLECTION";
@@ -59,6 +63,7 @@ export default async function ProductsPage({ searchParams }) {
   const activeTags = [];
   if (activeCategoryParam) activeTags.push({ label: `Idol Series: ${activeCategoryParam}`, keys: ["category", "deity"] });
   if (params.subCategory) activeTags.push({ label: `Type: ${params.subCategory}`, key: "subCategory" });
+  if (activeTagParam) activeTags.push({ label: `Tag: ${activeTagParam}`, keys: ["tag", "tags"] });
   if (params.purpose) {
     const purposeLabel = params.purpose === "pooja-room" ? "Pooja Essentials" : params.purpose === "home-decor" ? "Home Decor" : params.purpose;
     activeTags.push({ label: `Purpose: ${purposeLabel}`, key: "purpose" });

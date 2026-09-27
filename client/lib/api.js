@@ -89,6 +89,7 @@ export const generateShiprocketLabel = (id) => api.post(`/api/admin/orders/${id}
 export const toggleWishlist = (productId) => api.post("/api/auth/wishlist/toggle", { productId });
 
 export const getCategories = (params) => api.get("/api/categories", { params });
+export const getCategoryTree = () => api.get("/api/categories/tree");
 export const createCategory = (data, slug) => {
   const payload = typeof data === "object" ? data : { name: data, slug };
   return api.post("/api/categories", payload);
@@ -102,6 +103,7 @@ export const updateFinish = (id, name, slug, colorCode) => api.put(`/api/finishe
 export const deleteFinish = (id) => api.delete(`/api/finishes/${id}`);
 
 export const getProducts = (params) => api.get("/api/products", { params });
+export const getProductTags = () => api.get("/api/products/tags");
 export const createProduct = (data) => api.post("/api/products", data);
 export const updateProduct = (id, data) => api.put(`/api/products/${id}`, data);
 export const deleteProduct = (id) => api.delete(`/api/products/${id}`);

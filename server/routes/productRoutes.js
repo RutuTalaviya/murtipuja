@@ -6,9 +6,11 @@ const {
   createProduct,
   updateProduct,
   deleteProduct,
+  getAvailableTags,
 } = require("../controllers/productController");
 const { protect, adminOnly } = require("../middleware/auth");
 
+router.get("/tags", getAvailableTags);
 router.get("/", getProducts);
 router.get("/:slug", getProductBySlug);
 router.post("/", protect, adminOnly, createProduct);

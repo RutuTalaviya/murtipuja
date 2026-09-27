@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getCategories } from "@/lib/api";
+import { getCategories, getProductTags } from "@/lib/api";
 
 
 const SORT_OPTIONS = [
@@ -20,6 +20,19 @@ export default function ProductFiltersDrawer({ totalResults }) {
   const [isOpen, setIsOpen] = useState(false);
   const [deities, setDeities] = useState(["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman"]);
   const [availableSubCats, setAvailableSubCats] = useState([]);
+  const [availableTags, setAvailableTags] = useState([
+    "Bestseller",
+    "New Launch",
+    "Trending",
+    "Pooja Room",
+    "Car Dashboard",
+    "Mandir Sacred",
+    "Gift Hamper",
+    "Brass Finish",
+    "Marble Look",
+    "Antique Bronze",
+    "Limited Edition",
+  ]);
 
   // Local state for prices (to avoid URL thrashing on every keystroke)
   const [minPrice, setMinPrice] = useState("");
@@ -32,20 +45,28 @@ export default function ProductFiltersDrawer({ totalResults }) {
   }, [searchParams]);
 
   useEffect(() => {
-    async function loadCategoryData() {
+    async function loadData() {
       try {
-        const res = await getCategories();
-        if (res.data && res.data.length > 0) {
-          const mainList = res.data.filter((cat) => !cat.parentCategory);
-          const subList = res.data.filter((cat) => cat.parentCategory);
+        const [catRes, tagRes] = await Promise.allSettled([
+          getCategories(),
+          getProductTags(),
+        ]);
+
+        if (catRes.status === "fulfilled" && catRes.value?.data && catRes.value.data.length > 0) {
+          const mainList = catRes.value.data.filter((cat) => !cat.parentCategory);
+          const subList = catRes.value.data.filter((cat) => cat.parentCategory);
           if (mainList.length > 0) setDeities(mainList.map((cat) => cat.name));
           setAvailableSubCats(subList);
         }
+
+        if (tagRes.status === "fulfilled" && Array.isArray(tagRes.value?.data) && tagRes.value.data.length > 0) {
+          setAvailableTags(tagRes.value.data);
+        }
       } catch (err) {
-        console.error("Failed to load categories in filters:", err);
+        console.error("Failed to load filter metadata:", err);
       }
     }
-    loadCategoryData();
+    loadData();
   }, []);
 
   // Lock body scroll when drawer is open
@@ -62,6 +83,7 @@ export default function ProductFiltersDrawer({ totalResults }) {
 
   const activeCategory = searchParams.get("category") || searchParams.get("deity") || "";
   const activeSubCategory = searchParams.get("subCategory") || "";
+  const activeTag = searchParams.get("tag") || searchParams.get("tags") || "";
   const isOnSaleOnly = searchParams.get("onsale") === "true";
   const activeSort = searchParams.get("sort") || "";
 
@@ -69,6 +91,7 @@ export default function ProductFiltersDrawer({ totalResults }) {
   let activeFilterCount = 0;
   if (activeCategory) activeFilterCount++;
   if (activeSubCategory) activeFilterCount++;
+  if (activeTag) activeFilterCount++;
   if (isOnSaleOnly) activeFilterCount++;
   if (activeSort) activeFilterCount++;
   if (searchParams.get("minPrice") || searchParams.get("maxPrice")) activeFilterCount++;
@@ -296,6 +319,52 @@ export default function ProductFiltersDrawer({ totalResults }) {
                             {sub.name}
                           </span>
                           {isSelected && <span className="text-orange-400 text-xs">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 5. Filter: Product Tags & Highlights */}
+              {availableTags.length > 0 && (
+                <div className="pt-6 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[11px] uppercase font-extrabold tracking-widest text-neutral-400">
+                      Product Tags & Highlights
+                    </h4>
+                    {activeTag && (
+                      <button
+                        type="button"
+                        onClick={() => updateQuery("tag", "")}
+                        className="text-[10px] uppercase font-bold text-orange-600 hover:underline"
+                      >
+                        Clear Tag
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {availableTags.map((tag) => {
+                      const isSelected =
+                        activeTag.toLowerCase() === tag.toLowerCase() ||
+                        activeTag.toLowerCase() === tag.replace(/\s+/g, "-").toLowerCase();
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => updateQuery("tag", isSelected ? "" : tag)}
+                          className={`text-xs py-1.5 px-3 rounded-none border-2 transition-all flex items-center gap-1.5 font-bold uppercase tracking-wider ${
+                            isSelected
+                              ? "bg-black border-black text-white shadow-xs"
+                              : "bg-white border-neutral-200 text-neutral-700 hover:border-orange-500 hover:text-orange-600"
+                          }`}
+                        >
+                          <span>{tag}</span>
+                          {isSelected ? (
+                            <span className="text-orange-400 text-xs">✓</span>
+                          ) : (
+                            <span className="text-neutral-400 text-[10px]">+</span>
+                          )}
                         </button>
                       );
                     })}

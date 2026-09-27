@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import SearchModal from "./SearchModal";
-import { getCategories, getNavMenu, getActiveCoupons, getActiveOffers } from "@/lib/api";
+import api, { getCategories, getCategoryTree, getNavMenu, getActiveCoupons, getActiveOffers } from "@/lib/api";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -41,33 +41,77 @@ export default function Navbar() {
     };
   }, []);
 
-  // Fetch nav menu and categories dynamically
+  // Fetch categories with nested subcategories dynamically from backend
   useEffect(() => {
     async function loadNavAndCategories() {
       try {
-        const [navRes, catRes] = await Promise.allSettled([
-          getNavMenu(),
+        const [treeRes, catRes, navRes] = await Promise.allSettled([
+          getCategoryTree(),
           getCategories(),
+          getNavMenu(),
         ]);
-        if (navRes.status === "fulfilled") {
+
+        let dynamicItems = [];
+
+        if (treeRes.status === "fulfilled" && Array.isArray(treeRes.value?.data) && treeRes.value.data.length > 0) {
+          const categoryTree = treeRes.value.data;
+          setCategories(categoryTree);
+
+          // Build dynamic navigation directly from categories & subcategories
+          dynamicItems.push({
+            _id: "nav-all",
+            title: "All Murtis",
+            url: "/products",
+            isDropdown: false,
+          });
+
+          categoryTree.forEach((cat) => {
+            const hasSubs = cat.subcategories && cat.subcategories.length > 0;
+            dynamicItems.push({
+              _id: cat._id,
+              title: cat.name,
+              url: `/products?category=${encodeURIComponent(cat.slug || cat.name)}`,
+              isDropdown: hasSubs,
+              dropdownType: "subcategories",
+              subcategories: hasSubs
+                ? cat.subcategories.map((sub) => ({
+                    _id: sub._id,
+                    title: sub.name,
+                    url: `/products?category=${encodeURIComponent(cat.slug || cat.name)}&subCategory=${encodeURIComponent(sub.slug || sub.name)}`,
+                  }))
+                : [],
+            });
+          });
+
+          // Append quick tags / curated highlights
+          dynamicItems.push({
+            _id: "nav-bestsellers",
+            title: "Bestsellers",
+            url: "/products?tag=Bestseller",
+            badge: "HOT",
+            isDropdown: false,
+          });
+          dynamicItems.push({
+            _id: "nav-offers",
+            title: "Sale",
+            url: "/products?onsale=true",
+            badge: "OFFER",
+            isDropdown: false,
+          });
+
+          setNavItems(dynamicItems);
+        } else if (navRes.status === "fulfilled") {
+          // Fallback to nav menu collection if tree is empty
           const items = navRes.value?.data?.data || navRes.value?.data;
           if (Array.isArray(items) && items.length > 0) {
-            const blockedWords = ["home decor", "wishlist", "my favorites", "favorite", "gifting", "hamper", "gift", "new launch", "new arrival", "bestseller", "bestsellers"];
-            const activeItems = items.filter((item) => {
-              if (item.isActive === false) return false;
-              const title = (item.title || "").toLowerCase();
-              const url = (item.url || "").toLowerCase();
-              return !blockedWords.some((w) => title.includes(w) || url.includes(w));
-            });
-            if (activeItems.length > 0) {
-              setNavItems(activeItems);
-            }
+            setNavItems(items.filter((item) => item.isActive !== false));
           }
         }
+
         if (catRes.status === "fulfilled" && catRes.value?.data) {
           const catList = catRes.value.data?.data || catRes.value.data;
           if (Array.isArray(catList)) {
-            setCategories(catList);
+            setCategories((prev) => (prev.length > 0 ? prev : catList));
           }
         }
       } catch (err) {
@@ -316,11 +360,30 @@ export default function Navbar() {
 
                     {/* Dropdown Menu */}
                     {isItemDropdownOpen && (
-                      <div className="absolute top-full left-0 mt-1 w-56 bg-white border-2 border-black py-2 z-50 normal-case font-medium animate-fadeIn shadow-xl">
-                        {isCatDropdown ? (
+                      <div className="absolute top-full left-0 mt-1 w-60 bg-white border-2 border-black py-2 z-50 normal-case font-medium animate-fadeIn shadow-2xl">
+                        {item.subcategories && item.subcategories.length > 0 ? (
+                          <>
+                            <Link
+                              href={item.url || "/products"}
+                              className="flex items-center justify-between px-4 py-2 hover:bg-orange-500 hover:text-white text-black text-xs font-black transition-colors uppercase tracking-wider bg-neutral-50 border-b border-black/10"
+                            >
+                              <span>All {item.title}</span>
+                              <span className="text-sm font-bold">→</span>
+                            </Link>
+                            {item.subcategories.map((sub) => (
+                              <Link
+                                key={sub._id}
+                                href={sub.url}
+                                className="block px-4 py-2 hover:bg-orange-500 hover:text-white text-black text-xs font-bold transition-colors uppercase tracking-wider"
+                              >
+                                {sub.title}
+                              </Link>
+                            ))}
+                          </>
+                        ) : isCatDropdown ? (
                           <>
                             {categories.length > 0 ? (
-                              categories.slice(0, 6).map((cat) => (
+                              categories.slice(0, 8).map((cat) => (
                                 <Link
                                   key={cat._id}
                                   href={`/products?category=${encodeURIComponent(cat.slug || cat.name)}`}
@@ -720,10 +783,30 @@ export default function Navbar() {
 
                       {isAccordionOpen && (
                         <div className="pl-4 space-y-2.5 pt-1.5 border-l-2 border-orange-200 ml-1 animate-fadeIn">
-                          {isCatDropdown ? (
+                          {item.subcategories && item.subcategories.length > 0 ? (
+                            <>
+                              <Link
+                                href={item.url || "/products"}
+                                onClick={() => setMobileMenuOpen(false)}
+                                className="block text-xs font-black text-orange-600 hover:text-black uppercase tracking-wider py-0.5 border-b border-neutral-100 pb-1"
+                              >
+                                All {item.title} →
+                              </Link>
+                              {item.subcategories.map((sub) => (
+                                <Link
+                                  key={sub._id}
+                                  href={sub.url}
+                                  onClick={() => setMobileMenuOpen(false)}
+                                  className="block text-xs text-black/80 hover:text-orange-500 transition-colors uppercase tracking-wider py-0.5"
+                                >
+                                  {sub.title}
+                                </Link>
+                              ))}
+                            </>
+                          ) : isCatDropdown ? (
                             <>
                               {categories.length > 0 ? (
-                                categories.slice(0, 6).map((cat) => (
+                                categories.slice(0, 8).map((cat) => (
                                   <Link
                                     key={cat._id}
                                     href={`/products?category=${encodeURIComponent(cat.slug || cat.name)}`}
