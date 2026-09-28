@@ -2,34 +2,35 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getCategories, getDeities } from "@/lib/api";
-
-const PURPOSES = [
-  { label: "Pooja Room", value: "pooja-room" },
-  { label: "Mandir & Sanctum", value: "mandir" },
-  { label: "Spiritual", value: "spiritual" },
-];
+import { getCategories, getDeities, getPurposes } from "@/lib/api";
 
 export default function ProductFilters() {
   const [deities, setDeities] = useState(["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman", "Durga"]);
+  const [purposesList, setPurposesList] = useState([]);
 
   useEffect(() => {
-    async function loadDeities() {
+    async function loadMetadata() {
       try {
-        const res = await getDeities();
-        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-          setDeities(res.data);
-        } else {
-          const catRes = await getCategories();
-          if (catRes.data && catRes.data.length > 0) {
-            setDeities(catRes.data.map((cat) => cat.name));
-          }
+        const [deityRes, purposeRes, catRes] = await Promise.allSettled([
+          getDeities(),
+          getPurposes(),
+          getCategories(),
+        ]);
+
+        if (deityRes.status === "fulfilled" && Array.isArray(deityRes.value?.data) && deityRes.value.data.length > 0) {
+          setDeities(deityRes.value.data);
+        } else if (catRes.status === "fulfilled" && catRes.value?.data && catRes.value.data.length > 0) {
+          setDeities(catRes.value.data.map((cat) => cat.name));
+        }
+
+        if (purposeRes.status === "fulfilled" && Array.isArray(purposeRes.value?.data) && purposeRes.value.data.length > 0) {
+          setPurposesList(purposeRes.value.data);
         }
       } catch (err) {
-        console.error("Failed to load deities in filters:", err);
+        console.error("Failed to load metadata in filters:", err);
       }
     }
-    loadDeities();
+    loadMetadata();
   }, []);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -144,28 +145,34 @@ export default function ProductFilters() {
       </div>
 
       {/* Filter by Purpose / Occasion */}
-      <div className="space-y-3">
-        <h4 className="text-[10px] uppercase font-extrabold tracking-widest text-black/50">Purpose & Occasion</h4>
-        <div className="flex flex-col gap-2">
-          {PURPOSES.map((purpose) => {
-            const isActive = activePurpose === purpose.value;
-            return (
-              <button
-                key={purpose.value}
-                onClick={() => updateQuery("purpose", isActive ? "" : purpose.value)}
-                className={`text-left text-xs py-2 px-3 rounded-none border-2 transition-all flex justify-between items-center ${
-                  isActive
-                    ? "bg-neutral-100 border-black text-black font-bold uppercase tracking-wider"
-                    : "border-transparent text-neutral-600 hover:bg-neutral-50 font-semibold uppercase tracking-wider"
-                }`}
-              >
-                <span>{purpose.label}</span>
-                {isActive && <span className="text-[10px]">✓</span>}
-              </button>
-            );
-          })}
+      {purposesList.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-[10px] uppercase font-extrabold tracking-widest text-black/50">Purpose & Occasion</h4>
+          <div className="flex flex-col gap-2">
+            {purposesList.map((p) => {
+              const pName = typeof p === "string" ? p : p.name;
+              const pSlug = typeof p === "string" ? p.toLowerCase().replace(/\s+/g, "-") : (p.slug || pName.toLowerCase().replace(/\s+/g, "-"));
+              const isActive =
+                activePurpose.toLowerCase() === pSlug.toLowerCase() ||
+                activePurpose.toLowerCase() === pName.toLowerCase();
+              return (
+                <button
+                  key={p._id || pSlug}
+                  onClick={() => updateQuery("purpose", isActive ? "" : pSlug)}
+                  className={`text-left text-xs py-2 px-3 rounded-none border-2 transition-all flex justify-between items-center ${
+                    isActive
+                      ? "bg-neutral-100 border-black text-black font-bold uppercase tracking-wider"
+                      : "border-transparent text-neutral-600 hover:bg-neutral-50 font-semibold uppercase tracking-wider"
+                  }`}
+                >
+                  <span>{pName}</span>
+                  {isActive && <span className="text-[10px]">✓</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Filter by Price Range */}
       <div className="space-y-3">

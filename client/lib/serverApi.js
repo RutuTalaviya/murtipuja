@@ -89,6 +89,20 @@ export async function fetchDeities() {
   }
 }
 
+export async function fetchPurposes() {
+  try {
+    const res = await fetch(`${API_URL}/api/purposes`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+
 
 
 

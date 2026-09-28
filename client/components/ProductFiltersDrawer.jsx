@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getCategories, getProductTags, getDeities } from "@/lib/api";
+import { getCategories, getProductTags, getDeities, getPurposes } from "@/lib/api";
 
 const SORT_OPTIONS = [
   { label: "Newest First", value: "-createdAt" },
@@ -20,6 +20,7 @@ export default function ProductFiltersDrawer({ totalResults }) {
   const [deities, setDeities] = useState(["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman", "Durga"]);
   const [availableMainCats, setAvailableMainCats] = useState([]);
   const [availableSubCats, setAvailableSubCats] = useState([]);
+  const [availablePurposes, setAvailablePurposes] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
 
   // Local state for prices (to avoid URL thrashing on every keystroke)
@@ -35,10 +36,11 @@ export default function ProductFiltersDrawer({ totalResults }) {
   useEffect(() => {
     async function loadData() {
       try {
-        const [catRes, tagRes, deityRes] = await Promise.allSettled([
+        const [catRes, tagRes, deityRes, purposeRes] = await Promise.allSettled([
           getCategories(),
           getProductTags(),
           getDeities(),
+          getPurposes(),
         ]);
 
         if (deityRes.status === "fulfilled" && Array.isArray(deityRes.value?.data) && deityRes.value.data.length > 0) {
@@ -53,6 +55,10 @@ export default function ProductFiltersDrawer({ totalResults }) {
           const subList = catRes.value.data.filter((cat) => cat.parentCategory);
           setAvailableMainCats(mainList);
           setAvailableSubCats(subList);
+        }
+
+        if (purposeRes.status === "fulfilled" && Array.isArray(purposeRes.value?.data) && purposeRes.value.data.length > 0) {
+          setAvailablePurposes(purposeRes.value.data);
         }
 
         if (tagRes.status === "fulfilled" && Array.isArray(tagRes.value?.data) && tagRes.value.data.length > 0) {
@@ -85,6 +91,7 @@ export default function ProductFiltersDrawer({ totalResults }) {
   const activeDeity = searchParams.get("deity") || searchParams.get("series") || "";
   const activeCategory = searchParams.get("category") || "";
   const activeSubCategory = searchParams.get("subCategory") || "";
+  const activePurpose = searchParams.get("purpose") || "";
   const activeTag = searchParams.get("tag") || searchParams.get("tags") || "";
   const isOnSaleOnly = searchParams.get("onsale") === "true";
   const activeSort = searchParams.get("sort") || "";
@@ -94,6 +101,7 @@ export default function ProductFiltersDrawer({ totalResults }) {
   if (activeDeity) activeFilterCount++;
   if (activeCategory) activeFilterCount++;
   if (activeSubCategory) activeFilterCount++;
+  if (activePurpose) activeFilterCount++;
   if (activeTag) activeFilterCount++;
   if (isOnSaleOnly) activeFilterCount++;
   if (activeSort) activeFilterCount++;
@@ -380,7 +388,50 @@ export default function ProductFiltersDrawer({ totalResults }) {
                 </div>
               )}
 
-              {/* 5. Filter: Product Tags & Highlights */}
+              {/* 5. Filter: Shop by Occasion & Purpose */}
+              {availablePurposes.length > 0 && (
+                <div className="pt-6 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[11px] uppercase font-extrabold tracking-widest text-neutral-400">
+                      Shop by Occasion & Purpose
+                    </h4>
+                    {activePurpose && (
+                      <button
+                        type="button"
+                        onClick={() => updateQuery("purpose", "")}
+                        className="text-[10px] uppercase font-bold text-orange-600 hover:underline"
+                      >
+                        Clear Occasion
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {availablePurposes.map((p) => {
+                      const pName = typeof p === "string" ? p : p.name;
+                      const pSlug = typeof p === "string" ? p.toLowerCase().replace(/\s+/g, "-") : (p.slug || pName.toLowerCase().replace(/\s+/g, "-"));
+                      const isSelected =
+                        activePurpose.toLowerCase() === pSlug.toLowerCase() ||
+                        activePurpose.toLowerCase() === pName.toLowerCase();
+                      return (
+                        <button
+                          key={p._id || pSlug}
+                          type="button"
+                          onClick={() => updateQuery("purpose", isSelected ? "" : pSlug)}
+                          className={`text-left text-xs py-2.5 px-3.5 rounded-none border-2 transition-all flex justify-between items-center ${isSelected
+                            ? "bg-black border-black text-white font-extrabold uppercase tracking-wider shadow-xs"
+                            : "bg-white border-neutral-200 text-neutral-700 hover:border-orange-500 hover:text-orange-600 font-bold uppercase tracking-wider"
+                            }`}
+                        >
+                          <span className="truncate">{pName}</span>
+                          {isSelected && <span className="text-orange-400 text-xs">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 6. Filter: Product Tags & Highlights */}
               {availableTags.length > 0 && (
                 <div className="pt-6 space-y-3">
                   <div className="flex items-center justify-between">

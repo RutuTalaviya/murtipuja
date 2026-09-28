@@ -1,5 +1,5 @@
 import ProductCatalogSection from "@/components/ProductCatalogSection";
-import { fetchProducts, fetchCategories, fetchTags, fetchDeities } from "@/lib/serverApi";
+import { fetchProducts, fetchCategories, fetchTags, fetchDeities, fetchPurposes } from "@/lib/serverApi";
 
 export const metadata = {
   title: "Shop Divine Murtis | MurtiPuja",
@@ -13,18 +13,21 @@ export default async function ProductsPage({ searchParams }) {
   let allCategories = [];
   let allTags = [];
   let allDeities = [];
+  let allPurposes = [];
 
   try {
-    const [prodData, catData, tagData, deityData] = await Promise.all([
+    const [prodData, catData, tagData, deityData, purposeData] = await Promise.all([
       fetchProducts(pageParams),
       fetchCategories().catch(() => []),
       fetchTags().catch(() => []),
       fetchDeities().catch(() => []),
+      fetchPurposes().catch(() => []),
     ]);
     data = prodData;
     allCategories = Array.isArray(catData) ? catData : [];
     allTags = Array.isArray(tagData) ? tagData : [];
     allDeities = Array.isArray(deityData) ? deityData : [];
+    allPurposes = Array.isArray(purposeData) ? purposeData : [];
   } catch (err) {
     console.error("Failed to load products page:", err);
   }
@@ -39,6 +42,14 @@ export default async function ProductsPage({ searchParams }) {
   const activeDeityParam = params.deity || params.series;
   const activeCategoryParam = params.category;
   const activeTagParam = params.tag || params.tags;
+
+  const matchedPurpose = params.purpose
+    ? allPurposes.find(
+        (p) =>
+          (p.slug && p.slug.toLowerCase() === params.purpose.toLowerCase()) ||
+          (p.name && p.name.toLowerCase() === params.purpose.toLowerCase())
+      )
+    : null;
 
   if (activeCategoryParam && activeDeityParam) {
     categorySubtitle = `${activeCategoryParam.toUpperCase()} • ${activeDeityParam.toUpperCase()} SERIES`;
@@ -57,12 +68,10 @@ export default async function ProductsPage({ searchParams }) {
   } else if (activeTagParam) {
     categorySubtitle = "CURATED SELECTION";
     pageTitle = `${activeTagParam.toUpperCase()} SPECIAL`;
-  } else if (params.purpose === "pooja-room") {
-    categorySubtitle = "SACRED ESSENTIALS";
-    pageTitle = "POOJA ROOM COLLECTION";
-  } else if (params.purpose === "home-decor") {
-    categorySubtitle = "ARCHITECTURAL DEVOTION";
-    pageTitle = "HOME DECOR IDOLS";
+  } else if (params.purpose) {
+    const purposeName = matchedPurpose ? matchedPurpose.name : params.purpose.replace(/[-_]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+    categorySubtitle = "SHOP BY OCCASION";
+    pageTitle = `${purposeName.toUpperCase()} COLLECTION`;
   } else if (params.onsale === "true") {
     categorySubtitle = "LIMITED OPPORTUNITY";
     pageTitle = "SPECIAL SALE DROPS";
@@ -81,8 +90,8 @@ export default async function ProductsPage({ searchParams }) {
   if (params.subCategory) activeTags.push({ label: `Type: ${params.subCategory}`, key: "subCategory" });
   if (activeTagParam) activeTags.push({ label: `Tag: ${activeTagParam}`, keys: ["tag", "tags"] });
   if (params.purpose) {
-    const purposeLabel = params.purpose === "pooja-room" ? "Pooja Essentials" : params.purpose === "home-decor" ? "Home Decor" : params.purpose;
-    activeTags.push({ label: `Purpose: ${purposeLabel}`, key: "purpose" });
+    const purposeLabel = matchedPurpose ? matchedPurpose.name : params.purpose.replace(/[-_]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+    activeTags.push({ label: `Occasion: ${purposeLabel}`, key: "purpose" });
   }
   if (params.onsale === "true") activeTags.push({ label: "On Sale Only", key: "onsale" });
   if (params.sort && params.sort !== "random") {

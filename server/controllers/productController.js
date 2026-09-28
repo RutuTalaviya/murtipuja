@@ -160,9 +160,19 @@ async function getProducts(req, res, next) {
       }
     }
 
-    // Purpose filter
+    // Purpose / Occasion filter
     if (purpose) {
-      conditions.push({ purpose: new RegExp(escapeRegex(purpose), "i") });
+      const rawPurpose = purpose.trim();
+      const formatted = rawPurpose.replace(/[-_]/g, " ").trim();
+      const slugified = rawPurpose.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      const purposePattern = new RegExp(`^(${escapeRegex(rawPurpose)}|${escapeRegex(formatted)}|${escapeRegex(slugified)})$`, "i");
+      conditions.push({
+        $or: [
+          { purpose: purposePattern },
+          { purpose: new RegExp(escapeRegex(formatted), "i") },
+          { tags: purposePattern },
+        ],
+      });
     }
 
     // On Sale filter

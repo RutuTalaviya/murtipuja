@@ -29,6 +29,10 @@ import api, {
   createTag,
   updateTag,
   deleteTag,
+  getPurposes,
+  createPurpose,
+  updatePurpose,
+  deletePurpose,
   createProduct,
   updateProduct,
   deleteProduct,
@@ -251,6 +255,15 @@ export default function AdminPage() {
   const [editingTag, setEditingTag] = useState(null);
   const [tagLoading, setTagLoading] = useState(false);
 
+  // Occasions / Purposes state
+  const [purposeObjects, setPurposeObjects] = useState([]);
+  const [purposesList, setPurposesList] = useState([]);
+  const [newPurposeName, setNewPurposeName] = useState("");
+  const [newPurposeSlug, setNewPurposeSlug] = useState("");
+  const [newPurposeDesc, setNewPurposeDesc] = useState("");
+  const [editingPurpose, setEditingPurpose] = useState(null);
+  const [purposeLoading, setPurposeLoading] = useState(false);
+
   // Quick Inline Category & Subcategory Creation in Product Modal
   const [quickCatOpen, setQuickCatOpen] = useState(false);
   const [quickCatName, setQuickCatName] = useState("");
@@ -264,6 +277,12 @@ export default function AdminPage() {
   const [quickSubDesc, setQuickSubDesc] = useState("");
   const [quickSubParentId, setQuickSubParentId] = useState("");
   const [quickSubLoading, setQuickSubLoading] = useState(false);
+
+  // Quick Inline Occasion Creation in Product Modal
+  const [quickPurposeOpen, setQuickPurposeOpen] = useState(false);
+  const [quickPurposeName, setQuickPurposeName] = useState("");
+  const [quickPurposeSlug, setQuickPurposeSlug] = useState("");
+  const [quickPurposeLoading, setQuickPurposeLoading] = useState(false);
 
   function fetchDashboardData() {
     setLoading(true);
@@ -281,8 +300,9 @@ export default function AdminPage() {
       getAdminVideos(),
       getTags().catch(() => ({ data: [] })),
       getDeities().catch(() => ({ data: [] })),
+      getPurposes().catch(() => ({ data: [] })),
     ])
-      .then(([statsRes, ordersRes, catRes, finishRes, prodRes, comboRes, couponRes, offerRes, navRes, bannerRes, videoRes, tagsRes, deitiesRes]) => {
+      .then(([statsRes, ordersRes, catRes, finishRes, prodRes, comboRes, couponRes, offerRes, navRes, bannerRes, videoRes, tagsRes, deitiesRes, purposesRes]) => {
         setStats(statsRes.data);
         setOrders(ordersRes.data);
         setCategories(catRes.data || []);
@@ -301,6 +321,10 @@ export default function AdminPage() {
         }
         if (deitiesRes?.data && Array.isArray(deitiesRes.data) && deitiesRes.data.length > 0) {
           setAvailableDeities(deitiesRes.data);
+        }
+        if (purposesRes?.data && Array.isArray(purposesRes.data) && purposesRes.data.length > 0) {
+          setPurposeObjects(purposesRes.data);
+          setPurposesList(purposesRes.data);
         }
       })
       .catch((err) => {
@@ -694,6 +718,123 @@ export default function AdminPage() {
     setNewTagSlug(tagItem.slug || "");
     setNewTagDesc(tagItem.description || "");
     setCategoryFormTab("tag");
+  }
+
+  // Occasion / Purpose Form Reset & Handlers
+  function resetPurposeForm() {
+    setNewPurposeName("");
+    setNewPurposeSlug("");
+    setNewPurposeDesc("");
+    setEditingPurpose(null);
+  }
+
+  // Handle Occasion / Purpose creation or update
+  async function handleCreateOrUpdatePurpose(e) {
+    if (e) e.preventDefault();
+    if (!newPurposeName.trim()) return;
+    setActionError("");
+    setPurposeLoading(true);
+    try {
+      const generatedSlug =
+        newPurposeSlug.trim() ||
+        newPurposeName
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "");
+
+      const payload = {
+        name: newPurposeName.trim(),
+        slug: generatedSlug,
+        description: newPurposeDesc.trim(),
+      };
+
+      if (editingPurpose && editingPurpose._id && !editingPurpose._id.startsWith("prod-purpose-")) {
+        const res = await updatePurpose(editingPurpose._id, payload);
+        const updated = res.data;
+        setPurposeObjects((prev) => prev.map((p) => (p._id === editingPurpose._id ? updated : p)));
+        setPurposesList((prev) => prev.map((p) => (p._id === editingPurpose._id ? updated : p)));
+        setActionSuccess(`Occasion "${updated.name}" updated successfully!`);
+      } else {
+        const res = await createPurpose(payload);
+        const created = res.data;
+        setPurposeObjects((prev) => [...prev.filter((p) => (p.slug || p.name).toLowerCase() !== (created.slug || created.name).toLowerCase()), created]);
+        setPurposesList((prev) => [...prev.filter((p) => (p.slug || p.name).toLowerCase() !== (created.slug || created.name).toLowerCase()), created]);
+        setActionSuccess(`Occasion "${created.name}" created successfully!`);
+      }
+      setTimeout(() => setActionSuccess(""), 3500);
+      resetPurposeForm();
+    } catch (err) {
+      setActionError(err.response?.data?.message || "Failed to save occasion / purpose.");
+    } finally {
+      setPurposeLoading(false);
+    }
+  }
+
+  // Handle Occasion / Purpose deletion
+  async function handleDeletePurpose(purposeItem) {
+    if (!window.confirm(`Are you sure you want to delete occasion "${purposeItem.name}"?`)) return;
+    setActionError("");
+    try {
+      if (purposeItem._id && !purposeItem._id.startsWith("prod-purpose-")) {
+        await deletePurpose(purposeItem._id);
+      }
+      setPurposeObjects((prev) => prev.filter((p) => p.name !== purposeItem.name && p.slug !== purposeItem.slug));
+      setPurposesList((prev) => prev.filter((p) => p.name !== purposeItem.name && p.slug !== purposeItem.slug));
+      setPurposes((prev) => prev.filter((p) => p !== purposeItem.slug && p !== purposeItem.name));
+      setActionSuccess(`Occasion "${purposeItem.name}" deleted.`);
+      setTimeout(() => setActionSuccess(""), 3500);
+    } catch (err) {
+      setActionError(err.response?.data?.message || "Failed to delete occasion.");
+    }
+  }
+
+  function handleEditPurpose(purposeItem) {
+    setEditingPurpose(purposeItem);
+    setNewPurposeName(purposeItem.name || "");
+    setNewPurposeSlug(purposeItem.slug || "");
+    setNewPurposeDesc(purposeItem.description || "");
+    setCategoryFormTab("purpose");
+  }
+
+  // Quick create occasion directly inside product modal
+  async function handleQuickCreatePurpose(e) {
+    if (e) e.preventDefault();
+    if (!quickPurposeName.trim()) {
+      setActionError("Please enter an occasion name.");
+      return;
+    }
+    setQuickPurposeLoading(true);
+    setActionError("");
+    try {
+      const slug =
+        quickPurposeSlug.trim() ||
+        quickPurposeName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "");
+
+      const res = await createPurpose({
+        name: quickPurposeName.trim(),
+        slug,
+      });
+
+      const newPurpose = res.data;
+      setPurposeObjects((prev) => [...prev.filter((p) => (p.slug || p.name).toLowerCase() !== (newPurpose.slug || newPurpose.name).toLowerCase()), newPurpose]);
+      setPurposesList((prev) => [...prev.filter((p) => (p.slug || p.name).toLowerCase() !== (newPurpose.slug || newPurpose.name).toLowerCase()), newPurpose]);
+      if (!purposes.includes(newPurpose.slug)) {
+        setPurposes((prev) => [...prev, newPurpose.slug]);
+      }
+      setQuickPurposeName("");
+      setQuickPurposeSlug("");
+      setQuickPurposeOpen(false);
+      setActionSuccess(`Occasion "${newPurpose.name}" created and assigned!`);
+      setTimeout(() => setActionSuccess(""), 4000);
+    } catch (err) {
+      setActionError(err.response?.data?.message || "Failed to create occasion.");
+    } finally {
+      setQuickPurposeLoading(false);
+    }
   }
 
   // Handle finish creation or update
@@ -2745,8 +2886,8 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* Form Selector Tabs (Main Category Form vs Subcategory Form vs Product Tag Form) */}
-              <div className="flex rounded-xl p-1 bg-white border border-slate-200 gap-1 shadow-2xs">
+              {/* Form Selector Tabs (Main Category Form vs Subcategory Form vs Product Tag Form vs Occasions Form) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 rounded-xl p-1 bg-white border border-slate-200 gap-1 shadow-2xs">
                 <button
                   type="button"
                   onClick={() => {
@@ -2755,7 +2896,7 @@ export default function AdminPage() {
                     }
                     setCategoryFormTab("main");
                   }}
-                  className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 bg-white ${categoryFormTab === "main"
+                  className={`py-1.5 px-2 text-[10.5px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 bg-white ${categoryFormTab === "main"
                     ? "text-maroon font-black border-2 border-maroon shadow-xs ring-2 ring-maroon/10"
                     : "text-charcoal/70 border border-slate-200 hover:text-black hover:border-slate-300 hover:bg-slate-50"
                     }`}
@@ -2771,7 +2912,7 @@ export default function AdminPage() {
                     }
                     setCategoryFormTab("sub");
                   }}
-                  className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 bg-white ${categoryFormTab === "sub"
+                  className={`py-1.5 px-2 text-[10.5px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 bg-white ${categoryFormTab === "sub"
                     ? "text-maroon font-black border-2 border-maroon shadow-xs ring-2 ring-maroon/10"
                     : "text-charcoal/70 border border-slate-200 hover:text-black hover:border-slate-300 hover:bg-slate-50"
                     }`}
@@ -2783,12 +2924,24 @@ export default function AdminPage() {
                   onClick={() => {
                     setCategoryFormTab("tag");
                   }}
-                  className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 bg-white ${categoryFormTab === "tag"
+                  className={`py-1.5 px-2 text-[10.5px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 bg-white ${categoryFormTab === "tag"
                     ? "text-maroon font-black border-2 border-maroon shadow-xs ring-2 ring-maroon/10"
                     : "text-charcoal/70 border border-slate-200 hover:text-black hover:border-slate-300 hover:bg-slate-50"
                     }`}
                 >
                   <span>Product Tag</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryFormTab("purpose");
+                  }}
+                  className={`py-1.5 px-2 text-[10.5px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 bg-white ${categoryFormTab === "purpose"
+                    ? "text-purple-900 font-black border-2 border-purple-800 shadow-xs ring-2 ring-purple-500/10"
+                    : "text-charcoal/70 border border-slate-200 hover:text-black hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                >
+                  <span>Occasion</span>
                 </button>
               </div>
 
@@ -2953,7 +3106,7 @@ export default function AdminPage() {
                     {catLoading ? "Saving..." : editingCategory ? "Update Subcategory" : "Create Subcategory"}
                   </button>
                 </form>
-              ) : (
+              ) : categoryFormTab === "tag" ? (
                 /* FORM 3: PRODUCT TAG FORM */
                 <form onSubmit={handleCreateOrUpdateTag} className="space-y-3.5 animate-fade-in">
                   <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl space-y-1">
@@ -2961,7 +3114,7 @@ export default function AdminPage() {
                       {editingTag ? "Edit Product Tag" : "Product Tag Form"}
                     </p>
                     <p className="text-[10.5px] text-emerald-800 leading-snug">
-                      Use this to add searchable tags like <strong>Lighting Shiv</strong>, <strong>Bestseller</strong>, <strong>Pooja Room</strong>, <strong>Car Dashboard</strong>.
+                      Use this to add searchable tags like <strong>Lighting Shiv</strong>, <strong>Bestseller</strong>, <strong>Limited Edition</strong>.
                     </p>
                   </div>
 
@@ -3022,6 +3175,82 @@ export default function AdminPage() {
                       <button
                         type="button"
                         onClick={resetTagForm}
+                        className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-charcoal text-xs font-bold rounded-xl"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+              ) : (
+                /* FORM 4: OCCASION / PURPOSE FORM */
+                <form onSubmit={handleCreateOrUpdatePurpose} className="space-y-3.5 animate-fade-in">
+                  <div className="p-3 bg-purple-50/80 border border-purple-200 rounded-xl space-y-1">
+                    <p className="text-xs font-bold text-purple-950">
+                      {editingPurpose ? "Edit Occasion / Purpose" : "Occasion / Purpose Form"}
+                    </p>
+                    <p className="text-[10.5px] text-purple-800 leading-snug">
+                      Use this to add <strong>Shop by Occasions</strong> like <strong>Pooja Room</strong>, <strong>Car Dashboard</strong>, <strong>Griha Pravesh</strong>, <strong>Festive Puja</strong>, <strong>Corporate Gifting</strong>.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">Occasion / Purpose Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Car Dashboard or Housewarming"
+                      value={newPurposeName}
+                      onChange={(e) => {
+                        setNewPurposeName(e.target.value);
+                        if (!editingPurpose) {
+                          setNewPurposeSlug(
+                            e.target.value
+                              .toLowerCase()
+                              .replace(/[^a-z0-9]+/g, "-")
+                              .replace(/(^-|-$)/g, "")
+                          );
+                        }
+                      }}
+                      className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs font-semibold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">Occasion Slug *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. car-dashboard or griha-pravesh"
+                      value={newPurposeSlug}
+                      onChange={(e) => setNewPurposeSlug(e.target.value.toLowerCase())}
+                      className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs font-mono text-charcoal/80"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">Description (Optional)</label>
+                    <textarea
+                      rows="2"
+                      placeholder="e.g. Compact and auspicious idols suited for automobile dashboards and journeys"
+                      value={newPurposeDesc}
+                      onChange={(e) => setNewPurposeDesc(e.target.value)}
+                      className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs resize-none"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={purposeLoading || !newPurposeName.trim()}
+                      className="flex-1 bg-purple-900 hover:bg-purple-950 text-white text-[11px] uppercase tracking-wider font-bold py-2.5 rounded-xl transition-all shadow-md disabled:opacity-50 cursor-pointer"
+                    >
+                      {purposeLoading ? "Saving..." : editingPurpose ? "Update Occasion" : "Create Occasion"}
+                    </button>
+                    {editingPurpose && (
+                      <button
+                        type="button"
+                        onClick={resetPurposeForm}
                         className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-charcoal text-xs font-bold rounded-xl"
                       >
                         Cancel
@@ -3246,6 +3475,93 @@ export default function AdminPage() {
                               <button
                                 type="button"
                                 onClick={() => handleDeleteTag(tagObj)}
+                                className="text-red-600 hover:text-red-800 font-bold uppercase cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Occasions & Purposes Overview & Manager */}
+              <div className="p-5 border-t border-charcoal/10 bg-purple-50/50 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-purple-950 flex items-center gap-1.5">
+                      <span>🕉️ Shop by Occasions & Purpose Library</span>
+                      <span className="text-[10px] bg-purple-200 text-purple-900 px-2 py-0.5 rounded font-bold">
+                        {purposesList.length} Occasions Active
+                      </span>
+                    </h4>
+                    <p className="text-[10.5px] text-purple-800">
+                      Manage sacred placement occasions like <strong>Pooja Room</strong>, <strong>Mandir & Sanctum</strong>, <strong>Car Dashboard</strong>, <strong>Griha Pravesh</strong>, <strong>Diwali Puja</strong>.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetPurposeForm();
+                      setCategoryFormTab("purpose");
+                    }}
+                    className="text-[10px] bg-purple-900 hover:bg-purple-950 text-white font-bold px-3 py-1.5 rounded-lg transition-all uppercase tracking-wider self-start sm:self-auto cursor-pointer"
+                  >
+                    ➕ Add New Occasion
+                  </button>
+                </div>
+
+                {purposesList.length === 0 ? (
+                  <div className="bg-white p-4 rounded-xl border border-dashed border-purple-300 text-center text-xs text-charcoal/60">
+                    No custom occasions created yet. Click "➕ Add New Occasion" or use the Occasions form on the left to create your first occasion.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
+                    {purposesList.map((p) => {
+                      const pName = typeof p === "string" ? p : p.name;
+                      const pSlug = typeof p === "string" ? p.toLowerCase().replace(/\s+/g, "-") : (p.slug || pName.toLowerCase().replace(/\s+/g, "-"));
+                      const pObj = typeof p === "object" ? p : { name: pName, slug: pSlug, description: "" };
+
+                      return (
+                        <div
+                          key={pObj._id || pSlug}
+                          className="bg-white p-3 rounded-xl border border-purple-300/80 shadow-2xs flex flex-col justify-between space-y-2 hover:border-purple-400 transition-all"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-charcoal truncate">{pName}</span>
+                            <span className="text-[9px] font-mono text-purple-900 bg-purple-50 px-1.5 py-0.5 rounded">
+                              /{pSlug}
+                            </span>
+                          </div>
+
+                          {pObj.description && (
+                            <p className="text-[10px] text-neutral-500 line-clamp-2">{pObj.description}</p>
+                          )}
+
+                          <div className="flex items-center justify-between pt-1 border-t border-charcoal/5 text-[10px]">
+                            <Link
+                              href={`/products?purpose=${encodeURIComponent(pSlug)}`}
+                              target="_blank"
+                              className="text-purple-800 hover:text-purple-950 font-bold flex items-center gap-1"
+                            >
+                              <span>Live Filter</span>
+                              <span className="text-[9px]">↗</span>
+                            </Link>
+
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleEditPurpose(pObj)}
+                                className="text-gold hover:text-gold/80 font-bold uppercase cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePurpose(pObj)}
                                 className="text-red-600 hover:text-red-800 font-bold uppercase cursor-pointer"
                               >
                                 Delete
@@ -4053,21 +4369,111 @@ export default function AdminPage() {
                     </label>
                   </div>
 
-                  {/* Occasions checkbox */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60 block">Shop by Occasions / Purpose</label>
-                    <div className="flex flex-wrap gap-4 text-xs">
-                      {["pooja-room", "gifting", "home-decor", "wedding"].map((p) => (
-                        <label key={p} className="flex items-center gap-2 cursor-pointer capitalize">
-                          <input
-                            type="checkbox"
-                            checked={purposes.includes(p)}
-                            onChange={() => togglePurpose(p)}
-                            className="accent-maroon rounded"
-                          />
-                          <span>{p.replace("-", " ")}</span>
+                  {/* Occasions & Purposes Dynamic Selector + Quick Add */}
+                  <div className="space-y-3 bg-purple-50/40 p-4 rounded-xl border border-purple-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <div>
+                        <label className="text-[10px] uppercase font-bold tracking-wider text-purple-950 block">
+                          🕉️ Shop by Occasions & Purpose
                         </label>
-                      ))}
+                        <p className="text-[10px] text-purple-800">
+                          Select which placement and gifting purposes this idol fits into (used in drawer filters & shop-by-occasion).
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] bg-purple-100 text-purple-900 border border-purple-300 font-bold px-2 py-0.5 rounded">
+                          {purposes.length} Selected
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setQuickPurposeOpen(!quickPurposeOpen)}
+                          className="text-[10px] font-bold text-purple-900 hover:text-purple-950 bg-white border border-purple-300 px-2 py-0.5 rounded shadow-2xs cursor-pointer"
+                        >
+                          {quickPurposeOpen ? "✕ Close" : "➕ Quick Add Occasion"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quick Inline Occasion Creation Form */}
+                    {quickPurposeOpen && (
+                      <div className="p-3 bg-white rounded-lg border border-purple-300 space-y-2.5 animate-fade-in shadow-xs">
+                        <p className="text-[11px] font-extrabold text-purple-950 uppercase tracking-wide">
+                          ➕ Create New Occasion / Purpose
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            placeholder="Occasion Name (e.g. Diwali & Festive Puja)"
+                            value={quickPurposeName}
+                            onChange={(e) => {
+                              setQuickPurposeName(e.target.value);
+                              setQuickPurposeSlug(
+                                e.target.value
+                                  .toLowerCase()
+                                  .replace(/[^a-z0-9]+/g, "-")
+                                  .replace(/(^-|-$)/g, "")
+                              );
+                            }}
+                            className="px-2.5 py-1.5 border border-purple-300 rounded text-xs outline-none focus:ring-1 focus:ring-purple-500 font-medium"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Slug (e.g. festive-puja)"
+                            value={quickPurposeSlug}
+                            onChange={(e) => setQuickPurposeSlug(e.target.value.toLowerCase())}
+                            className="px-2.5 py-1.5 border border-purple-300 rounded text-xs outline-none focus:ring-1 focus:ring-purple-500 font-mono text-charcoal/70"
+                          />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickPurposeOpen(false);
+                              setQuickPurposeName("");
+                              setQuickPurposeSlug("");
+                            }}
+                            className="px-2.5 py-1 text-[10px] font-bold text-charcoal/60 hover:text-black uppercase"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleQuickCreatePurpose}
+                            disabled={quickPurposeLoading || !quickPurposeName.trim()}
+                            className="px-3 py-1 bg-purple-900 hover:bg-purple-950 text-white rounded text-[10.5px] font-bold uppercase tracking-wider shadow disabled:opacity-50"
+                          >
+                            {quickPurposeLoading ? "Saving..." : "✓ Create & Assign"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Dynamic Purpose Checkboxes Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-xs">
+                      {purposesList.map((p) => {
+                        const pName = typeof p === "string" ? p : p.name;
+                        const pSlug = typeof p === "string" ? p.toLowerCase().replace(/\s+/g, "-") : (p.slug || pName.toLowerCase().replace(/\s+/g, "-"));
+                        const isChecked = purposes.includes(pSlug) || purposes.includes(pName);
+
+                        return (
+                          <label
+                            key={p._id || pSlug}
+                            className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer select-none transition-all ${
+                              isChecked
+                                ? "bg-purple-900 text-white border-purple-900 font-bold shadow-2xs"
+                                : "bg-white text-charcoal/80 border-purple-200 hover:border-purple-400"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => togglePurpose(pSlug)}
+                              className="accent-purple-700 rounded"
+                            />
+                            <span className="truncate">{pName}</span>
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
 
