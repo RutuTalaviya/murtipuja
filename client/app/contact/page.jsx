@@ -149,8 +149,8 @@ export default function ContactPage() {
               <span className="text-neutral-900 font-bold text-lg group-hover:translate-x-1.5 transition-transform duration-300">→</span>
             </a>
 
-            {/* Call Card */}
-            <a
+            {/* Call Card (Commented out) */}
+            {/* <a
               href={`tel:${(contactInfo.phone || "").replace(/\s+/g, "")}`}
               className="flex items-center justify-between p-6 bg-white border border-stone-200 shadow-sm hover:border-stone-400 transition-all group cursor-pointer"
             >
@@ -165,7 +165,7 @@ export default function ContactPage() {
                 </div>
               </div>
               <span className="text-neutral-900 font-bold text-lg group-hover:translate-x-1.5 transition-transform duration-300">→</span>
-            </a>
+            </a> */}
 
             {/* Email Card */}
             <a

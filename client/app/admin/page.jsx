@@ -1578,7 +1578,7 @@ export default function AdminPage() {
       purpose: purposes,
       tags: productTags,
       isOnSale,
-      images: galleryImages.length > 0 ? galleryImages.map(url => ({ url, alt: title })) : [{ url: "/images/shiva.png", alt: title }],
+      images: galleryImages.length > 0 ? galleryImages.map(url => ({ url, alt: title })) : [],
       videos: galleryVideos,
       variants: updatedVariants
     };
