@@ -214,6 +214,15 @@ async function getProductBySlug(req, res, next) {
 /** POST /api/products (admin only) */
 async function createProduct(req, res, next) {
   try {
+    if (
+      !req.body.images ||
+      !Array.isArray(req.body.images) ||
+      req.body.images.length === 0 ||
+      !req.body.images[0]?.url
+    ) {
+      return res.status(400).json({ message: "Product Images Gallery is required! Please upload at least 1 image." });
+    }
+
     const product = await Product.create(req.body);
     const populated = await Product.findById(product._id)
       .populate("category", "name slug icon")
@@ -228,6 +237,16 @@ async function createProduct(req, res, next) {
 /** PUT /api/products/:id (admin only) */
 async function updateProduct(req, res, next) {
   try {
+    if (req.body.images !== undefined) {
+      if (
+        !Array.isArray(req.body.images) ||
+        req.body.images.length === 0 ||
+        !req.body.images[0]?.url
+      ) {
+        return res.status(400).json({ message: "Product Images Gallery is required! Please upload at least 1 image." });
+      }
+    }
+
     const product = await Product.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,

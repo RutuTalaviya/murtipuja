@@ -1549,6 +1549,11 @@ export default function AdminPage() {
       setActionError("Please fill out all required fields.");
       return;
     }
+
+    if (!galleryImages || galleryImages.length === 0) {
+      setActionError("Product Images Gallery is required! Please upload at least 1 image (Primary Cover Image).");
+      return;
+    }
     setActionError("");
     setProdLoading(true);
 
