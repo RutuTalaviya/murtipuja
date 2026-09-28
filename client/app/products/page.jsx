@@ -1,5 +1,5 @@
 import ProductCatalogSection from "@/components/ProductCatalogSection";
-import { fetchProducts, fetchCategories, fetchTags } from "@/lib/serverApi";
+import { fetchProducts, fetchCategories, fetchTags, fetchDeities } from "@/lib/serverApi";
 
 export const metadata = {
   title: "Shop Divine Murtis | MurtiPuja",
@@ -12,16 +12,19 @@ export default async function ProductsPage({ searchParams }) {
   let data = { products: [], pagination: { total: 0, totalPages: 0, page: 1, limit: 12 } };
   let allCategories = [];
   let allTags = [];
+  let allDeities = [];
 
   try {
-    const [prodData, catData, tagData] = await Promise.all([
+    const [prodData, catData, tagData, deityData] = await Promise.all([
       fetchProducts(pageParams),
       fetchCategories().catch(() => []),
       fetchTags().catch(() => []),
+      fetchDeities().catch(() => []),
     ]);
     data = prodData;
     allCategories = Array.isArray(catData) ? catData : [];
     allTags = Array.isArray(tagData) ? tagData : [];
+    allDeities = Array.isArray(deityData) ? deityData : [];
   } catch (err) {
     console.error("Failed to load products page:", err);
   }
@@ -33,12 +36,24 @@ export default async function ProductsPage({ searchParams }) {
   let categorySubtitle = "ACTIVE RELEASES";
   let pageTitle = "ALL SCULPTURES";
 
-  const activeCategoryParam = params.category || params.deity;
+  const activeDeityParam = params.deity || params.series;
+  const activeCategoryParam = params.category;
   const activeTagParam = params.tag || params.tags;
 
-  if (params.subCategory) {
-    categorySubtitle = activeCategoryParam ? `${activeCategoryParam.toUpperCase()} SUBCATEGORY` : "MURTI TYPE COLLECTION";
+  if (activeCategoryParam && activeDeityParam) {
+    categorySubtitle = `${activeCategoryParam.toUpperCase()} • ${activeDeityParam.toUpperCase()} SERIES`;
+    pageTitle = `${activeDeityParam.toUpperCase()} IN ${activeCategoryParam.toUpperCase()}`;
+  } else if (params.subCategory) {
+    categorySubtitle = activeCategoryParam
+      ? `${activeCategoryParam.toUpperCase()} SUBCATEGORY`
+      : "MURTI TYPE COLLECTION";
     pageTitle = `${params.subCategory.toUpperCase()} COLLECTION`;
+  } else if (activeDeityParam) {
+    categorySubtitle = "SACRED DEITY SERIES";
+    pageTitle = `${activeDeityParam.toUpperCase()} SACRED SERIES`;
+  } else if (activeCategoryParam) {
+    categorySubtitle = "COLLECTION";
+    pageTitle = `${activeCategoryParam.toUpperCase()} IDOLS`;
   } else if (activeTagParam) {
     categorySubtitle = "CURATED SELECTION";
     pageTitle = `${activeTagParam.toUpperCase()} SPECIAL`;
@@ -48,9 +63,6 @@ export default async function ProductsPage({ searchParams }) {
   } else if (params.purpose === "home-decor") {
     categorySubtitle = "ARCHITECTURAL DEVOTION";
     pageTitle = "HOME DECOR IDOLS";
-  } else if (activeCategoryParam) {
-    categorySubtitle = "IDOL SERIES";
-    pageTitle = `${activeCategoryParam.toUpperCase()} SACRED SERIES`;
   } else if (params.onsale === "true") {
     categorySubtitle = "LIMITED OPPORTUNITY";
     pageTitle = "SPECIAL SALE DROPS";
@@ -64,7 +76,8 @@ export default async function ProductsPage({ searchParams }) {
 
   // Active filter tags for quick removal
   const activeTags = [];
-  if (activeCategoryParam) activeTags.push({ label: `Idol Series: ${activeCategoryParam}`, keys: ["category", "deity"] });
+  if (activeDeityParam) activeTags.push({ label: `Series: ${activeDeityParam}`, keys: ["deity", "series"] });
+  if (activeCategoryParam) activeTags.push({ label: `Category: ${activeCategoryParam}`, key: "category" });
   if (params.subCategory) activeTags.push({ label: `Type: ${params.subCategory}`, key: "subCategory" });
   if (activeTagParam) activeTags.push({ label: `Tag: ${activeTagParam}`, keys: ["tag", "tags"] });
   if (params.purpose) {
@@ -90,61 +103,58 @@ export default async function ProductsPage({ searchParams }) {
   }
   if (params.search) activeTags.push({ label: `Search: "${params.search}"`, key: "search" });
 
-  // Dynamic quick purpose & category tabs from backend
-  const selectedCat = (params.category || params.deity || "").toLowerCase();
+  // Dynamic quick Deity Series & category tabs
   const mainCategories = allCategories.filter((c) => !c.parentCategory);
-
-  const currentMainCat = mainCategories.find(
-    (c) => c.name.toLowerCase() === selectedCat || c.slug.toLowerCase() === selectedCat
-  );
 
   let QUICK_PURPOSE_TABS = [];
 
-  if (currentMainCat) {
-    // When a category is selected: show its dynamic subcategories created in admin
-    const deitySubCats = allCategories.filter(
-      (c) => c.parentCategory && (c.parentCategory._id === currentMainCat._id || c.parentCategory === currentMainCat._id)
+  if (activeCategoryParam) {
+    const currentMainCat = mainCategories.find(
+      (c) => c.name.toLowerCase() === activeCategoryParam.toLowerCase() || c.slug.toLowerCase() === activeCategoryParam.toLowerCase()
     );
+
+    const subCats = currentMainCat
+      ? allCategories.filter(
+          (c) => c.parentCategory && (c.parentCategory._id === currentMainCat._id || c.parentCategory === currentMainCat._id)
+        )
+      : [];
 
     QUICK_PURPOSE_TABS = [
       {
-        label: `All ${currentMainCat.name}`,
-        href: `/products?category=${encodeURIComponent(currentMainCat.slug || currentMainCat.name)}`,
-        active: !params.subCategory,
+        label: `All ${activeCategoryParam}`,
+        href: `/products?category=${encodeURIComponent(activeCategoryParam)}`,
+        active: !params.subCategory && !params.deity,
       },
-      ...deitySubCats.map((sub) => ({
+      ...subCats.map((sub) => ({
         label: sub.name,
-        href: `/products?category=${encodeURIComponent(currentMainCat.slug || currentMainCat.name)}&subCategory=${encodeURIComponent(sub.name)}`,
+        href: `/products?category=${encodeURIComponent(activeCategoryParam)}&subCategory=${encodeURIComponent(sub.name)}`,
         active:
           params.subCategory?.toLowerCase() === sub.name.toLowerCase() ||
           params.subCategory?.toLowerCase() === sub.slug.toLowerCase(),
       })),
+      ...allDeities.slice(0, 4).map((d) => ({
+        label: `${d} in ${activeCategoryParam}`,
+        href: `/products?category=${encodeURIComponent(activeCategoryParam)}&deity=${encodeURIComponent(d)}`,
+        active: activeDeityParam?.toLowerCase() === d.toLowerCase(),
+      })),
       {
-        label: "← All Categories",
+        label: "← All Products",
         href: "/products",
         active: false,
       },
     ];
   } else {
-    // When viewing all products: show dynamic series for each main category in DB
+    // When viewing all products or filtered by series: show Deity Series quick tabs!
     QUICK_PURPOSE_TABS = [
       {
         label: "All Releases",
         href: "/products",
-        active: !params.purpose && !params.onsale && !params.category && !params.deity && !params.subCategory && !params.sort,
+        active: !params.purpose && !params.onsale && !params.category && !params.deity && !params.series && !params.subCategory && !params.sort,
       },
-      {
-        label: "Newest First",
-        href: "/products?sort=-createdAt",
-        active: params.sort === "-createdAt" && !params.purpose && !params.onsale && !params.category && !params.deity && !params.subCategory,
-      },
-      ...mainCategories.map((cat) => ({
-        label: `${cat.name} Series`,
-        href: `/products?category=${encodeURIComponent(cat.slug || cat.name)}`,
-        active:
-          params.category?.toLowerCase() === cat.slug?.toLowerCase() ||
-          params.category?.toLowerCase() === cat.name?.toLowerCase() ||
-          params.deity?.toLowerCase() === cat.name?.toLowerCase(),
+      ...allDeities.map((deityName) => ({
+        label: `${deityName} Series`,
+        href: `/products?deity=${encodeURIComponent(deityName)}`,
+        active: activeDeityParam?.toLowerCase() === deityName.toLowerCase(),
       })),
       {
         label: "Special Sale",

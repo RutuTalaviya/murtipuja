@@ -126,6 +126,7 @@ export const updateFinish = (id, name, slug, colorCode) => api.put(`/api/finishe
 export const deleteFinish = (id) => api.delete(`/api/finishes/${id}`);
 
 export const getProducts = (params) => api.get("/api/products", { params });
+export const getDeities = () => api.get("/api/products/deities");
 export const getProductTags = () => api.get("/api/tags");
 export const getTags = () => api.get("/api/tags");
 export const createTag = (data) => api.post("/api/tags", typeof data === "string" ? { name: data } : data);

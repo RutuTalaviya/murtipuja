@@ -3426,15 +3426,34 @@ export default function AdminPage() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">Deity / God *</label>
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">Deity / God (Series) *</label>
+                        <span className="text-[9px] text-amber-700 font-bold">Powers Global Series Filtering</span>
+                      </div>
                       <input
                         type="text"
                         required
-                        placeholder="e.g. Durga"
+                        list="deities-suggestions"
+                        placeholder="e.g. Ram, Shiva, Ganesh, Krishna, Hanuman"
                         value={deity}
                         onChange={(e) => setDeity(e.target.value)}
-                        className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs"
+                        className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs font-semibold"
                       />
+                      <datalist id="deities-suggestions">
+                        <option value="Ram" />
+                        <option value="Shiva" />
+                        <option value="Ganesh" />
+                        <option value="Krishna" />
+                        <option value="Hanuman" />
+                        <option value="Durga" />
+                        <option value="Laxmi" />
+                        <option value="Saraswati" />
+                        <option value="Vishnu" />
+                        <option value="Radha Krishna" />
+                        <option value="Khatu Shyam" />
+                        <option value="Balaji" />
+                        <option value="Mahadev" />
+                      </datalist>
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60">Base Price (INR) *</label>

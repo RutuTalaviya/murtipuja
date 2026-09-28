@@ -8,7 +8,7 @@ function escapeRegex(string) {
 
 /**
  * GET /api/products
- * Query params: page, limit, category, subCategory, deity, purpose, minPrice, maxPrice, sort, search, ids, onsale
+ * Query params: page, limit, category, subCategory, deity, series, purpose, minPrice, maxPrice, sort, search, ids, onsale
  * Always paginated — never returns the full catalog in one response.
  */
 async function getProducts(req, res, next) {
@@ -19,6 +19,7 @@ async function getProducts(req, res, next) {
       category,
       subCategory,
       deity,
+      series,
       purpose,
       minPrice,
       maxPrice,
@@ -29,26 +30,59 @@ async function getProducts(req, res, next) {
     } = req.query;
 
     const filter = {};
+    const conditions = [];
 
+    // Filter by specific product IDs
     if (ids) {
       const idsArray = ids.split(",").map((id) => id.trim()).filter(Boolean);
-      filter._id = { $in: idsArray };
+      conditions.push({ _id: { $in: idsArray } });
     }
 
-    // Category filter: support ObjectId, slug, or Main Category name (e.g. Shiva, Ram, Hanuman)
-    // When a main category is selected, all products in that category AND in all its subcategories are included!
+    // Series / Deity Filter:
+    // When a user selects a Deity / Series (e.g. Ram, Shiva, Ganesh, Krishna, Hanuman),
+    // we want ALL products of that deity across ALL categories (Car Desk, Lighting Idol, Temple, Wall Art, etc.)
+    const activeSeries = (deity || series || "").trim();
+    if (activeSeries) {
+      // Find all categories & subcategories matching the series name or slug
+      const matchingCats = await Category.find({
+        $or: [
+          { name: new RegExp(escapeRegex(activeSeries), "i") },
+          { slug: new RegExp(escapeRegex(activeSeries), "i") },
+        ],
+      }).select("_id").lean();
+
+      const matchingCatIds = matchingCats.map((c) => c._id);
+      const deityRegex = new RegExp(escapeRegex(activeSeries), "i");
+
+      const deityOrConditions = [
+        { deity: deityRegex },
+        { title: deityRegex },
+        { tags: deityRegex },
+      ];
+
+      if (matchingCatIds.length > 0) {
+        deityOrConditions.push({ category: { $in: matchingCatIds } });
+        deityOrConditions.push({ subCategory: { $in: matchingCatIds } });
+      }
+
+      conditions.push({ $or: deityOrConditions });
+    }
+
+    // Category filter: support ObjectId, slug, or Category name (e.g. Car Desk, Lighting Idol, etc.)
     if (category) {
       if (mongoose.Types.ObjectId.isValid(category)) {
         const childCats = await Category.find({ parentCategory: category }).select("_id").lean();
-        const catIds = [category, ...childCats.map((c) => c._id)];
         const catDoc = await Category.findById(category).lean();
-        const deityPattern = catDoc ? new RegExp(`^${escapeRegex(catDoc.name)}`, "i") : null;
+        const catIds = [category, ...childCats.map((c) => c._id)];
 
-        filter.$or = [
+        const catOr = [
           { category: { $in: catIds } },
           { subCategory: { $in: catIds } },
-          ...(deityPattern ? [{ deity: deityPattern }] : []),
         ];
+        if (catDoc) {
+          catOr.push({ deity: new RegExp(`^${escapeRegex(catDoc.name)}$`, "i") });
+        }
+        conditions.push({ $or: catOr });
       } else {
         // Find category by slug or name
         const catDoc = await Category.findOne({
@@ -57,59 +91,98 @@ async function getProducts(req, res, next) {
 
         if (catDoc) {
           const childCats = await Category.find({ parentCategory: catDoc._id }).select("_id").lean();
-          const catIds = [catDoc._id, ...childCats.map((c) => c._id)];
+          const sameNameCats = await Category.find({
+            name: new RegExp(`^${escapeRegex(catDoc.name)}$`, "i"),
+          }).select("_id").lean();
 
-          filter.$or = [
-            { category: { $in: catIds } },
-            { subCategory: { $in: catIds } },
-            { deity: new RegExp(`^${escapeRegex(catDoc.name)}`, "i") },
-            { deity: new RegExp(`^${escapeRegex(catDoc.slug)}`, "i") },
-          ];
+          const catIds = Array.from(new Set([
+            catDoc._id.toString(),
+            ...childCats.map((c) => c._id.toString()),
+            ...sameNameCats.map((c) => c._id.toString()),
+          ])).map((id) => new mongoose.Types.ObjectId(id));
+
+          conditions.push({
+            $or: [
+              { category: { $in: catIds } },
+              { subCategory: { $in: catIds } },
+              { deity: new RegExp(`^${escapeRegex(catDoc.name)}$`, "i") },
+              { deity: new RegExp(`^${escapeRegex(catDoc.slug)}$`, "i") },
+            ],
+          });
         } else {
-          // Fallback to matching deity field or category name pattern
-          filter.$or = [
-            { deity: new RegExp(`^${escapeRegex(category)}`, "i") },
-          ];
+          // Fallback to matching deity, title, or tags
+          const fallbackRegex = new RegExp(escapeRegex(category.trim()), "i");
+          conditions.push({
+            $or: [
+              { deity: fallbackRegex },
+              { title: fallbackRegex },
+              { tags: fallbackRegex },
+            ],
+          });
         }
       }
     }
 
-    // Subcategory / Product Type filter
+    // Subcategory filter (e.g. Lighting, Temple, Car Dashboard)
     if (subCategory) {
       if (mongoose.Types.ObjectId.isValid(subCategory)) {
-        filter.subCategory = subCategory;
+        conditions.push({
+          $or: [
+            { subCategory: subCategory },
+            { category: subCategory },
+          ],
+        });
       } else {
-        // Find matching subcategory doc
-        const subCatDoc = await Category.findOne({
+        const subCatDocs = await Category.find({
           $or: [{ slug: subCategory.toLowerCase() }, { name: new RegExp(`^${escapeRegex(subCategory)}$`, "i") }],
-        }).lean();
+        }).select("_id").lean();
 
-        if (subCatDoc) {
-          filter.subCategory = subCatDoc._id;
+        if (subCatDocs.length > 0) {
+          const subIds = subCatDocs.map((s) => s._id);
+          conditions.push({
+            $or: [
+              { subCategory: { $in: subIds } },
+              { category: { $in: subIds } },
+              { deity: new RegExp(escapeRegex(subCategory), "i") },
+            ],
+          });
         } else {
-          // Match in purpose, tags, or deity
-          filter.$or = [
-            { purpose: new RegExp(escapeRegex(subCategory), "i") },
-            { tags: new RegExp(escapeRegex(subCategory), "i") },
-            { deity: new RegExp(escapeRegex(subCategory), "i") },
-          ];
+          const subRegex = new RegExp(escapeRegex(subCategory), "i");
+          conditions.push({
+            $or: [
+              { purpose: subRegex },
+              { tags: subRegex },
+              { deity: subRegex },
+              { title: subRegex },
+            ],
+          });
         }
       }
     }
 
-    if (deity && !filter.deity && !filter.$or) {
-      filter.deity = new RegExp(`^${escapeRegex(deity)}$`, "i");
-    }
-
+    // Purpose filter
     if (purpose) {
-      filter.purpose = new RegExp(escapeRegex(purpose), "i");
+      conditions.push({ purpose: new RegExp(escapeRegex(purpose), "i") });
     }
 
+    // On Sale filter
     if (onsale === "true") {
-      filter.isOnSale = true;
+      conditions.push({ isOnSale: true });
     }
 
-    // Tag / Tags filter (e.g. ?tag=Bestseller, ?tag=New Arrival, ?tags=Pooja Room,Car Dashboard)
+    // Price range filter
+    const priceCondition = {};
+    if (minPrice && !isNaN(Number(minPrice))) {
+      priceCondition.$gte = Number(minPrice);
+    }
+    if (maxPrice && !isNaN(Number(maxPrice))) {
+      priceCondition.$lte = Number(maxPrice);
+    }
+    if (Object.keys(priceCondition).length > 0) {
+      conditions.push({ basePrice: priceCondition });
+    }
+
+    // Tag / Tags filter
     const rawTag = req.query.tag || req.query.tags;
     if (rawTag) {
       const tagList = Array.isArray(rawTag)
@@ -125,26 +198,41 @@ async function getProducts(req, res, next) {
           const raw = t.trim();
           return new RegExp(`^(${escapeRegex(formatted)}|${escapeRegex(raw)})$`, "i");
         });
-        filter.tags = { $in: patterns };
+        conditions.push({ tags: { $in: patterns } });
       }
     }
 
+    // Full search query filter
     if (search && search.trim()) {
       const searchRegex = new RegExp(escapeRegex(search.trim()), "i");
+      const searchCatDocs = await Category.find({
+        $or: [{ name: searchRegex }, { slug: searchRegex }],
+      }).select("_id").lean();
+      const searchCatIds = searchCatDocs.map((c) => c._id);
+
       const searchCondition = [
         { title: searchRegex },
         { deity: searchRegex },
         { tags: searchRegex },
         { material: searchRegex },
         { purpose: searchRegex },
+        { description: searchRegex },
+        ...(searchCatIds.length > 0
+          ? [
+              { category: { $in: searchCatIds } },
+              { subCategory: { $in: searchCatIds } },
+            ]
+          : []),
       ];
 
-      if (filter.$or) {
-        filter.$and = [{ $or: filter.$or }, { $or: searchCondition }];
-        delete filter.$or;
-      } else {
-        filter.$or = searchCondition;
-      }
+      conditions.push({ $or: searchCondition });
+    }
+
+    // Assemble final MongoDB query filter
+    if (conditions.length === 1) {
+      Object.assign(filter, conditions[0]);
+    } else if (conditions.length > 1) {
+      filter.$and = conditions;
     }
 
     const pageNum = Math.max(1, parseInt(page, 10));
@@ -292,6 +380,54 @@ async function getAvailableTags(req, res, next) {
   }
 }
 
+/** GET /api/products/deities - Get all available Deity / Series names */
+async function getAvailableDeities(req, res, next) {
+  try {
+    const rawDeities = await Product.distinct("deity");
+    const validDeities = new Set(
+      (rawDeities || [])
+        .filter((d) => d && typeof d === "string" && d.trim().length > 0 && d.trim().toLowerCase() !== "general")
+        .map((d) => d.trim())
+    );
+
+    // Also inspect active categories & subcategories for deity names
+    const categories = await Category.find({ isActive: { $ne: false } }).select("name slug parentCategory").lean();
+    const commonDeities = [
+      "Ram",
+      "Shiva",
+      "Ganesh",
+      "Krishna",
+      "Hanuman",
+      "Durga",
+      "Laxmi",
+      "Saraswati",
+      "Vishnu",
+      "Radha Krishna",
+      "Khatu Shyam",
+      "Balaji",
+      "Mahadev",
+    ];
+
+    categories.forEach((cat) => {
+      const matchedCommon = commonDeities.find(
+        (cd) => cd.toLowerCase() === cat.name.toLowerCase() || cd.toLowerCase() === cat.slug.toLowerCase()
+      );
+      if (matchedCommon) {
+        validDeities.add(matchedCommon);
+      }
+    });
+
+    if (validDeities.size === 0) {
+      ["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman", "Durga"].forEach((d) => validDeities.add(d));
+    }
+
+    const deityList = Array.from(validDeities).sort((a, b) => a.localeCompare(b));
+    return res.status(200).json(deityList);
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   getProducts,
   getProductBySlug,
@@ -299,4 +435,5 @@ module.exports = {
   updateProduct,
   deleteProduct,
   getAvailableTags,
+  getAvailableDeities,
 };

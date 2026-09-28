@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getCategories, getProductTags } from "@/lib/api";
-
+import { getCategories, getProductTags, getDeities } from "@/lib/api";
 
 const SORT_OPTIONS = [
   { label: "Newest First", value: "-createdAt" },
@@ -18,7 +17,8 @@ export default function ProductFiltersDrawer({ totalResults }) {
   const searchParams = useSearchParams();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [deities, setDeities] = useState(["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman"]);
+  const [deities, setDeities] = useState(["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman", "Durga"]);
+  const [availableMainCats, setAvailableMainCats] = useState([]);
   const [availableSubCats, setAvailableSubCats] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
 
@@ -35,15 +35,23 @@ export default function ProductFiltersDrawer({ totalResults }) {
   useEffect(() => {
     async function loadData() {
       try {
-        const [catRes, tagRes] = await Promise.allSettled([
+        const [catRes, tagRes, deityRes] = await Promise.allSettled([
           getCategories(),
           getProductTags(),
+          getDeities(),
         ]);
+
+        if (deityRes.status === "fulfilled" && Array.isArray(deityRes.value?.data) && deityRes.value.data.length > 0) {
+          setDeities(deityRes.value.data);
+        } else if (catRes.status === "fulfilled" && catRes.value?.data && catRes.value.data.length > 0) {
+          const names = catRes.value.data.map((c) => c.name);
+          setDeities(Array.from(new Set(names)));
+        }
 
         if (catRes.status === "fulfilled" && catRes.value?.data && catRes.value.data.length > 0) {
           const mainList = catRes.value.data.filter((cat) => !cat.parentCategory);
           const subList = catRes.value.data.filter((cat) => cat.parentCategory);
-          if (mainList.length > 0) setDeities(mainList.map((cat) => cat.name));
+          setAvailableMainCats(mainList);
           setAvailableSubCats(subList);
         }
 
@@ -74,7 +82,8 @@ export default function ProductFiltersDrawer({ totalResults }) {
     };
   }, [isOpen]);
 
-  const activeCategory = searchParams.get("category") || searchParams.get("deity") || "";
+  const activeDeity = searchParams.get("deity") || searchParams.get("series") || "";
+  const activeCategory = searchParams.get("category") || "";
   const activeSubCategory = searchParams.get("subCategory") || "";
   const activeTag = searchParams.get("tag") || searchParams.get("tags") || "";
   const isOnSaleOnly = searchParams.get("onsale") === "true";
@@ -82,6 +91,7 @@ export default function ProductFiltersDrawer({ totalResults }) {
 
   // Count active filters
   let activeFilterCount = 0;
+  if (activeDeity) activeFilterCount++;
   if (activeCategory) activeFilterCount++;
   if (activeSubCategory) activeFilterCount++;
   if (activeTag) activeFilterCount++;
@@ -91,9 +101,6 @@ export default function ProductFiltersDrawer({ totalResults }) {
 
   function updateQuery(key, value) {
     const params = new URLSearchParams(searchParams.toString());
-    if (key === "category") {
-      params.delete("deity");
-    }
     if (value) {
       params.set(key, value);
     } else {
@@ -252,36 +259,90 @@ export default function ProductFiltersDrawer({ totalResults }) {
                 </div>
               </div>
 
-              {/* 3. Filter: Idol Series List */}
+              {/* 2. Filter: Deity / Sacred Series (Ram, Shiva, Ganesh, Krishna, Hanuman, etc.) */}
               <div className="pt-6 space-y-3">
-                <h4 className="text-[11px] uppercase font-extrabold tracking-widest text-neutral-400">Idol Series List</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[11px] uppercase font-extrabold tracking-widest text-neutral-400">
+                    Shop by Deity Series
+                  </h4>
+                  {activeDeity && (
+                    <button
+                      type="button"
+                      onClick={() => updateQuery("deity", "")}
+                      className="text-[10px] uppercase font-bold text-orange-600 hover:underline"
+                    >
+                      Clear Series
+                    </button>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {deities.map((catName) => {
-                    const isActive = activeCategory.toLowerCase() === catName.toLowerCase();
+                  {deities.map((deityName) => {
+                    const isActive = activeDeity.toLowerCase() === deityName.toLowerCase();
                     return (
                       <button
-                        key={catName}
-                        onClick={() => updateQuery("category", isActive ? "" : catName)}
+                        key={deityName}
+                        type="button"
+                        onClick={() => updateQuery("deity", isActive ? "" : deityName)}
                         className={`text-left text-xs py-2.5 px-3.5 rounded-none border-2 transition-all flex justify-between items-center ${isActive
-                          ? "bg-black border-black text-white font-extrabold uppercase tracking-wider"
-                          : "bg-white border-neutral-200 text-neutral-700 hover:border-black font-bold uppercase tracking-wider"
+                          ? "bg-black border-black text-white font-extrabold uppercase tracking-wider shadow-xs"
+                          : "bg-white border-neutral-200 text-neutral-700 hover:border-orange-500 hover:text-orange-600 font-bold uppercase tracking-wider"
                           }`}
                       >
-                        <span>{catName}</span>
-                        {isActive && <span className="text-gold text-xs">✓</span>}
+                        <span>{deityName} Series</span>
+                        {isActive && <span className="text-orange-400 text-xs">✓</span>}
                       </button>
                     );
                   })}
                 </div>
               </div>
 
+              {/* 3. Filter: Categories & Murti Formats (Car Desk, Lighting Idol, Temple, Wall Art, etc.) */}
+              {availableMainCats.length > 0 && (
+                <div className="pt-6 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[11px] uppercase font-extrabold tracking-widest text-neutral-400">
+                      Categories & Murti Formats
+                    </h4>
+                    {activeCategory && (
+                      <button
+                        type="button"
+                        onClick={() => updateQuery("category", "")}
+                        className="text-[10px] uppercase font-bold text-orange-600 hover:underline"
+                      >
+                        Clear Category
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {availableMainCats.map((cat) => {
+                      const isSelected =
+                        activeCategory.toLowerCase() === (cat.slug || "").toLowerCase() ||
+                        activeCategory.toLowerCase() === cat.name.toLowerCase();
+                      return (
+                        <button
+                          key={cat._id}
+                          type="button"
+                          onClick={() => updateQuery("category", isSelected ? "" : (cat.slug || cat.name))}
+                          className={`text-left text-xs py-2.5 px-3.5 rounded-none border-2 transition-all flex justify-between items-center ${isSelected
+                            ? "bg-black border-black text-white font-extrabold uppercase tracking-wider shadow-xs"
+                            : "bg-white border-neutral-200 text-neutral-700 hover:border-orange-500 hover:text-orange-600 font-bold uppercase tracking-wider"
+                            }`}
+                        >
+                          <span className="truncate">{cat.name}</span>
+                          {isSelected && <span className="text-orange-400 text-xs">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
-              {/* 4. Filter: Subcategory / Murti Types (Lighting, Temple, Wall, etc.) */}
+              {/* 4. Filter: Subcategory / Specific Types */}
               {availableSubCats.length > 0 && (
                 <div className="pt-6 space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="text-[11px] uppercase font-extrabold tracking-widest text-neutral-400">
-                      Murti Types & Subcategories
+                      Subcategories & Variants
                     </h4>
                     {activeSubCategory && (
                       <button

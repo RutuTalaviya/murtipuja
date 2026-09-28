@@ -76,5 +76,19 @@ export async function fetchTags() {
   }
 }
 
+export async function fetchDeities() {
+  try {
+    const res = await fetch(`${API_URL}/api/products/deities`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return ["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman", "Durga"];
+    const data = await res.json();
+    return Array.isArray(data) ? data : ["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman", "Durga"];
+  } catch (err) {
+    return ["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman", "Durga"];
+  }
+}
+
+
 
 

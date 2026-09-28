@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getCategories } from "@/lib/api";
+import { getCategories, getDeities } from "@/lib/api";
 
 const PURPOSES = [
   { label: "Pooja Room", value: "pooja-room" },
@@ -11,14 +11,19 @@ const PURPOSES = [
 ];
 
 export default function ProductFilters() {
-  const [deities, setDeities] = useState(["Shiva", "Ganesh", "Krishna"]);
+  const [deities, setDeities] = useState(["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman", "Durga"]);
 
   useEffect(() => {
     async function loadDeities() {
       try {
-        const res = await getCategories();
-        if (res.data && res.data.length > 0) {
-          setDeities(res.data.map((cat) => cat.name));
+        const res = await getDeities();
+        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+          setDeities(res.data);
+        } else {
+          const catRes = await getCategories();
+          if (catRes.data && catRes.data.length > 0) {
+            setDeities(catRes.data.map((cat) => cat.name));
+          }
         }
       } catch (err) {
         console.error("Failed to load deities in filters:", err);
