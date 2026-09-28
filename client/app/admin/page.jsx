@@ -23,6 +23,7 @@ import api, {
   updateFinish,
   deleteFinish,
   getProducts,
+  getDeities,
   getProductTags,
   getTags,
   createTag,
@@ -225,6 +226,21 @@ export default function AdminPage() {
   // Product Tags & Custom Badges State
   const [productTags, setProductTags] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
+  const [availableDeities, setAvailableDeities] = useState([
+    "Ram",
+    "Shiva",
+    "Ganesh",
+    "Krishna",
+    "Hanuman",
+    "Durga",
+    "Laxmi",
+    "Saraswati",
+    "Vishnu",
+    "Radha Krishna",
+    "Khatu Shyam",
+    "Balaji",
+    "Mahadev",
+  ]);
   const [customTagInput, setCustomTagInput] = useState("");
 
   // Tags Manager state in Categories & Tags Tab
@@ -264,8 +280,9 @@ export default function AdminPage() {
       getAdminBanners(),
       getAdminVideos(),
       getTags().catch(() => ({ data: [] })),
+      getDeities().catch(() => ({ data: [] })),
     ])
-      .then(([statsRes, ordersRes, catRes, finishRes, prodRes, comboRes, couponRes, offerRes, navRes, bannerRes, videoRes, tagsRes]) => {
+      .then(([statsRes, ordersRes, catRes, finishRes, prodRes, comboRes, couponRes, offerRes, navRes, bannerRes, videoRes, tagsRes, deitiesRes]) => {
         setStats(statsRes.data);
         setOrders(ordersRes.data);
         setCategories(catRes.data || []);
@@ -281,6 +298,9 @@ export default function AdminPage() {
           setTagObjects(tagsRes.data);
           const names = tagsRes.data.map((t) => (typeof t === "string" ? t : t.name)).filter(Boolean);
           setAvailableTags(Array.from(new Set(names)));
+        }
+        if (deitiesRes?.data && Array.isArray(deitiesRes.data) && deitiesRes.data.length > 0) {
+          setAvailableDeities(deitiesRes.data);
         }
       })
       .catch((err) => {
@@ -3440,19 +3460,9 @@ export default function AdminPage() {
                         className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs font-semibold"
                       />
                       <datalist id="deities-suggestions">
-                        <option value="Ram" />
-                        <option value="Shiva" />
-                        <option value="Ganesh" />
-                        <option value="Krishna" />
-                        <option value="Hanuman" />
-                        <option value="Durga" />
-                        <option value="Laxmi" />
-                        <option value="Saraswati" />
-                        <option value="Vishnu" />
-                        <option value="Radha Krishna" />
-                        <option value="Khatu Shyam" />
-                        <option value="Balaji" />
-                        <option value="Mahadev" />
+                        {availableDeities.map((d) => (
+                          <option key={d} value={d} />
+                        ))}
                       </datalist>
                     </div>
                     <div className="space-y-1">
