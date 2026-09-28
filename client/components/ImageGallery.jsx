@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
+import { formatImageUrl } from "@/lib/api";
 
 export default function ImageGallery({ images = [], videos = [], title = "" }) {
   const [mounted, setMounted] = useState(false);
@@ -35,8 +36,8 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
   // Sync state with props
   useEffect(() => {
     const combined = [
-      ...images.map((img) => ({ ...img, type: "image" })),
-      ...videos.map((vid) => ({ ...vid, type: "video" })),
+      ...images.map((img) => ({ ...img, url: formatImageUrl(img.url), type: "image" })),
+      ...videos.map((vid) => ({ ...vid, url: formatImageUrl(vid.url), type: "video" })),
     ];
     setMediaList(combined);
     setActiveIndex(0);
@@ -45,16 +46,17 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
   // Variant change listener
   useEffect(() => {
     const handleVariantImage = (e) => {
-      const url = e.detail;
-      if (!url) return;
+      const rawUrl = e.detail;
+      if (!rawUrl) return;
+      const url = formatImageUrl(rawUrl);
 
-      const idx = mediaList.findIndex((item) => item.url === url);
+      const idx = mediaList.findIndex((item) => item.url === url || item.url === rawUrl);
       if (idx !== -1) {
         setActiveIndex(idx);
       } else {
         const newImg = { url, alt: `${title} - Selected Variant`, type: "image" };
         setMediaList((prev) => {
-          if (prev.some((item) => item.url === url)) return prev;
+          if (prev.some((item) => item.url === url || item.url === rawUrl)) return prev;
           const updated = [...prev, newImg];
           setActiveIndex(updated.length - 1);
           return updated;
@@ -313,7 +315,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
             >
               {media.type === "video" ? (
                 <div className="relative w-full h-full bg-neutral-900">
-                  <video src={media.url} className="w-full h-full object-cover opacity-60" muted playsInline />
+                  <video src={formatImageUrl(media.url)} className="w-full h-full object-cover opacity-60" muted playsInline />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="w-6 h-6 rounded-none bg-black border border-white flex items-center justify-center text-white text-[10px] font-bold">
                       ▶
@@ -322,9 +324,10 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                 </div>
               ) : (
                 <Image
-                  src={media.url}
+                  src={formatImageUrl(media.url)}
                   alt={media.alt || `${title} thumbnail ${idx + 1}`}
                   fill
+                  unoptimized={true}
                   className="object-contain p-1"
                 />
               )}
@@ -349,7 +352,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
         >
           {activeMedia.type === "video" ? (
             <video
-              src={activeMedia.url}
+              src={formatImageUrl(activeMedia.url)}
               controls
               className="w-full h-full object-contain"
               autoPlay
@@ -363,9 +366,10 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                 <div className="skeleton-box absolute inset-0 z-10 pointer-events-none transition-opacity duration-300" />
               )}
               <Image
-                src={activeMedia.url}
+                src={formatImageUrl(activeMedia.url)}
                 alt={activeMedia.alt || title}
                 fill
+                unoptimized={true}
                 onLoad={() => setIsMainImageLoaded(true)}
                 onError={() => setIsMainImageLoaded(true)}
                 className={`object-contain p-2 sm:p-3 transition-all duration-300 ease-out select-none pointer-events-none ${
@@ -427,16 +431,17 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                 >
                   {media.type === "video" ? (
                     <div className="relative w-full h-full bg-neutral-900">
-                      <video src={media.url} className="w-full h-full object-cover opacity-60" muted playsInline />
+                      <video src={formatImageUrl(media.url)} className="w-full h-full object-cover opacity-60" muted playsInline />
                       <div className="absolute inset-0 flex items-center justify-center">
                         <span className="text-white text-[9px] font-bold">▶</span>
                       </div>
                     </div>
                   ) : (
                     <Image
-                      src={media.url}
+                      src={formatImageUrl(media.url)}
                       alt={media.alt || `${title} thumbnail ${idx + 1}`}
                       fill
+                      unoptimized={true}
                       className="object-contain p-1"
                     />
                   )}
@@ -561,7 +566,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
             {activeMedia.type === "video" ? (
               <div className="relative max-w-4xl max-h-[75vh] w-full aspect-video flex items-center justify-center">
                 <video
-                  src={activeMedia.url}
+                  src={formatImageUrl(activeMedia.url)}
                   controls
                   autoPlay
                   className="w-full h-full object-contain"
@@ -576,7 +581,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={activeMedia.url}
+                  src={formatImageUrl(activeMedia.url)}
                   alt={activeMedia.alt || title}
                   className="max-w-full max-h-full object-contain pointer-events-none drop-shadow-2xl select-none"
                   draggable={false}
@@ -647,7 +652,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                     ) : (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img
-                        src={media.url}
+                        src={formatImageUrl(media.url)}
                         alt={media.alt || `Thumbnail ${idx + 1}`}
                         className="w-full h-full object-contain p-1"
                       />

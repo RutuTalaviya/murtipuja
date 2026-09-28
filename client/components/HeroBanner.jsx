@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import ScrollReveal from "./ScrollReveal";
+import { formatImageUrl } from "@/lib/api";
 
 const DEFAULT_BANNERS = [
   {
@@ -102,7 +103,7 @@ export default function HeroBanner({ banners = [] }) {
               className={`absolute inset-0 bg-cover bg-center transition-transform duration-1000 ease-out ${
                 idx === currentIndex ? "scale-100" : "scale-105"
               }`}
-              style={{ backgroundImage: `url(${banner.imageUrl})` }}
+              style={{ backgroundImage: `url(${formatImageUrl(banner.imageUrl)})` }}
             >
               {/* High-contrast gradient overlay to ensure text legibility */}
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/35" />

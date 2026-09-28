@@ -75,9 +75,20 @@ app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 app.use(express.json({ limit: "100mb" }));
 app.use(express.urlencoded({ limit: "100mb", extended: true }));
-app.use("/uploads", express.static(path.join(__dirname, "../client/public/uploads")));
+// Serve static uploads directory from backend
+const serverUploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(serverUploadsDir)) {
+  fs.mkdirSync(serverUploadsDir, { recursive: true });
+}
+app.use("/uploads", express.static(serverUploadsDir));
 
-// POST upload route (saves to client public/uploads)
+// Also serve client public/uploads if exists (local dev support)
+const clientUploadsDir = path.join(__dirname, "../client/public/uploads");
+if (fs.existsSync(clientUploadsDir)) {
+  app.use("/uploads", express.static(clientUploadsDir));
+}
+
+// POST upload route (saves to server/uploads and mirrors to client/public/uploads)
 app.post("/api/upload", (req, res) => {
   try {
     const { filename, base64 } = req.body;
@@ -85,18 +96,29 @@ app.post("/api/upload", (req, res) => {
       return res.status(400).json({ message: "Filename and base64 data are required" });
     }
 
-    const uploadDir = path.join(__dirname, "../client/public/uploads");
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    if (!fs.existsSync(serverUploadsDir)) {
+      fs.mkdirSync(serverUploadsDir, { recursive: true });
     }
 
     const fileExt = path.extname(filename);
     const baseName = path.basename(filename, fileExt).replace(/[^a-zA-Z0-9]/g, "_");
     const uniqueFilename = `${baseName}_${Date.now()}${fileExt}`;
-    const filepath = path.join(uploadDir, uniqueFilename);
+    const filepath = path.join(serverUploadsDir, uniqueFilename);
 
     const buffer = Buffer.from(base64, "base64");
     fs.writeFileSync(filepath, buffer);
+
+    // Mirror to client public/uploads if directory exists (dev convenience)
+    try {
+      if (fs.existsSync(path.join(__dirname, "../client/public"))) {
+        if (!fs.existsSync(clientUploadsDir)) {
+          fs.mkdirSync(clientUploadsDir, { recursive: true });
+        }
+        fs.writeFileSync(path.join(clientUploadsDir, uniqueFilename), buffer);
+      }
+    } catch (mirrorErr) {
+      // Ignore mirror error on production VPS
+    }
 
     const relativeUrl = `/uploads/${uniqueFilename}`;
     return res.status(200).json({ url: relativeUrl });

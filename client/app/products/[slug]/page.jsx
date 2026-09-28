@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchProductBySlug, fetchProducts, fetchFinishes } from "@/lib/serverApi";
+import { formatImageUrl } from "@/lib/api";
 import AddToCartPanel from "@/components/AddToCartPanel";
 import ProductCard from "@/components/ProductCard";
 import ImageGallery from "@/components/ImageGallery";
@@ -221,20 +222,20 @@ export default async function ProductDetailPage({ params }) {
                               Save {combo.discountType === "percentage" ? `${combo.discountValue}%` : `₹${combo.discountValue}`}
                             </span>
                           </div>
- 
+
                           {combo.description && (
                             <p className="text-[11px] text-neutral-500 font-semibold leading-relaxed -mt-2">
                               {combo.description}
                             </p>
                           )}
- 
+
                           <div className="flex flex-col sm:flex-row items-center gap-3 py-1">
                             {/* Current product card */}
                             <div className="flex items-center gap-2 bg-white p-2 border-2 border-black rounded-none w-full sm:flex-1 min-w-0">
                               <div className="relative w-12 h-12 rounded-none bg-neutral-100 overflow-hidden flex-shrink-0 border border-neutral-200">
                                 {product.images?.[0]?.url && (
                                   <img
-                                    src={product.images[0].url}
+                                    src={formatImageUrl(product.images[0].url)}
                                     alt={product.title}
                                     className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
                                   />
@@ -245,19 +246,19 @@ export default async function ProductDetailPage({ params }) {
                                 <p className="text-[10px] text-neutral-500 font-semibold truncate">{product.title}</p>
                               </div>
                             </div>
- 
+
                             {/* Separator badge */}
                             <div className="w-7 h-7 rounded-none border-2 border-black bg-gold text-black flex items-center justify-center font-extrabold text-xs flex-shrink-0">
                               +
                             </div>
- 
+
                             {/* Other product card */}
                             {otherProducts.map((op) => (
                               <div key={op._id} className="flex items-center gap-2 bg-white p-2 border-2 border-black rounded-none w-full sm:flex-1 min-w-0">
                                 <div className="relative w-12 h-12 rounded-none bg-neutral-100 overflow-hidden flex-shrink-0 border border-neutral-200">
                                   {op.images?.[0]?.url && (
                                     <img
-                                      src={op.images[0].url}
+                                      src={formatImageUrl(op.images[0].url)}
                                       alt={op.title}
                                       className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
                                     />
@@ -270,7 +271,7 @@ export default async function ProductDetailPage({ params }) {
                               </div>
                             ))}
                           </div>
- 
+
                           <div className="space-y-2">
                             <AddComboButton combo={combo} product={product} />
                             <p className="text-[9px] text-center text-neutral-400 font-bold uppercase tracking-wider">

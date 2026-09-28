@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import ImageWithSkeleton from "@/components/ImageWithSkeleton";
+import { formatImageUrl } from "@/lib/api";
 
 export default function VideoReelsCarousel({ videos = [] }) {
   const scrollContainerRef = useRef(null);
@@ -203,8 +204,8 @@ export default function VideoReelsCarousel({ videos = [] }) {
                         ref={(el) => {
                           if (el) videoElementsRef.current[video._id] = el;
                         }}
-                        src={video.videoUrl}
-                        poster={video.thumbnailUrl || undefined}
+                        src={formatImageUrl(video.videoUrl)}
+                        poster={formatImageUrl(video.thumbnailUrl) || undefined}
                         autoPlay
                         loop
                         muted={!isUnmuted}
@@ -214,7 +215,7 @@ export default function VideoReelsCarousel({ videos = [] }) {
                       />
                     ) : video.thumbnailUrl ? (
                       <ImageWithSkeleton
-                        src={video.thumbnailUrl}
+                        src={formatImageUrl(video.thumbnailUrl)}
                         alt={video.title}
                         fill
                         className="object-cover rounded-none transition-transform duration-700 group-hover:scale-105"

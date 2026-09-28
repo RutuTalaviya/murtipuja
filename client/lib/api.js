@@ -1,9 +1,32 @@
 import axios from "axios";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000",
+  baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
 });
+
+/** Helper to resolve relative backend /uploads/ paths to full API URL */
+export function formatImageUrl(url) {
+  if (!url || typeof url !== "string") return "";
+  const trimmed = url.trim();
+  if (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("data:") ||
+    trimmed.startsWith("blob:")
+  ) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("/uploads/")) {
+    return `${API_BASE_URL.replace(/\/+$/, "")}${trimmed}`;
+  }
+  if (trimmed.startsWith("uploads/")) {
+    return `${API_BASE_URL.replace(/\/+$/, "")}/${trimmed}`;
+  }
+  return trimmed;
+}
 
 /** Returns the persistent guest cart id, creating one if it doesn't exist yet. */
 export function getGuestId() {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { formatImageUrl } from "@/lib/api";
 
 export default function ImageWithSkeleton({
   src,
@@ -23,13 +24,15 @@ export default function ImageWithSkeleton({
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
+  const formattedSrc = formatImageUrl(src);
+
   // Reset loading state when src changes
   useEffect(() => {
     setIsLoaded(false);
     setHasError(false);
   }, [src]);
 
-  if (!src || hasError) {
+  if (!formattedSrc || hasError) {
     return (
       <div
         className={`w-full h-full flex flex-col items-center justify-center bg-stone-100 text-stone-400 p-4 select-none ${containerClassName}`}
@@ -41,6 +44,9 @@ export default function ImageWithSkeleton({
       </div>
     );
   }
+
+  const isRemoteOrUpload =
+    Boolean(formattedSrc?.startsWith("http://") || formattedSrc?.startsWith("https://") || formattedSrc?.startsWith("/uploads/"));
 
   return (
     <div
@@ -60,14 +66,14 @@ export default function ImageWithSkeleton({
 
       {/* Next.js Optimized Image */}
       <Image
-        src={src}
+        src={formattedSrc}
         alt={alt}
         fill={fill}
         width={!fill ? width : undefined}
         height={!fill ? height : undefined}
         sizes={sizes}
         priority={priority}
-        unoptimized={unoptimized}
+        unoptimized={unoptimized || isRemoteOrUpload}
         style={style}
         onLoad={() => setIsLoaded(true)}
         onError={() => {

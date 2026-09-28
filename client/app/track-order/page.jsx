@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { trackOrderPublic, getMyOrders } from "@/lib/api";
+import { trackOrderPublic, getMyOrders, formatImageUrl } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
 const STATUS_STEPS = [
@@ -386,7 +386,7 @@ export default function TrackOrderPage() {
                         <div key={idx} className="flex items-center gap-4 py-3.5 first:pt-0 last:pb-0">
                           <div className="w-14 h-14 bg-neutral-100 overflow-hidden border border-stone-200 flex-shrink-0 relative">
                             {item.image ? (
-                              <img src={item.image} alt={item.title} className="object-cover w-full h-full" />
+                              <img src={formatImageUrl(item.image)} alt={item.title} className="object-cover w-full h-full" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-[9px] text-neutral-400 font-bold uppercase">Idol</div>
                             )}

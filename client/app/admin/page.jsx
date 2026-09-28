@@ -59,6 +59,7 @@ import api, {
   updateVideo,
   deleteVideo,
   reorderVideos,
+  formatImageUrl,
 } from "@/lib/api";
 
 export default function AdminPage() {
@@ -3745,7 +3746,7 @@ export default function AdminPage() {
                                   : "border-charcoal/20"
                                 }`}
                             >
-                              <img src={url} alt={`Gallery ${idx + 1}`} className="object-cover w-full h-full" />
+                              <img src={formatImageUrl(url)} alt={`Gallery ${idx + 1}`} className="object-cover w-full h-full" />
 
                               {/* Primary / Hover Status Badge */}
                               <div className="absolute top-1.5 left-1.5 z-10">
@@ -5681,7 +5682,7 @@ export default function AdminPage() {
                         <div className="relative rounded-xl overflow-hidden bg-stone-900 border border-charcoal/15 aspect-[21/9] sm:aspect-[24/9] flex items-center p-6 text-white shadow-inner">
                           {bannerImageUrl ? (
                             <img
-                              src={bannerImageUrl}
+                              src={formatImageUrl(bannerImageUrl)}
                               alt="Preview"
                               className="absolute inset-0 w-full h-full object-cover opacity-60"
                             />
@@ -5812,7 +5813,7 @@ export default function AdminPage() {
                               <div className="w-24 h-14 rounded-lg bg-stone-900 border border-charcoal/15 overflow-hidden relative shadow-sm">
                                 {banner.imageUrl ? (
                                   <img
-                                    src={banner.imageUrl}
+                                    src={formatImageUrl(banner.imageUrl)}
                                     alt={banner.title}
                                     className="w-full h-full object-cover"
                                   />
@@ -6117,8 +6118,8 @@ export default function AdminPage() {
                       <div className="w-full h-48 sm:h-56 bg-neutral-900 rounded-none overflow-hidden relative flex items-center justify-center border-2 border-black shadow-inner">
                         {videoUrl ? (
                           <video
-                            src={videoUrl}
-                            poster={videoThumbnailUrl || undefined}
+                            src={formatImageUrl(videoUrl)}
+                            poster={formatImageUrl(videoThumbnailUrl) || undefined}
                             controls
                             playsInline
                             className="w-full h-full object-cover rounded-none"
@@ -6229,8 +6230,8 @@ export default function AdminPage() {
                               <div className="w-20 h-28 rounded-none bg-neutral-900 border border-charcoal/15 overflow-hidden relative shadow-sm flex items-center justify-center">
                                 {video.videoUrl ? (
                                   <video
-                                    src={video.videoUrl}
-                                    poster={video.thumbnailUrl || undefined}
+                                    src={formatImageUrl(video.videoUrl)}
+                                    poster={formatImageUrl(video.thumbnailUrl) || undefined}
                                     muted
                                     playsInline
                                     className="w-full h-full object-cover rounded-none"

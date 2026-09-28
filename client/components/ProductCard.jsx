@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { formatImageUrl } from "@/lib/api";
 
 export default function ProductCard({ product }) {
   const [isMainLoaded, setIsMainLoaded] = useState(false);
@@ -10,6 +11,9 @@ export default function ProductCard({ product }) {
   const image = product.images?.[0];
   const hoverImage = product.images?.[1] || null;
   const inStock = activeVariant ? activeVariant.stock > 0 : true;
+
+  const imageUrl = image?.url ? formatImageUrl(image.url) : null;
+  const hoverImageUrl = hoverImage?.url ? formatImageUrl(hoverImage.url) : null;
 
   // Price calculations
   const isSaleActive = Boolean(
@@ -41,29 +45,31 @@ export default function ProductCard({ product }) {
           </span>
         )}
 
-        {image?.url ? (
+        {imageUrl ? (
           <>
             {/* Primary Main Image */}
             <Image
-              src={image.url}
-              alt={image.alt || product.title}
+              src={imageUrl}
+              alt={image?.alt || product.title}
               fill
+              unoptimized={true}
               sizes="(max-width: 768px) 100vw, 25vw"
               onLoad={() => setIsMainLoaded(true)}
               onError={() => setIsMainLoaded(true)}
               className={`object-cover object-center transition-all duration-500 ${
                 isMainLoaded ? "opacity-100" : "opacity-0"
               } ${
-                hoverImage ? "group-hover:opacity-0" : "group-hover:scale-105"
+                hoverImageUrl ? "group-hover:opacity-0" : "group-hover:scale-105"
               } ${!inStock ? "grayscale-[40%] opacity-90" : ""}`}
             />
 
             {/* Secondary Hover Image */}
-            {hoverImage?.url && (
+            {hoverImageUrl && (
               <Image
-                src={hoverImage.url}
-                alt={hoverImage.alt || `${product.title} hover view`}
+                src={hoverImageUrl}
+                alt={hoverImage?.alt || `${product.title} hover view`}
                 fill
+                unoptimized={true}
                 sizes="(max-width: 768px) 100vw, 25vw"
                 className={`object-cover object-center absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-500 ${
                   !inStock ? "grayscale-[40%] opacity-90" : ""
