@@ -2,21 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import ImageWithSkeleton from "@/components/ImageWithSkeleton";
 import { getCategories, getProductTags, getProducts } from "@/lib/api";
-
-const DEFAULT_POPULAR_KEYWORDS = [
-  "Shiva",
-  "Ganesh",
-  "Krishna",
-  "Hanuman",
-  "Ram",
-  "Lighting Murti",
-  "Car Dashboard",
-  "Pooja Room",
-  "Bestseller",
-];
 
 export default function SearchModal({ isOpen, onClose }) {
   const router = useRouter();
@@ -24,7 +11,7 @@ export default function SearchModal({ isOpen, onClose }) {
   const inputRef = useRef(null);
 
   const [categories, setCategories] = useState([]);
-  const [popularTags, setPopularTags] = useState(DEFAULT_POPULAR_KEYWORDS);
+  const [popularTags, setPopularTags] = useState([]);
   
   // Live dynamic search results state
   const [liveResults, setLiveResults] = useState([]);
@@ -32,7 +19,7 @@ export default function SearchModal({ isOpen, onClose }) {
   const [isSearching, setIsSearching] = useState(false);
   const searchDebounceRef = useRef(null);
 
-  // Load dynamic categories & tags when modal is opened
+  // Load dynamic categories & tags when modal is opened (strictly from database, no fallback)
   useEffect(() => {
     async function loadMetadata() {
       try {
@@ -43,15 +30,17 @@ export default function SearchModal({ isOpen, onClose }) {
 
         if (catRes.status === "fulfilled" && Array.isArray(catRes.value?.data)) {
           const mainCats = catRes.value.data.filter((c) => !c.parentCategory);
-          setCategories(mainCats.slice(0, 6));
+          setCategories(mainCats.slice(0, 8));
         }
 
-        if (tagRes.status === "fulfilled" && Array.isArray(tagRes.value?.data) && tagRes.value.data.length > 0) {
+        if (tagRes.status === "fulfilled" && Array.isArray(tagRes.value?.data)) {
           const tagNames = tagRes.value.data
             .map((t) => (typeof t === "string" ? t : t?.name))
             .filter(Boolean);
           if (tagNames.length > 0) {
-            setPopularTags(Array.from(new Set([...tagNames, ...DEFAULT_POPULAR_KEYWORDS])).slice(0, 10));
+            setPopularTags(Array.from(new Set(tagNames)));
+          } else {
+            setPopularTags([]);
           }
         }
       } catch (err) {
@@ -160,7 +149,7 @@ export default function SearchModal({ isOpen, onClose }) {
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search divine murtis, deities, tags (e.g. Shiva, Ganesh, Lighting)..."
+            placeholder="Search divine murtis, deities, tags..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit(query)}
@@ -213,7 +202,7 @@ export default function SearchModal({ isOpen, onClose }) {
                 <button
                   type="button"
                   onClick={() => handleSearchSubmit(query)}
-                  className="text-[11px] font-extrabold uppercase tracking-wider text-orange-600 hover:text-orange-700 hover:underline"
+                  className="text-[11px] font-extrabold uppercase tracking-wider text-orange-600 hover:text-orange-700 hover:underline cursor-pointer"
                 >
                   View All ({totalMatches}) →
                 </button>
@@ -275,7 +264,7 @@ export default function SearchModal({ isOpen, onClose }) {
                   No divine sculptures found for &quot;{query}&quot;
                 </p>
                 <p className="text-[11px] text-neutral-500 font-normal max-w-md mx-auto">
-                  Check for spelling, try searching with general deity names like &quot;Shiva&quot;, &quot;Ganesh&quot;, &quot;Krishna&quot;, or select from the tags below.
+                  Check for spelling, try searching with deity names like &quot;Shiva&quot;, &quot;Ganesh&quot;, &quot;Krishna&quot;, or browse the categories below.
                 </p>
               </div>
             ) : (
@@ -303,67 +292,33 @@ export default function SearchModal({ isOpen, onClose }) {
         {/* DEFAULT VIEW (When query is empty) */}
         {query.trim().length === 0 && (
           <div className="space-y-6">
-            {/* Section 1: Popular Keywords / Tags */}
-            <div className="space-y-2.5">
-              <h4 className="text-[10px] uppercase font-extrabold tracking-widest text-neutral-500">
-                ⚡ Popular Searches &amp; Tags
-              </h4>
-              <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                {popularTags.map((kw) => (
-                  <button
-                    key={kw}
-                    onClick={() => handleSearchSubmit(kw)}
-                    className="px-3 sm:px-3.5 py-1.5 rounded-none text-[11px] bg-stone-50 border border-stone-300 hover:border-black hover:bg-black hover:text-white text-neutral-800 font-extrabold uppercase tracking-wider transition-all cursor-pointer"
-                  >
-                    ✦ {kw}
-                  </button>
-                ))}
+            {/* Section 1: Dynamic Filter Tags from Database (Only shown if tags exist) */}
+            {popularTags.length > 0 && (
+              <div className="space-y-2.5">
+                <h4 className="text-[10px] uppercase font-extrabold tracking-widest text-neutral-500">
+                  🏷️ Filter Tags
+                </h4>
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                  {popularTags.map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => handleSearchSubmit(tag)}
+                      className="px-3 sm:px-3.5 py-1.5 rounded-none text-[11px] bg-stone-50 border border-stone-300 hover:border-black hover:bg-black hover:text-white text-neutral-800 font-extrabold uppercase tracking-wider transition-all cursor-pointer"
+                    >
+                      ✦ {tag}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Section 2: Explore Quick Hubs */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <button
-                onClick={() => { onClose(); router.push("/products"); }}
-                className="bg-stone-50 hover:bg-black hover:text-white p-4 rounded-none border border-stone-300 text-left transition-all group flex justify-between items-center cursor-pointer"
-              >
-                <div>
-                  <p className="text-[9px] uppercase tracking-wider text-neutral-400 font-extrabold group-hover:text-amber-400">Catalog</p>
-                  <h5 className="font-display font-extrabold text-xs sm:text-sm text-black group-hover:text-white uppercase tracking-wider mt-0.5">All Sculptures</h5>
-                </div>
-                <span className="text-black group-hover:text-amber-400 group-hover:translate-x-1.5 transition-transform font-bold">→</span>
-              </button>
-
-              <button
-                onClick={() => { onClose(); router.push("/products?purpose=pooja-room"); }}
-                className="bg-stone-50 hover:bg-black hover:text-white p-4 rounded-none border border-stone-300 text-left transition-all group flex justify-between items-center cursor-pointer"
-              >
-                <div>
-                  <p className="text-[9px] uppercase tracking-wider text-neutral-400 font-extrabold group-hover:text-amber-400">Sanctum</p>
-                  <h5 className="font-display font-extrabold text-xs sm:text-sm text-black group-hover:text-white uppercase tracking-wider mt-0.5">Pooja Essentials</h5>
-                </div>
-                <span className="text-black group-hover:text-amber-400 group-hover:translate-x-1.5 transition-transform font-bold">→</span>
-              </button>
-
-              <button
-                onClick={() => { onClose(); router.push("/track-order"); }}
-                className="bg-stone-50 hover:bg-black hover:text-white p-4 rounded-none border border-stone-300 text-left transition-all group flex justify-between items-center cursor-pointer"
-              >
-                <div>
-                  <p className="text-[9px] uppercase tracking-wider text-neutral-400 font-extrabold group-hover:text-amber-400">Logistics</p>
-                  <h5 className="font-display font-extrabold text-xs sm:text-sm text-black group-hover:text-white uppercase tracking-wider mt-0.5">Track Order</h5>
-                </div>
-                <span className="text-black group-hover:text-amber-400 group-hover:translate-x-1.5 transition-transform font-bold">→</span>
-              </button>
-            </div>
-
-            {/* Section 3: Dynamic Featured Categories */}
+            {/* Section 2: Dynamic Featured Categories */}
             {categories.length > 0 && (
               <div className="space-y-3 pt-1 border-t border-stone-200">
                 <h4 className="text-[10px] uppercase font-extrabold tracking-widest text-neutral-500">
-                  ⭐ Featured Deity Collections
+                  ⭐ Deity Collections
                 </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
                   {categories.map((cat) => {
                     const slug = (cat.slug || cat.name || "").toLowerCase();
                     const deityImages = {
@@ -383,17 +338,17 @@ export default function SearchModal({ isOpen, onClose }) {
                           onClose();
                           router.push(`/products?category=${encodeURIComponent(cat.slug || cat.name)}`);
                         }}
-                        className="group text-center space-y-1.5 focus:outline-none border border-stone-200 hover:border-black p-2 bg-stone-50 hover:bg-white transition-all cursor-pointer"
+                        className="group text-center space-y-1.5 focus:outline-none border border-stone-200 hover:border-black p-2.5 bg-stone-50 hover:bg-white transition-all cursor-pointer shadow-xs hover:shadow-sm"
                       >
                         <div className="relative aspect-square w-full bg-white rounded-none overflow-hidden border border-stone-200 flex items-center justify-center">
                           <ImageWithSkeleton
                             src={imageSrc}
                             alt={cat.name}
                             fill
-                            className="object-contain p-1 group-hover:scale-105 transition-transform duration-300"
+                            className="object-contain p-1.5 group-hover:scale-105 transition-transform duration-300"
                           />
                         </div>
-                        <p className="text-[10.5px] font-extrabold text-neutral-800 group-hover:text-orange-600 uppercase tracking-wider truncate">
+                        <p className="text-[11px] font-extrabold text-neutral-900 group-hover:text-orange-600 uppercase tracking-wider truncate">
                           {cat.name}
                         </p>
                       </button>
