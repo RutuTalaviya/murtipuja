@@ -26,6 +26,33 @@ export default function Navbar() {
   const [isLogoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [openMobileAccordions, setOpenMobileAccordions] = useState({});
 
+  // Hover timer debounce ref to prevent accidental menu closing
+  const dropdownTimerRef = useRef(null);
+
+  const handleDropdownEnter = (id) => {
+    if (dropdownTimerRef.current) {
+      clearTimeout(dropdownTimerRef.current);
+    }
+    setActiveDropdownId(id);
+  };
+
+  const handleDropdownLeave = () => {
+    if (dropdownTimerRef.current) {
+      clearTimeout(dropdownTimerRef.current);
+    }
+    dropdownTimerRef.current = setTimeout(() => {
+      setActiveDropdownId(null);
+    }, 250);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (dropdownTimerRef.current) {
+        clearTimeout(dropdownTimerRef.current);
+      }
+    };
+  }, []);
+
   // Close User Menu on click outside
   useEffect(() => {
     function handleClickOutside(event) {
@@ -83,19 +110,17 @@ export default function Navbar() {
             });
           });
 
-          // Append quick tags / curated highlights
+          // Append quick tags / curated highlights without distracting badges
           dynamicItems.push({
             _id: "nav-bestsellers",
             title: "Bestsellers",
             url: "/products?tag=Bestseller",
-            badge: "HOT",
             isDropdown: false,
           });
           dynamicItems.push({
             _id: "nav-offers",
             title: "Sale",
             url: "/products?onsale=true",
-            badge: "OFFER",
             isDropdown: false,
           });
 
@@ -242,12 +267,9 @@ export default function Navbar() {
             >
               <Link
                 href={offer.link || "/products"}
-                className="hover:underline flex items-center gap-2 truncate max-w-[80vw] md:max-w-[70vw]"
+                className="hover:underline flex items-center gap-2 truncate max-w-[85vw] md:max-w-[75vw]"
               >
                 <span className="truncate">{offer.text}</span>
-                <span className="hidden sm:inline-block bg-white text-[#FF5722] text-[8.5px] px-1.5 py-0.5 font-black uppercase tracking-widest rounded-none border border-black/10 flex-shrink-0">
-                  Shop Now →
-                </span>
               </Link>
 
               {offer.code && (
@@ -327,8 +349,8 @@ export default function Navbar() {
                   <div
                     key={item._id}
                     className="relative py-2 cursor-pointer"
-                    onMouseEnter={() => setActiveDropdownId(item._id)}
-                    onMouseLeave={() => setActiveDropdownId(null)}
+                    onMouseEnter={() => handleDropdownEnter(item._id)}
+                    onMouseLeave={handleDropdownLeave}
                   >
                     <button
                       className={`flex items-center gap-1 transition-colors uppercase ${
@@ -338,7 +360,7 @@ export default function Navbar() {
                       }`}
                     >
                       <span>{item.title}</span>
-                      {item.badge && (
+                      {item.badge && item.title !== "Bestsellers" && item.title !== "Sale" && (
                         <span className="bg-orange-500 text-white text-[8px] font-extrabold px-1.5 py-0.5 border border-black shadow-sm">
                           {item.badge}
                         </span>
@@ -358,75 +380,81 @@ export default function Navbar() {
                       </svg>
                     </button>
 
-                    {/* Dropdown Menu */}
+                    {/* Dropdown Menu Wrapper with seamless hover bridge */}
                     {isItemDropdownOpen && (
-                      <div className="absolute top-full left-0 mt-1 w-60 bg-white border-2 border-black py-2 z-50 normal-case font-medium animate-fadeIn shadow-2xl">
-                        {item.subcategories && item.subcategories.length > 0 ? (
-                          <>
-                            <Link
-                              href={item.url || "/products"}
-                              className="flex items-center justify-between px-4 py-2 hover:bg-orange-500 hover:text-white text-black text-xs font-black transition-colors uppercase tracking-wider bg-neutral-50 border-b border-black/10"
-                            >
-                              <span>All {item.title}</span>
-                              <span className="text-sm font-bold">→</span>
-                            </Link>
-                            {item.subcategories.map((sub) => (
+                      <div
+                        className="absolute top-full left-0 pt-1.5 w-64 z-50 normal-case font-medium animate-fadeIn"
+                        onMouseEnter={() => handleDropdownEnter(item._id)}
+                        onMouseLeave={handleDropdownLeave}
+                      >
+                        <div className="bg-white border-2 border-black py-2 shadow-2xl">
+                          {item.subcategories && item.subcategories.length > 0 ? (
+                            <>
                               <Link
-                                key={sub._id}
-                                href={sub.url}
-                                className="block px-4 py-2 hover:bg-orange-500 hover:text-white text-black text-xs font-bold transition-colors uppercase tracking-wider"
+                                href={item.url || "/products"}
+                                className="flex items-center justify-between px-4 py-2 hover:bg-orange-500 hover:text-white text-black text-xs font-black transition-colors uppercase tracking-wider bg-neutral-50 border-b border-black/10"
                               >
-                                {sub.title}
+                                <span>All {item.title}</span>
+                                <span className="text-sm font-bold">→</span>
                               </Link>
-                            ))}
-                          </>
-                        ) : isCatDropdown ? (
-                          <>
-                            {categories.length > 0 ? (
-                              categories.slice(0, 8).map((cat) => (
+                              {item.subcategories.map((sub) => (
                                 <Link
-                                  key={cat._id}
-                                  href={`/products?category=${encodeURIComponent(cat.slug || cat.name)}`}
+                                  key={sub._id}
+                                  href={sub.url}
                                   className="block px-4 py-2 hover:bg-orange-500 hover:text-white text-black text-xs font-bold transition-colors uppercase tracking-wider"
                                 >
-                                  {cat.name}
+                                  {sub.title}
                                 </Link>
-                              ))
-                            ) : (
-                              <span className="block px-4 py-2 text-neutral-400 text-xs font-semibold">Loading...</span>
-                            )}
-                            <div className="h-[2px] bg-black my-1" />
-                            <Link
-                              href="/products"
-                              className="flex items-center justify-between px-4 py-2.5 bg-neutral-50 hover:bg-orange-500 hover:text-white text-black font-extrabold text-xs transition-colors uppercase tracking-wider"
-                            >
-                              <span>View All Categories</span>
-                              <span className="text-sm font-bold">→</span>
-                            </Link>
-                          </>
-                        ) : isSubItemsDropdown ? (
-                          item.subItems.map((sub, idx) => (
-                            <Link
-                              key={sub._id || idx}
-                              href={sub.url || "#"}
-                              className="flex items-center justify-between px-4 py-2 hover:bg-orange-500 hover:text-white text-black text-xs font-bold transition-colors uppercase tracking-wider"
-                            >
-                              <span>{sub.title}</span>
-                              {sub.badge && (
-                                <span className="bg-orange-500 text-white text-[7.5px] font-extrabold px-1 py-0.2 border border-black">
-                                  {sub.badge}
-                                </span>
+                              ))}
+                            </>
+                          ) : isCatDropdown ? (
+                            <>
+                              {categories.length > 0 ? (
+                                categories.slice(0, 8).map((cat) => (
+                                  <Link
+                                    key={cat._id}
+                                    href={`/products?category=${encodeURIComponent(cat.slug || cat.name)}`}
+                                    className="block px-4 py-2 hover:bg-orange-500 hover:text-white text-black text-xs font-bold transition-colors uppercase tracking-wider"
+                                  >
+                                    {cat.name}
+                                  </Link>
+                                ))
+                              ) : (
+                                <span className="block px-4 py-2 text-neutral-400 text-xs font-semibold">Loading...</span>
                               )}
+                              <div className="h-[2px] bg-black my-1" />
+                              <Link
+                                href="/products"
+                                className="flex items-center justify-between px-4 py-2.5 bg-neutral-50 hover:bg-orange-500 hover:text-white text-black font-extrabold text-xs transition-colors uppercase tracking-wider"
+                              >
+                                <span>View All Categories</span>
+                                <span className="text-sm font-bold">→</span>
+                              </Link>
+                            </>
+                          ) : isSubItemsDropdown ? (
+                            item.subItems.map((sub, idx) => (
+                              <Link
+                                key={sub._id || idx}
+                                href={sub.url || "#"}
+                                className="flex items-center justify-between px-4 py-2 hover:bg-orange-500 hover:text-white text-black text-xs font-bold transition-colors uppercase tracking-wider"
+                              >
+                                <span>{sub.title}</span>
+                                {sub.badge && (
+                                  <span className="bg-orange-500 text-white text-[7.5px] font-extrabold px-1 py-0.2 border border-black">
+                                    {sub.badge}
+                                  </span>
+                                )}
+                              </Link>
+                            ))
+                          ) : (
+                            <Link
+                              href={item.url || "/products"}
+                              className="block px-4 py-2 hover:bg-orange-500 hover:text-white text-black text-xs font-bold transition-colors uppercase tracking-wider"
+                            >
+                              Explore {item.title}
                             </Link>
-                          ))
-                        ) : (
-                          <Link
-                            href={item.url || "/products"}
-                            className="block px-4 py-2 hover:bg-orange-500 hover:text-white text-black text-xs font-bold transition-colors uppercase tracking-wider"
-                          >
-                            Explore {item.title}
-                          </Link>
-                        )}
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -445,7 +473,7 @@ export default function Navbar() {
                   }`}
                 >
                   <span>{item.title}</span>
-                  {item.badge && (
+                  {item.badge && item.title !== "Bestsellers" && item.title !== "Sale" && (
                     <span className="bg-orange-500 text-white text-[8px] font-extrabold px-1.5 py-0.5 border border-black shadow-sm">
                       {item.badge}
                     </span>
@@ -873,7 +901,7 @@ export default function Navbar() {
                     }`}
                   >
                     <span>{item.title}</span>
-                    {item.badge && (
+                    {item.badge && item.title !== "Bestsellers" && item.title !== "Sale" && (
                       <span className="bg-orange-500 text-white text-[7.5px] font-extrabold px-1.5 py-0.5 border border-black uppercase">
                         {item.badge}
                       </span>

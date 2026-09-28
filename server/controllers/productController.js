@@ -129,14 +129,22 @@ async function getProducts(req, res, next) {
       }
     }
 
-    if (minPrice || maxPrice) {
-      filter.basePrice = {};
-      if (minPrice) filter.basePrice.$gte = Number(minPrice);
-      if (maxPrice) filter.basePrice.$lte = Number(maxPrice);
-    }
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(escapeRegex(search.trim()), "i");
+      const searchCondition = [
+        { title: searchRegex },
+        { deity: searchRegex },
+        { tags: searchRegex },
+        { material: searchRegex },
+        { purpose: searchRegex },
+      ];
 
-    if (search) {
-      filter.$text = { $search: search };
+      if (filter.$or) {
+        filter.$and = [{ $or: filter.$or }, { $or: searchCondition }];
+        delete filter.$or;
+      } else {
+        filter.$or = searchCondition;
+      }
     }
 
     const pageNum = Math.max(1, parseInt(page, 10));
