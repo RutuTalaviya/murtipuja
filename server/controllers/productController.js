@@ -394,11 +394,6 @@ async function getAvailableTags(req, res, next) {
 async function getAvailableDeities(req, res, next) {
   try {
     const rawDeities = await Product.distinct("deity");
-    const validDeities = new Set(
-      (rawDeities || [])
-        .filter((d) => d && typeof d === "string" && d.trim().length > 0 && d.trim().toLowerCase() !== "general")
-        .map((d) => d.trim())
-    );
 
     // Also inspect active categories & subcategories for deity names
     const categories = await Category.find({ isActive: { $ne: false } }).select("name slug parentCategory").lean();
@@ -418,20 +413,39 @@ async function getAvailableDeities(req, res, next) {
       "Mahadev",
     ];
 
+    const deityMap = new Map(); // normalized lowerCase -> formatted Name
+
+    function registerDeity(val) {
+      if (!val || typeof val !== "string") return;
+      const clean = val.trim();
+      if (!clean || clean.toLowerCase() === "general") return;
+      const lower = clean.toLowerCase();
+
+      // Check if it matches a known common deity for perfect casing
+      const matched = commonDeities.find((cd) => cd.toLowerCase() === lower);
+      const properCase = matched || clean.replace(/[-_]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+
+      if (!deityMap.has(lower)) {
+        deityMap.set(lower, properCase);
+      }
+    }
+
+    (rawDeities || []).forEach(registerDeity);
+
     categories.forEach((cat) => {
       const matchedCommon = commonDeities.find(
         (cd) => cd.toLowerCase() === cat.name.toLowerCase() || cd.toLowerCase() === cat.slug.toLowerCase()
       );
       if (matchedCommon) {
-        validDeities.add(matchedCommon);
+        registerDeity(matchedCommon);
       }
     });
 
-    if (validDeities.size === 0) {
-      ["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman", "Durga"].forEach((d) => validDeities.add(d));
+    if (deityMap.size === 0) {
+      ["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman", "Durga"].forEach(registerDeity);
     }
 
-    const deityList = Array.from(validDeities).sort((a, b) => a.localeCompare(b));
+    const deityList = Array.from(deityMap.values()).sort((a, b) => a.localeCompare(b));
     return res.status(200).json(deityList);
   } catch (error) {
     next(error);
