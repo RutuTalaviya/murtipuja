@@ -81,9 +81,24 @@ export async function fetchDeities() {
     const res = await fetch(`${API_URL}/api/products/deities`, {
       next: { revalidate: 60 },
     });
-    if (!res.ok) return ["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman", "Durga"];
+    const fallback = ["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman", "Durga"];
+    if (!res.ok) return fallback;
     const data = await res.json();
-    return Array.isArray(data) ? data : ["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman", "Durga"];
+    const rawList = Array.isArray(data) ? data : fallback;
+    
+    // Deduplicate case-insensitively
+    const map = new Map();
+    rawList.forEach((item) => {
+      if (typeof item === "string" && item.trim()) {
+        const clean = item.trim();
+        const lower = clean.toLowerCase();
+        if (!map.has(lower)) {
+          const proper = clean.replace(/[-_]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+          map.set(lower, proper);
+        }
+      }
+    });
+    return Array.from(map.values());
   } catch (err) {
     return ["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman", "Durga"];
   }

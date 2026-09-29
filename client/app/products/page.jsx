@@ -169,7 +169,7 @@ export default async function ProductsPage({ searchParams }) {
     });
   } else {
     // When viewing all products or filtered by series: show Deity Series quick tabs!
-    QUICK_PURPOSE_TABS = [
+    const rawTabs = [
       {
         label: "All Releases",
         href: "/products",
@@ -186,6 +186,14 @@ export default async function ProductsPage({ searchParams }) {
         active: params.onsale === "true",
       },
     ];
+
+    const seenLabels = new Set();
+    QUICK_PURPOSE_TABS = rawTabs.filter((tab) => {
+      const key = tab.label.toLowerCase().trim();
+      if (seenLabels.has(key)) return false;
+      seenLabels.add(key);
+      return true;
+    });
   }
 
   return (
