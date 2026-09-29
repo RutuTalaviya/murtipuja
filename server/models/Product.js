@@ -34,6 +34,15 @@ const productSchema = new mongoose.Schema(
     ratingsAverage: { type: Number, default: 0 },
     ratingsCount: { type: Number, default: 0 },
     tags: [{ type: String }],
+    productDetails: { type: String }, // Specific bullet points / dimensions / details
+    materialsAndCare: { type: String }, // Care instructions & materials
+    shippingReturns: { type: String }, // Shipping, returns & exchanges policy
+    accordionSections: [
+      {
+        title: { type: String, required: true },
+        content: { type: String, required: true },
+      },
+    ],
     variants: [variantSchema],
   },
   { timestamps: true }

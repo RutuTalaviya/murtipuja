@@ -7,6 +7,7 @@ import ProductCard from "@/components/ProductCard";
 import ImageGallery from "@/components/ImageGallery";
 import AddComboButton from "@/components/AddComboButton";
 import RelatedDropsCarousel from "@/components/RelatedDropsCarousel";
+import ProductAccordion from "@/components/ProductAccordion";
 
 export async function generateMetadata({ params }) {
   const resolvedParams = await Promise.resolve(params);
@@ -285,7 +286,10 @@ export default async function ProductDetailPage({ params }) {
               </div>
             )}
  
-            <div className="mt-8 pt-6 border-t-2 border-neutral-100 text-xs text-neutral-400 font-extrabold uppercase tracking-widest space-y-2">
+            {/* Interactive Accordion: Product Details, Materials & Care, Shipping & Returns */}
+            <ProductAccordion product={product} />
+
+            <div className="pt-2 text-xs text-neutral-400 font-extrabold uppercase tracking-widest space-y-2">
               <p className="flex items-center gap-2"><span>⚡</span> 0.1MM Precision Engineering</p>
               <p className="flex items-center gap-2"><span>📦</span> Dispatches in 48 hrs · Insured Delivery</p>
               <p className="flex items-center gap-2"><span>🛡️</span> 7-Day Easy Return & Replacement</p>

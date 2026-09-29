@@ -226,6 +226,11 @@ export default function AdminPage() {
   const [formVariants, setFormVariants] = useState([
     { size: "6 inch", finish: "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", image: "" }
   ]);
+  // Product Details Accordion Tabs State
+  const [productDetails, setProductDetails] = useState("");
+  const [materialsAndCare, setMaterialsAndCare] = useState("");
+  const [shippingReturns, setShippingReturns] = useState("");
+  const [accordionSections, setAccordionSections] = useState([]);
 
   // Product Tags & Custom Badges State
   const [productTags, setProductTags] = useState([]);
@@ -1585,6 +1590,10 @@ export default function AdminPage() {
     setFormVariants([{ size: "6 inch", finish: "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", image: "" }]);
     setProductTags([]);
     setCustomTagInput("");
+    setProductDetails("");
+    setMaterialsAndCare("");
+    setShippingReturns("");
+    setAccordionSections([]);
     setQuickCatOpen(false);
     setQuickSubOpen(false);
     setEditingProduct(null);
@@ -1731,6 +1740,10 @@ export default function AdminPage() {
       setPurposes(fullProduct.purpose || []);
       setIsOnSale(fullProduct.isOnSale || false);
       setProductTags(Array.isArray(fullProduct.tags) ? fullProduct.tags : []);
+      setProductDetails(fullProduct.productDetails || "");
+      setMaterialsAndCare(fullProduct.materialsAndCare || "");
+      setShippingReturns(fullProduct.shippingReturns || "");
+      setAccordionSections(Array.isArray(fullProduct.accordionSections) ? fullProduct.accordionSections : []);
       if (fullProduct.variants && fullProduct.variants.length > 0) {
         setFormVariants(fullProduct.variants.map(v => ({
           size: v.size || "6 inch",
@@ -1805,6 +1818,10 @@ export default function AdminPage() {
       isOnSale,
       images: galleryImages.length > 0 ? galleryImages.map(url => ({ url, alt: title })) : [],
       videos: galleryVideos,
+      productDetails: productDetails.trim(),
+      materialsAndCare: materialsAndCare.trim(),
+      shippingReturns: shippingReturns.trim(),
+      accordionSections: accordionSections.filter(s => s.title?.trim() && s.content?.trim()),
       variants: updatedVariants
     };
 
@@ -4707,6 +4724,165 @@ export default function AdminPage() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* Product Details Accordion Sections (Expandable drawers on Website) */}
+                  <div className="space-y-4 bg-amber-50/50 p-5 rounded-xl border border-amber-300">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-amber-200 pb-3">
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
+                          <span>📑</span> Product Details Accordion Sections (Product Page Tabs)
+                        </h4>
+                        <p className="text-[10px] text-amber-800 font-medium">
+                          These will show as interactive <strong>+ / − collapsible accordions</strong> on the website product details page.
+                        </p>
+                      </div>
+                      <span className="text-[9px] bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded">
+                        Live Preview Mode
+                      </span>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Section 1: Product Details */}
+                      <div className="bg-white p-3.5 rounded-lg border border-amber-200 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <label className="text-[11px] font-extrabold uppercase tracking-wide text-charcoal flex items-center gap-1">
+                            <span>🔹</span> 1. Product Details / Specifications
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProductDetails(`• Precision 3D Printed with 0.1mm micro-layer detail
+• Deity: ${deity || "Sacred Series"}
+• Intricate handcrafted finish inspected by skilled artisans
+• Ideal for Home Mandir, Office Desk, Car Dashboard & Sacred Gifting
+• Premium weighted base for absolute stability`);
+                            }}
+                            className="text-[9px] font-bold text-amber-900 hover:text-amber-950 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded cursor-pointer transition-colors"
+                          >
+                            ⚡ Auto-Fill Template
+                          </button>
+                        </div>
+                        <textarea
+                          rows="4"
+                          placeholder={`Enter bullet points (start each line with • or -):\n• Precision 3D Printed with 0.1mm detail\n• Hand-inspected finish\n• Perfect for Mandir or Car Dashboard`}
+                          value={productDetails}
+                          onChange={(e) => setProductDetails(e.target.value)}
+                          className="w-full px-3 py-2 border border-charcoal/15 rounded-lg bg-neutral-50 text-xs font-mono outline-none focus:ring-1 focus:ring-gold"
+                        />
+                      </div>
+
+                      {/* Section 2: Materials & Care */}
+                      <div className="bg-white p-3.5 rounded-lg border border-amber-200 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <label className="text-[11px] font-extrabold uppercase tracking-wide text-charcoal flex items-center gap-1">
+                            <span>🧼</span> 2. Materials & Care Instructions
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMaterialsAndCare(`• Material: High-Density Premium Eco-Resin / Composite
+• Finish: Protective Matte / Antique Hand-Applied Coat
+• Care Instructions: Wipe gently with a soft, clean dry cloth
+• Avoid using harsh chemical cleaners, alcohol, or direct prolonged water submersion
+• Keep away from open flames or extreme direct heat`);
+                            }}
+                            className="text-[9px] font-bold text-amber-900 hover:text-amber-950 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded cursor-pointer transition-colors"
+                          >
+                            ⚡ Auto-Fill Template
+                          </button>
+                        </div>
+                        <textarea
+                          rows="4"
+                          placeholder={`Enter care instructions:\n• Material: High-Density Eco-Resin\n• Wipe with clean dry cloth\n• Avoid direct water immersion`}
+                          value={materialsAndCare}
+                          onChange={(e) => setMaterialsAndCare(e.target.value)}
+                          className="w-full px-3 py-2 border border-charcoal/15 rounded-lg bg-neutral-50 text-xs font-mono outline-none focus:ring-1 focus:ring-gold"
+                        />
+                      </div>
+
+                      {/* Section 3: Shipping, Returns & Exchanges */}
+                      <div className="bg-white p-3.5 rounded-lg border border-amber-200 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <label className="text-[11px] font-extrabold uppercase tracking-wide text-charcoal flex items-center gap-1">
+                            <span>📦</span> 3. Shipping, Returns & Exchanges
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShippingReturns(`• Dispatch: Ships within 24 to 48 hours in shock-proof custom packaging
+• Free Shipping: 100% Free insured express shipping across all India
+• Delivery Timeline: Usually arrives within 3–5 business days
+• 7-Day Replacement Policy: Easy replacement in case of transit damage or manufacturing defect
+• Support: Dedicated WhatsApp support for instant order tracking and assistance`);
+                            }}
+                            className="text-[9px] font-bold text-amber-900 hover:text-amber-950 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded cursor-pointer transition-colors"
+                          >
+                            ⚡ Auto-Fill Template
+                          </button>
+                        </div>
+                        <textarea
+                          rows="4"
+                          placeholder={`Enter shipping & return policy:\n• Dispatches in 24-48 hours\n• 100% Free Insured Delivery\n• 7-Day Replacement policy`}
+                          value={shippingReturns}
+                          onChange={(e) => setShippingReturns(e.target.value)}
+                          className="w-full px-3 py-2 border border-charcoal/15 rounded-lg bg-neutral-50 text-xs font-mono outline-none focus:ring-1 focus:ring-gold"
+                        />
+                      </div>
+
+                      {/* Custom Additional Accordion Tabs */}
+                      <div className="space-y-3 pt-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] font-black uppercase tracking-wide text-amber-950">
+                            ➕ Custom Additional Accordion Tabs
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setAccordionSections([...accordionSections, { title: "", content: "" }])}
+                            className="text-[10px] bg-amber-900 hover:bg-amber-950 text-white font-bold px-3 py-1 rounded shadow cursor-pointer transition-all"
+                          >
+                            ＋ Add Custom Tab
+                          </button>
+                        </div>
+
+                        {accordionSections.map((sec, sIdx) => (
+                          <div key={sIdx} className="bg-white p-3.5 rounded-lg border border-amber-300 space-y-2 relative shadow-xs">
+                            <div className="flex justify-between items-center gap-2">
+                              <input
+                                type="text"
+                                placeholder={`Tab Title (e.g. Sthapana Vidhi / Placement Guide)`}
+                                value={sec.title}
+                                onChange={(e) => {
+                                  const updated = [...accordionSections];
+                                  updated[sIdx].title = e.target.value;
+                                  setAccordionSections(updated);
+                                }}
+                                className="flex-1 px-3 py-1.5 border border-amber-200 rounded text-xs font-bold uppercase tracking-wider outline-none focus:ring-1 focus:ring-amber-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setAccordionSections(accordionSections.filter((_, idx) => idx !== sIdx))}
+                                className="text-red-500 hover:text-red-700 font-bold text-xs p-1"
+                                title="Remove Tab"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                            <textarea
+                              rows="3"
+                              placeholder="Tab Content (bullet points or description)"
+                              value={sec.content}
+                              onChange={(e) => {
+                                const updated = [...accordionSections];
+                                updated[sIdx].content = e.target.value;
+                                setAccordionSections(updated);
+                              }}
+                              className="w-full px-3 py-2 border border-charcoal/15 rounded-lg bg-neutral-50 text-xs font-mono outline-none focus:ring-1 focus:ring-gold"
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
