@@ -1,48 +1,27 @@
 import Link from "next/link";
 import Image from "next/image";
 import ImageWithSkeleton from "@/components/ImageWithSkeleton";
-import { fetchProducts, fetchCategories, fetchBanners, fetchVideos } from "@/lib/serverApi";
+import { fetchProducts, fetchCategories, fetchBanners, fetchVideos, fetchDeities } from "@/lib/serverApi";
 import HomeCategoryShowcase from "@/components/HomeCategoryShowcase";
+import HomeDeitySeriesShowcase from "@/components/HomeDeitySeriesShowcase";
 import ScrollReveal from "@/components/ScrollReveal";
 import HeroBanner from "@/components/HeroBanner";
 import VideoReelsCarousel from "@/components/VideoReelsCarousel";
-
-const DEITY_IMAGES = {
-  shiva: "/images/shiva.png",
-  ganesh: "/images/ganesh.png",
-  krishna: "/images/krishna.jpg",
-  hanuman: "/images/hanuman.jpg",
-  durga: "/images/durga.jpg",
-  saraswati: "/images/saraswati.jpg",
-};
-
-const DEITY_SUBTITLES = {
-  shiva: "Drop 01 · Meditative Power",
-  ganesh: "Drop 02 · Auspicious Beginnings",
-  krishna: "Drop 03 · Divine Devotion",
-  hanuman: "Drop 04 · Strength & Protection",
-  durga: "Drop 05 · Sacred Mahashakti",
-  saraswati: "Drop 06 · Wisdom & Purity",
-};
-
-const DEFAULT_DEITY_CATEGORIES = [
-  { _id: "deity-shiva", name: "Shiva", slug: "shiva" },
-  { _id: "deity-ganesh", name: "Ganesh", slug: "ganesh" },
-  { _id: "deity-krishna", name: "Krishna", slug: "krishna" },
-];
 
 export default async function HomePage() {
   let allProducts = [];
   let categories = [];
   let banners = [];
   let videos = [];
+  let deities = [];
 
   try {
-    const [productsData, categoriesData, bannersData, videosData] = await Promise.allSettled([
+    const [productsData, categoriesData, bannersData, videosData, deitiesData] = await Promise.allSettled([
       fetchProducts({ limit: 100 }),
       fetchCategories(),
       fetchBanners({ position: "hero" }),
-      fetchVideos()
+      fetchVideos(),
+      fetchDeities(),
     ]);
 
     if (productsData.status === "fulfilled") {
@@ -56,6 +35,9 @@ export default async function HomePage() {
     }
     if (videosData.status === "fulfilled") {
       videos = videosData.value?.data || videosData.value || [];
+    }
+    if (deitiesData.status === "fulfilled") {
+      deities = deitiesData.value || [];
     }
   } catch (err) {
     console.error("Failed to load homepage data:", err);
@@ -193,85 +175,8 @@ export default async function HomePage() {
         );
       })()}
 
-      {/* 5. Full-Width 3-Column Deity Series Grid */}
-      <section className="w-full bg-white border-b border-stone-200">
-        <div className="w-full px-6 sm:px-12 md:px-16 lg:px-20 py-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-stone-200 bg-white">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-amber-800 font-extrabold mb-1">
-              Sacred Collections
-            </p>
-            <h2 className="font-display text-2xl sm:text-3xl md:text-4xl text-neutral-900 font-extrabold uppercase tracking-tight">
-              Shop by Deity Series
-            </h2>
-          </div>
-          <Link
-            href="/products"
-            className="text-xs font-extrabold text-neutral-700 hover:text-amber-800 uppercase tracking-widest transition-colors flex items-center gap-1.5"
-          >
-            <span>Explore All Series</span>
-            <span>→</span>
-          </Link>
-        </div>
-
-        <div className="w-full grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-stone-200 bg-stone-100">
-          {(categories.length > 0 ? categories : DEFAULT_DEITY_CATEGORIES).slice(0, 3).map((cat) => {
-            const slug = (cat.slug || cat.name || "").toLowerCase();
-            const imageSrc = DEITY_IMAGES[slug] || "/images/shiva.png";
-            const subtitle = DEITY_SUBTITLES[slug] || `${cat.name} Series · Limited Drop`;
-            const label = cat.name === "Ganesh" ? "GANESH SERIES" : `${cat.name.toUpperCase()} SERIES`;
-
-            return (
-              <Link
-                key={cat._id}
-                href={`/products?category=${encodeURIComponent(cat.slug || cat.name)}`}
-                className="group relative h-[440px] sm:h-[480px] lg:h-[520px] overflow-hidden flex flex-col justify-between p-7 sm:p-9 bg-gradient-to-b from-white via-[#faf8f5] to-[#f4eee4] hover:from-[#fdf8f0] hover:to-[#ede2cf] transition-all duration-500"
-              >
-                {/* Ambient Halo Glow */}
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.12)_0%,transparent_70%)] opacity-60 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-
-                {/* Top Badge & Indicator */}
-                <div className="flex justify-between items-center z-10">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/90 backdrop-blur-sm border border-stone-200/90 text-[11px] font-extrabold uppercase tracking-widest text-neutral-800 shadow-sm">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                    <span>{subtitle}</span>
-                  </span>
-                  <span className="w-8 h-8 rounded-full bg-white/80 border border-stone-200/80 flex items-center justify-center text-stone-500 text-xs font-bold group-hover:rotate-90 group-hover:text-amber-800 group-hover:bg-white transition-all duration-500 shadow-sm">
-                    ⌖
-                  </span>
-                </div>
-
-                {/* Center High-Resolution Idol Image */}
-                <div className="relative my-auto flex items-center justify-center py-4 z-0">
-                  <ImageWithSkeleton
-                    src={imageSrc}
-                    alt={cat.name}
-                    width={280}
-                    height={280}
-                    className="w-44 sm:w-52 lg:w-56 h-44 sm:h-52 lg:h-56 object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.16)] transition-all duration-700 ease-out group-hover:scale-110 group-hover:-translate-y-2"
-                  />
-                </div>
-
-                {/* Bottom Card Information */}
-                <div className="space-y-2 z-10 bg-white/85 backdrop-blur-md p-5 rounded-2xl border border-stone-200/80 shadow-sm group-hover:border-amber-300/80 group-hover:bg-white/95 transition-all duration-300">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-display text-xl sm:text-2xl font-extrabold text-neutral-900 tracking-tight uppercase group-hover:text-amber-900 transition-colors">
-                        {label}
-                      </h3>
-                      <p className="text-[11px] text-stone-500 font-bold uppercase tracking-wider mt-0.5">
-                        Micro-Precision 3D Sculptures
-                      </p>
-                    </div>
-                    <div className="w-9 h-9 rounded-xl bg-neutral-900 text-white group-hover:bg-amber-600 flex items-center justify-center transition-all duration-300 group-hover:translate-x-1 shadow-sm flex-shrink-0">
-                      →
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
+      {/* 5. Full-Width 3-Column Dynamic Deity Series Grid */}
+      <HomeDeitySeriesShowcase products={allProducts} deities={deities} categories={categories} />
 
       {/* 6. Dynamic Video Reels Carousel with Left / Right Scroll */}
       <VideoReelsCarousel videos={videos} />
