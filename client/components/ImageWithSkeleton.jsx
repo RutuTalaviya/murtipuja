@@ -45,9 +45,6 @@ export default function ImageWithSkeleton({
     );
   }
 
-  const isRemoteOrUpload =
-    Boolean(formattedSrc?.startsWith("http://") || formattedSrc?.startsWith("https://") || formattedSrc?.startsWith("/uploads/"));
-
   return (
     <div
       className={`relative w-full h-full overflow-hidden ${containerClassName}`}
@@ -71,9 +68,9 @@ export default function ImageWithSkeleton({
         fill={fill}
         width={!fill ? width : undefined}
         height={!fill ? height : undefined}
-        sizes={sizes}
+        sizes={sizes || "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"}
         priority={priority}
-        unoptimized={unoptimized || isRemoteOrUpload}
+        unoptimized={unoptimized}
         style={style}
         onLoad={() => setIsLoaded(true)}
         onError={() => {

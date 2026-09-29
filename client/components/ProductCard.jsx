@@ -52,8 +52,7 @@ export default function ProductCard({ product }) {
               src={imageUrl}
               alt={image?.alt || product.title}
               fill
-              unoptimized={true}
-              sizes="(max-width: 768px) 100vw, 25vw"
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
               onLoad={() => setIsMainLoaded(true)}
               onError={() => setIsMainLoaded(true)}
               className={`object-cover object-center transition-all duration-500 ${
@@ -69,8 +68,7 @@ export default function ProductCard({ product }) {
                 src={hoverImageUrl}
                 alt={hoverImage?.alt || `${product.title} hover view`}
                 fill
-                unoptimized={true}
-                sizes="(max-width: 768px) 100vw, 25vw"
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                 className={`object-cover object-center absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-500 ${
                   !inStock ? "grayscale-[40%] opacity-90" : ""
                 }`}

@@ -1485,23 +1485,81 @@ export default function AdminPage() {
     }
   }
 
-  // Helper to read file as base64 and upload to backend
+  // Helper to read file, pre-compress if image, and upload to backend
   async function handleImageUpload(file) {
     if (!file) return null;
+
+    const isImage = file.type.startsWith("image/");
+    if (!isImage) {
+      // Video or other file: direct base64 upload
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const base64 = e.target.result.split(",")[1];
+            const res = await api.post("/api/upload", {
+              filename: file.name,
+              base64: base64,
+            });
+            resolve(res.data.url);
+          } catch (err) {
+            console.error("Upload error:", err);
+            reject(err);
+          }
+        };
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Pre-compress image via Canvas in browser (max 1600px, 0.85 quality)
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const base64 = e.target.result.split(",")[1];
-          const res = await api.post("/api/upload", {
+      reader.onload = (e) => {
+        const img = new window.Image();
+        img.onload = async () => {
+          try {
+            const maxDim = 1600;
+            let { width, height } = img;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const compressedDataUrl = canvas.toDataURL("image/webp", 0.85);
+            const base64 = compressedDataUrl.split(",")[1];
+
+            const res = await api.post("/api/upload", {
+              filename: file.name.replace(/\.[^/.]+$/, ".webp"),
+              base64: base64,
+            });
+            resolve(res.data.url);
+          } catch (err) {
+            console.error("Image compression/upload error:", err);
+            reject(err);
+          }
+        };
+        img.onerror = () => {
+          // Fallback if image element fails
+          api.post("/api/upload", {
             filename: file.name,
-            base64: base64,
-          });
-          resolve(res.data.url);
-        } catch (err) {
-          console.error("Upload error:", err);
-          reject(err);
-        }
+            base64: e.target.result.split(",")[1],
+          })
+            .then((res) => resolve(res.data.url))
+            .catch(reject);
+        };
+        img.src = e.target.result;
       };
       reader.onerror = (err) => reject(err);
       reader.readAsDataURL(file);

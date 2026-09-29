@@ -327,7 +327,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                   src={formatImageUrl(media.url)}
                   alt={media.alt || `${title} thumbnail ${idx + 1}`}
                   fill
-                  unoptimized={true}
+                  sizes="80px"
                   className="object-contain p-1"
                 />
               )}
@@ -369,7 +369,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                 src={formatImageUrl(activeMedia.url)}
                 alt={activeMedia.alt || title}
                 fill
-                unoptimized={true}
+                sizes="(max-width: 768px) 100vw, 540px"
                 onLoad={() => setIsMainImageLoaded(true)}
                 onError={() => setIsMainImageLoaded(true)}
                 className={`object-contain p-2 sm:p-3 transition-all duration-300 ease-out select-none pointer-events-none ${
@@ -441,7 +441,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                       src={formatImageUrl(media.url)}
                       alt={media.alt || `${title} thumbnail ${idx + 1}`}
                       fill
-                      unoptimized={true}
+                      sizes="80px"
                       className="object-contain p-1"
                     />
                   )}

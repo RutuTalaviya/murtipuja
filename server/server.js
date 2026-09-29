@@ -77,21 +77,39 @@ app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 app.use(express.json({ limit: "100mb" }));
 app.use(express.urlencoded({ limit: "100mb", extended: true }));
-// Serve static uploads directory from backend
+let sharp = null;
+try {
+  sharp = require("sharp");
+} catch (e) {
+  console.warn("sharp image compression library not loaded, using fallback:", e.message);
+}
+
+// Serve static uploads directory from backend with 30-day cache headers
 const serverUploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(serverUploadsDir)) {
   fs.mkdirSync(serverUploadsDir, { recursive: true });
 }
-app.use("/uploads", express.static(serverUploadsDir));
+
+const staticUploadOptions = {
+  maxAge: "30d",
+  immutable: true,
+  etag: true,
+  lastModified: true,
+  setHeaders: (res) => {
+    res.setHeader("Cache-Control", "public, max-age=2592000, immutable");
+  },
+};
+
+app.use("/uploads", express.static(serverUploadsDir, staticUploadOptions));
 
 // Also serve client public/uploads if exists (local dev support)
 const clientUploadsDir = path.join(__dirname, "../client/public/uploads");
 if (fs.existsSync(clientUploadsDir)) {
-  app.use("/uploads", express.static(clientUploadsDir));
+  app.use("/uploads", express.static(clientUploadsDir, staticUploadOptions));
 }
 
-// POST upload route (saves to server/uploads and mirrors to client/public/uploads)
-app.post("/api/upload", (req, res) => {
+// POST upload route (compresses images to optimized WebP & handles videos)
+app.post("/api/upload", async (req, res) => {
   try {
     const { filename, base64 } = req.body;
     if (!filename || !base64) {
@@ -102,13 +120,45 @@ app.post("/api/upload", (req, res) => {
       fs.mkdirSync(serverUploadsDir, { recursive: true });
     }
 
-    const fileExt = path.extname(filename);
-    const baseName = path.basename(filename, fileExt).replace(/[^a-zA-Z0-9]/g, "_");
-    const uniqueFilename = `${baseName}_${Date.now()}${fileExt}`;
-    const filepath = path.join(serverUploadsDir, uniqueFilename);
+    const fileExt = path.extname(filename).toLowerCase();
+    const baseName = path.basename(filename, fileExt).replace(/[^a-zA-Z0-9]/g, "_").slice(0, 50);
+    const rawBuffer = Buffer.from(base64, "base64");
 
-    const buffer = Buffer.from(base64, "base64");
-    fs.writeFileSync(filepath, buffer);
+    const imageExts = [".jpg", ".jpeg", ".png", ".webp", ".avif", ".bmp", ".tiff", ".gif"];
+    const isImage = imageExts.includes(fileExt);
+
+    let finalBuffer = rawBuffer;
+    let savedFilename = `${baseName}_${Date.now()}${fileExt || ".jpg"}`;
+
+    if (isImage && sharp) {
+      try {
+        // Compress image to WebP with max 1600px width/height and quality 80
+        finalBuffer = await sharp(rawBuffer)
+          .rotate() // auto-orient based on EXIF
+          .resize({
+            width: 1600,
+            height: 1600,
+            fit: "inside",
+            withoutEnlargement: true,
+          })
+          .webp({ quality: 80, effort: 4 })
+          .toBuffer();
+
+        savedFilename = `${baseName}_${Date.now()}.webp`;
+        console.log(`[Image Upload] Optimized ${filename} (${(rawBuffer.length / 1024).toFixed(1)} KB -> ${(finalBuffer.length / 1024).toFixed(1)} KB WebP)`);
+      } catch (sharpError) {
+        console.warn("Sharp compression failed, falling back to raw buffer:", sharpError.message);
+        finalBuffer = rawBuffer;
+      }
+    } else if (isImage) {
+      savedFilename = `${baseName}_${Date.now()}${fileExt || ".jpg"}`;
+    } else {
+      // Video or other media
+      savedFilename = `${baseName}_${Date.now()}${fileExt || ".mp4"}`;
+    }
+
+    const filepath = path.join(serverUploadsDir, savedFilename);
+    fs.writeFileSync(filepath, finalBuffer);
 
     // Mirror to client public/uploads if directory exists (dev convenience)
     try {
@@ -116,13 +166,13 @@ app.post("/api/upload", (req, res) => {
         if (!fs.existsSync(clientUploadsDir)) {
           fs.mkdirSync(clientUploadsDir, { recursive: true });
         }
-        fs.writeFileSync(path.join(clientUploadsDir, uniqueFilename), buffer);
+        fs.writeFileSync(path.join(clientUploadsDir, savedFilename), finalBuffer);
       }
     } catch (mirrorErr) {
       // Ignore mirror error on production VPS
     }
 
-    const relativeUrl = `/uploads/${uniqueFilename}`;
+    const relativeUrl = `/uploads/${savedFilename}`;
     return res.status(200).json({ url: relativeUrl });
   } catch (error) {
     console.error("Upload error:", error);

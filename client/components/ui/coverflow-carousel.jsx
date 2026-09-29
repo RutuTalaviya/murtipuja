@@ -16,7 +16,6 @@ function SlideImage({ src, alt, priority }) {
         src={src}
         alt={alt}
         fill
-        unoptimized
         sizes="(max-width: 640px) 280px, (max-width: 1024px) 400px, 460px"
         onLoad={() => setIsLoaded(true)}
         onError={() => setIsLoaded(true)}
