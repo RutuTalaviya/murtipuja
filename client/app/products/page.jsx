@@ -128,9 +128,15 @@ export default async function ProductsPage({ searchParams }) {
         )
       : [];
 
-    QUICK_PURPOSE_TABS = [
+    // Filter deities that are not already present as subcategories to avoid redundancy
+    const existingSubCatNames = new Set(subCats.map((s) => s.name.toLowerCase().trim()));
+    const remainingDeities = allDeities.filter(
+      (d) => !existingSubCatNames.has(d.toLowerCase().trim())
+    );
+
+    const rawTabs = [
       {
-        label: `All ${activeCategoryParam}`,
+        label: `All ${activeCategoryParam.replace(/[-_]/g, " ")}`,
         href: `/products?category=${encodeURIComponent(activeCategoryParam)}`,
         active: !params.subCategory && !params.deity,
       },
@@ -139,10 +145,10 @@ export default async function ProductsPage({ searchParams }) {
         href: `/products?category=${encodeURIComponent(activeCategoryParam)}&subCategory=${encodeURIComponent(sub.name)}`,
         active:
           params.subCategory?.toLowerCase() === sub.name.toLowerCase() ||
-          params.subCategory?.toLowerCase() === sub.slug.toLowerCase(),
+          params.subCategory?.toLowerCase() === sub.slug?.toLowerCase(),
       })),
-      ...allDeities.slice(0, 4).map((d) => ({
-        label: `${d} in ${activeCategoryParam}`,
+      ...remainingDeities.slice(0, 4).map((d) => ({
+        label: `${d} in ${activeCategoryParam.replace(/[-_]/g, " ")}`,
         href: `/products?category=${encodeURIComponent(activeCategoryParam)}&deity=${encodeURIComponent(d)}`,
         active: activeDeityParam?.toLowerCase() === d.toLowerCase(),
       })),
@@ -152,6 +158,15 @@ export default async function ProductsPage({ searchParams }) {
         active: false,
       },
     ];
+
+    // Deduplicate tabs by label case-insensitively
+    const seenLabels = new Set();
+    QUICK_PURPOSE_TABS = rawTabs.filter((tab) => {
+      const key = tab.label.toLowerCase().trim();
+      if (seenLabels.has(key)) return false;
+      seenLabels.add(key);
+      return true;
+    });
   } else {
     // When viewing all products or filtered by series: show Deity Series quick tabs!
     QUICK_PURPOSE_TABS = [
