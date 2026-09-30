@@ -6,6 +6,9 @@ export const metadata = {
   description: "Browse our full collection of precision 3D-printed spiritual idols.",
 };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function ProductsPage({ searchParams }) {
   const params = await searchParams;
   const pageParams = { limit: 12, ...params };

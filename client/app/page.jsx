@@ -8,6 +8,9 @@ import ScrollReveal from "@/components/ScrollReveal";
 import HeroBanner from "@/components/HeroBanner";
 import VideoReelsCarousel from "@/components/VideoReelsCarousel";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function HomePage() {
   let allProducts = [];
   let categories = [];

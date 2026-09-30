@@ -1,10 +1,9 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 /**
- * These use Next.js's extended `fetch` with `next: { revalidate }` so the
- * page is statically generated and then revalidated in the background —
- * this is the ISR pattern described in the spec (Section 6/9): fast,
- * SEO-friendly pages that still stay reasonably fresh.
+ * Using cache: "no-store" ensures that dynamic data (like products, categories,
+ * banners, deities, finishes) is always fetched fresh from the server on every
+ * page load/refresh, preventing stale cached data after admin edits.
  */
 
 export async function fetchProducts(searchParams = {}) {
@@ -18,7 +17,7 @@ export async function fetchProducts(searchParams = {}) {
 
 export async function fetchProductBySlug(slug) {
   const res = await fetch(`${API_URL}/api/products/${slug}`, {
-    next: { revalidate: 300 },
+    cache: "no-store",
   });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error("Failed to fetch product");
@@ -27,7 +26,7 @@ export async function fetchProductBySlug(slug) {
 
 export async function fetchCategories() {
   const res = await fetch(`${API_URL}/api/categories`, {
-    next: { revalidate: 300 },
+    cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch categories");
   return res.json();
@@ -35,7 +34,7 @@ export async function fetchCategories() {
 
 export async function fetchFinishes() {
   const res = await fetch(`${API_URL}/api/finishes`, {
-    next: { revalidate: 300 },
+    cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch finishes");
   return res.json();
@@ -44,7 +43,7 @@ export async function fetchFinishes() {
 export async function fetchBanners(params = {}) {
   const query = new URLSearchParams(params).toString();
   const res = await fetch(`${API_URL}/api/banners?${query}`, {
-    next: { revalidate: 60 }, // revalidate every 60s
+    cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch banners");
   return res.json();
@@ -53,7 +52,7 @@ export async function fetchBanners(params = {}) {
 export async function fetchVideos() {
   try {
     const res = await fetch(`${API_URL}/api/videos`, {
-      next: { revalidate: 60 }, // revalidate every 60s
+      cache: "no-store",
     });
     if (!res.ok) return { success: true, data: [] };
     return res.json();
@@ -66,7 +65,7 @@ export async function fetchVideos() {
 export async function fetchTags() {
   try {
     const res = await fetch(`${API_URL}/api/tags`, {
-      next: { revalidate: 60 },
+      cache: "no-store",
     });
     if (!res.ok) return [];
     const data = await res.json();
@@ -79,7 +78,7 @@ export async function fetchTags() {
 export async function fetchDeities() {
   try {
     const res = await fetch(`${API_URL}/api/products/deities`, {
-      next: { revalidate: 60 },
+      cache: "no-store",
     });
     const fallback = ["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman", "Durga"];
     if (!res.ok) return fallback;
@@ -107,7 +106,7 @@ export async function fetchDeities() {
 export async function fetchPurposes() {
   try {
     const res = await fetch(`${API_URL}/api/purposes`, {
-      next: { revalidate: 60 },
+      cache: "no-store",
     });
     if (!res.ok) return [];
     const data = await res.json();
@@ -116,6 +115,7 @@ export async function fetchPurposes() {
     return [];
   }
 }
+
 
 
 

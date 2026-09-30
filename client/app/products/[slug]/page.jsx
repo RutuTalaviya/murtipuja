@@ -9,6 +9,9 @@ import AddComboButton from "@/components/AddComboButton";
 import RelatedDropsCarousel from "@/components/RelatedDropsCarousel";
 import ProductAccordion from "@/components/ProductAccordion";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function generateMetadata({ params }) {
   const resolvedParams = await Promise.resolve(params);
   const slug = resolvedParams?.slug;
