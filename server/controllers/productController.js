@@ -288,10 +288,19 @@ async function getProducts(req, res, next) {
 /** GET /api/products/:slug */
 async function getProductBySlug(req, res, next) {
   try {
-    const product = await Product.findOne({ slug: req.params.slug })
-      .populate("category", "name slug icon parentCategory")
-      .populate("subCategory", "name slug icon parentCategory")
-      .lean();
+    let product;
+    if (mongoose.Types.ObjectId.isValid(req.params.slug)) {
+      product = await Product.findById(req.params.slug)
+        .populate("category", "name slug icon parentCategory")
+        .populate("subCategory", "name slug icon parentCategory")
+        .lean();
+    }
+    if (!product) {
+      product = await Product.findOne({ slug: req.params.slug })
+        .populate("category", "name slug icon parentCategory")
+        .populate("subCategory", "name slug icon parentCategory")
+        .lean();
+    }
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
@@ -397,6 +406,17 @@ async function createProduct(req, res, next) {
 /** PUT /api/products/:id (admin only) */
 async function updateProduct(req, res, next) {
   try {
+    let product;
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      product = await Product.findById(req.params.id);
+    } else {
+      product = await Product.findOne({ slug: req.params.id });
+    }
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
     const allVariantImages = [];
     if (Array.isArray(req.body.variants)) {
       req.body.variants = req.body.variants.map((v) => {
@@ -404,15 +424,15 @@ async function updateProduct(req, res, next) {
         if (Array.isArray(v.images) && v.images.length > 0) {
           vImages = v.images
             .map((img) => {
-              if (typeof img === "string") return { url: img, alt: `${req.body.title || "Murti"} - ${v.finish || ""}` };
-              if (img && typeof img === "object" && img.url) return { url: img.url, alt: img.alt || `${req.body.title || "Murti"} - ${v.finish || ""}` };
+              if (typeof img === "string") return { url: img, alt: `${req.body.title || product.title || "Murti"} - ${v.finish || ""}` };
+              if (img && typeof img === "object" && img.url) return { url: img.url, alt: img.alt || `${req.body.title || product.title || "Murti"} - ${v.finish || ""}` };
               return null;
             })
             .filter(Boolean);
         } else if (v.image) {
           const singleUrl = typeof v.image === "object" ? v.image?.url : v.image;
           if (singleUrl) {
-            vImages = [{ url: singleUrl, alt: `${req.body.title || "Murti"} - ${v.finish || ""}` }];
+            vImages = [{ url: singleUrl, alt: `${req.body.title || product.title || "Murti"} - ${v.finish || ""}` }];
           }
         }
         vImages.forEach((img) => {
@@ -430,8 +450,8 @@ async function updateProduct(req, res, next) {
     if (req.body.images !== undefined && Array.isArray(req.body.images)) {
       req.body.images = req.body.images
         .map((img) => {
-          if (typeof img === "string") return { url: img, alt: req.body.title || "Murti" };
-          if (img && typeof img === "object" && img.url) return { url: img.url, alt: img.alt || req.body.title || "Murti" };
+          if (typeof img === "string") return { url: img, alt: req.body.title || product.title || "Murti" };
+          if (img && typeof img === "object" && img.url) return { url: img.url, alt: img.alt || req.body.title || product.title || "Murti" };
           return null;
         })
         .filter(Boolean);
@@ -452,32 +472,28 @@ async function updateProduct(req, res, next) {
         .filter((id) => id && mongoose.Types.ObjectId.isValid(id));
     }
 
-    if (req.body.slug) {
+    if (req.body.slug && req.body.slug !== product.slug) {
       const slugConflict = await Product.findOne({
         slug: req.body.slug,
-        _id: { $ne: req.params.id },
+        _id: { $ne: product._id },
       });
       if (slugConflict) {
         req.body.slug = `${req.body.slug}-${Date.now().toString().slice(-4)}`;
       }
     }
 
-    let product;
-    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
-      product = await Product.findByIdAndUpdate(req.params.id, req.body, {
-        new: true,
-        runValidators: true,
-      });
-    } else {
-      product = await Product.findOneAndUpdate({ slug: req.params.id }, req.body, {
-        new: true,
-        runValidators: true,
-      });
+    // Set updated fields on Mongoose document
+    Object.assign(product, req.body);
+    if (req.body.variants) {
+      product.variants = req.body.variants;
+      product.markModified("variants");
+    }
+    if (req.body.images) {
+      product.images = req.body.images;
+      product.markModified("images");
     }
 
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
+    await product.save();
 
     const populated = await Product.findById(product._id)
       .populate("category", "name slug icon")

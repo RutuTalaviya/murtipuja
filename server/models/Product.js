@@ -10,7 +10,7 @@ const variantSchema = new mongoose.Schema(
     stock: { type: Number, required: true, default: 0 },
     sku: { type: String, required: true },
     image: { type: String },
-    images: [{ url: String, alt: String }],
+    images: [{ url: String, alt: String, _id: false }],
   },
   { _id: true }
 );
@@ -26,8 +26,8 @@ const productSchema = new mongoose.Schema(
     material: { type: String, default: "Resin (3D Printed)" },
     // Powers the "shop by occasion" navigation axis
     purpose: [{ type: String }],
-    images: [{ url: String, alt: String }],
-    videos: [{ url: String, thumbnail: String }],
+    images: [{ url: String, alt: String, _id: false }],
+    videos: [{ url: String, thumbnail: String, _id: false }],
     basePrice: { type: Number, required: true }, // used for display/sort when no variant selected yet
     isCustomizable: { type: Boolean, default: false },
     isFeatured: { type: Boolean, default: false },
@@ -42,6 +42,7 @@ const productSchema = new mongoose.Schema(
       {
         title: { type: String, required: true },
         content: { type: String, required: true },
+        _id: false,
       },
     ],
     variants: [variantSchema],
