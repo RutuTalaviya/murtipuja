@@ -231,6 +231,8 @@ export default function AdminPage() {
   const [materialsAndCare, setMaterialsAndCare] = useState("");
   const [shippingReturns, setShippingReturns] = useState("");
   const [accordionSections, setAccordionSections] = useState([]);
+  const [isDraggingImages, setIsDraggingImages] = useState(false);
+  const [uploadProgressText, setUploadProgressText] = useState("");
 
   // Product Tags & Custom Badges State
   const [productTags, setProductTags] = useState([]);
@@ -1571,6 +1573,45 @@ export default function AdminPage() {
     });
   }
 
+  // Helper to handle multiple image files at once (from multi-file picker or drag-and-drop)
+  async function handleMultipleImagesUpload(filesList) {
+    if (!filesList || filesList.length === 0) return;
+    const files = Array.from(filesList).filter((f) => f.type.startsWith("image/"));
+    if (files.length === 0) {
+      setActionError("Please select valid image files (JPG, PNG, WebP).");
+      return;
+    }
+
+    setActionError("");
+    setProdLoading(true);
+    setUploadProgressText(`Uploading 0 of ${files.length} images...`);
+
+    const uploadedUrls = [];
+    let completed = 0;
+
+    for (const file of files) {
+      try {
+        setUploadProgressText(`⚡ Optimizing & uploading (${completed + 1}/${files.length}): ${file.name}`);
+        const url = await handleImageUpload(file);
+        if (url) {
+          uploadedUrls.push(url);
+        }
+      } catch (err) {
+        console.error(`Failed to upload ${file.name}:`, err);
+      }
+      completed++;
+    }
+
+    if (uploadedUrls.length > 0) {
+      setGalleryImages((prev) => [...prev, ...uploadedUrls]);
+    } else {
+      setActionError("Failed to upload selected images. Please try again.");
+    }
+
+    setProdLoading(false);
+    setUploadProgressText("");
+  }
+
   // Helper to reset product form state variables
   function resetProductForm() {
     setTitle("");
@@ -1594,6 +1635,8 @@ export default function AdminPage() {
     setMaterialsAndCare("");
     setShippingReturns("");
     setAccordionSections([]);
+    setIsDraggingImages(false);
+    setUploadProgressText("");
     setQuickCatOpen(false);
     setQuickSubOpen(false);
     setEditingProduct(null);
@@ -4121,42 +4164,79 @@ export default function AdminPage() {
                     </div>
 
                     <div className="bg-charcoal/5 p-4 rounded-xl space-y-4 border border-charcoal/10">
-                      {/* Image Upload Trigger */}
-                      <div className="flex flex-wrap items-center gap-3">
+                      {/* Drag and Drop Zone + Multi-Image Selection Trigger */}
+                      <div
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsDraggingImages(true);
+                        }}
+                        onDragEnter={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsDraggingImages(true);
+                        }}
+                        onDragLeave={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsDraggingImages(false);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsDraggingImages(false);
+                          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                            handleMultipleImagesUpload(e.dataTransfer.files);
+                          }
+                        }}
+                        className={`p-6 border-2 border-dashed rounded-xl transition-all text-center flex flex-col items-center justify-center gap-2.5 cursor-pointer select-none ${
+                          isDraggingImages
+                            ? "border-amber-600 bg-amber-50/90 ring-4 ring-amber-300/40 scale-[1.01]"
+                            : "border-charcoal/25 bg-white hover:border-black hover:bg-neutral-50/80"
+                        }`}
+                        onClick={() => document.getElementById("product-gallery-upload")?.click()}
+                      >
                         <input
                           type="file"
+                          multiple
                           accept="image/*"
                           id="product-gallery-upload"
                           className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            try {
-                              setActionError("");
-                              setProdLoading(true);
-                              const uploadedUrl = await handleImageUpload(file);
-                              if (uploadedUrl) {
-                                setGalleryImages((prev) => [...prev, uploadedUrl]);
-                              }
-                            } catch (err) {
-                              setActionError("Failed to upload image. Please try again.");
-                            } finally {
-                              setProdLoading(false);
-                              e.target.value = ""; // reset input
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files.length > 0) {
+                              handleMultipleImagesUpload(e.target.files);
                             }
+                            e.target.value = ""; // reset input
                           }}
                         />
-                        <label
-                          htmlFor="product-gallery-upload"
-                          className="bg-maroon hover:bg-maroon-dark text-white text-xs font-bold px-4 py-2.5 rounded-none border border-black transition-all cursor-pointer shadow-sm inline-flex items-center gap-1.5"
-                        >
-                          <span>➕ Upload Image</span>
-                        </label>
 
-                        <span className="text-[11px] text-charcoal/70 font-semibold">
-                          Upload your <strong>1st Main Image</strong>, then <strong>2nd Hover Image</strong>, and any extra angles. Supports JPG, PNG, WebP.
-                        </span>
+                        <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-xl shadow-xs text-amber-900">
+                          {isDraggingImages ? "📥" : "📸"}
+                        </div>
+
+                        <div className="space-y-1">
+                          <p className="text-xs sm:text-sm font-extrabold text-black uppercase tracking-wide">
+                            {isDraggingImages ? "Drop images here to upload!" : "Drag & Drop Multiple Images Here"}
+                          </p>
+                          <p className="text-[11px] text-neutral-500 font-medium">
+                            or <span className="text-amber-800 font-bold underline">Click to Browse & Select Multiple Photos</span> at once
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-[10px] text-neutral-600 font-semibold">
+                          <span className="bg-neutral-100 border border-neutral-200 px-2.5 py-0.5 rounded">⚡ Multi-Select Enabled</span>
+                          <span className="bg-neutral-100 border border-neutral-200 px-2.5 py-0.5 rounded">📦 Auto WebP Compression</span>
+                          <span className="bg-amber-100/70 text-amber-900 border border-amber-200 px-2.5 py-0.5 rounded">🌟 1st = Cover, 2nd = Hover</span>
+                        </div>
                       </div>
+
+                      {/* Upload Progress Banner */}
+                      {uploadProgressText && (
+                        <div className="p-3 bg-amber-100 border border-amber-300 rounded-lg text-amber-950 text-xs font-bold flex items-center gap-2 animate-pulse shadow-xs">
+                          <span className="text-base animate-spin">⚙️</span>
+                          <span>{uploadProgressText}</span>
+                        </div>
+                      )}
 
                       {/* Images Grid with Badges and Reorder Controls */}
                       {galleryImages.length > 0 ? (
