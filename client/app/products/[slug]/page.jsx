@@ -151,6 +151,8 @@ export default async function ProductDetailPage({ params }) {
   const initialGalleryImages =
     initialVariant?.images && initialVariant.images.length > 0
       ? initialVariant.images
+      : initialVariant?.image
+      ? [{ url: initialVariant.image, alt: `${product.title} - ${initialVariant.finish || ""}` }]
       : product.images || [];
 
   return (

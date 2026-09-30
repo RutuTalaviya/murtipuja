@@ -37,36 +37,56 @@ export default function AddToCartPanel({ product, finishes }) {
     return "bg-[#8B5E3C] border-[#8B5E3C]"; // terracotta/brass fallback
   };
 
-  // Find exact matching variant
-  const selectedVariant = product.variants?.find(
-    (v) => v.size === selectedSize && v.finish === selectedFinish
-  ) || product.variants?.[0] || null;
+  // Find exact matching variant with case-insensitive fallback
+  const matchVariant = (size, finish) => {
+    if (!product.variants || product.variants.length === 0) return null;
+    const sNorm = (size || "").toLowerCase().trim();
+    const fNorm = (finish || "").toLowerCase().trim();
+
+    return (
+      product.variants.find(
+        (v) => (v.size || "").toLowerCase().trim() === sNorm && (v.finish || "").toLowerCase().trim() === fNorm
+      ) ||
+      product.variants.find(
+        (v) => (v.finish || "").toLowerCase().trim() === fNorm
+      ) ||
+      product.variants.find(
+        (v) => (v.size || "").toLowerCase().trim() === sNorm
+      ) ||
+      product.variants[0] ||
+      null
+    );
+  };
+
+  const selectedVariant = matchVariant(selectedSize, selectedFinish);
 
   // Emit custom event when selected variant changes to update the image gallery
   useEffect(() => {
     if (selectedVariant) {
-      const variantImages =
-        Array.isArray(selectedVariant.images) && selectedVariant.images.length > 0
-          ? selectedVariant.images
-          : selectedVariant.image
-          ? [{ url: selectedVariant.image, alt: `${product.title} - ${selectedVariant.finish}` }]
-          : [];
+      let variantImages = [];
+      if (Array.isArray(selectedVariant.images) && selectedVariant.images.length > 0) {
+        variantImages = selectedVariant.images;
+      } else if (selectedVariant.image) {
+        variantImages = [{ url: selectedVariant.image, alt: `${product.title} - ${selectedVariant.finish || ""}` }];
+      } else if (Array.isArray(product.images) && product.images.length > 0) {
+        variantImages = product.images;
+      }
 
       const event = new CustomEvent("variantChange", {
         detail: {
           variant: selectedVariant,
           images: variantImages,
-          image: selectedVariant.image,
+          image: selectedVariant.image || (variantImages[0]?.url || ""),
         },
       });
       window.dispatchEvent(event);
 
       // Also trigger legacy event for backwards compatibility
-      if (selectedVariant.image) {
-        window.dispatchEvent(new CustomEvent("variantImageChange", { detail: selectedVariant.image }));
+      if (selectedVariant.image || variantImages[0]?.url) {
+        window.dispatchEvent(new CustomEvent("variantImageChange", { detail: selectedVariant.image || variantImages[0]?.url }));
       }
     }
-  }, [selectedVariant, product.title]);
+  }, [selectedVariant, product.title, product.images]);
 
   const isSaleActive = Boolean(product.isOnSale && selectedVariant?.discountPrice && selectedVariant.discountPrice < selectedVariant.price);
   const inStock = selectedVariant ? selectedVariant.stock > 0 : false;
@@ -74,11 +94,13 @@ export default function AddToCartPanel({ product, finishes }) {
 
   const handleSizeChange = (size) => {
     setSelectedSize(size);
-    // Find if current finish is available in the new size
-    const exactMatch = product.variants?.find((v) => v.size === size && v.finish === selectedFinish);
+    const sNorm = (size || "").toLowerCase().trim();
+    const fNorm = (selectedFinish || "").toLowerCase().trim();
+    const exactMatch = product.variants?.find(
+      (v) => (v.size || "").toLowerCase().trim() === sNorm && (v.finish || "").toLowerCase().trim() === fNorm
+    );
     if (!exactMatch) {
-      // Fallback: select first available finish for this size
-      const fallbackMatch = product.variants?.find((v) => v.size === size);
+      const fallbackMatch = product.variants?.find((v) => (v.size || "").toLowerCase().trim() === sNorm);
       if (fallbackMatch) {
         setSelectedFinish(fallbackMatch.finish);
       }
@@ -87,11 +109,13 @@ export default function AddToCartPanel({ product, finishes }) {
 
   const handleFinishChange = (finish) => {
     setSelectedFinish(finish);
-    // Find if current size is available in the new finish
-    const exactMatch = product.variants?.find((v) => v.size === selectedSize && v.finish === finish);
+    const sNorm = (selectedSize || "").toLowerCase().trim();
+    const fNorm = (finish || "").toLowerCase().trim();
+    const exactMatch = product.variants?.find(
+      (v) => (v.size || "").toLowerCase().trim() === sNorm && (v.finish || "").toLowerCase().trim() === fNorm
+    );
     if (!exactMatch) {
-      // Fallback: select first available size for this finish
-      const fallbackMatch = product.variants?.find((v) => v.finish === finish);
+      const fallbackMatch = product.variants?.find((v) => (v.finish || "").toLowerCase().trim() === fNorm);
       if (fallbackMatch) {
         setSelectedSize(fallbackMatch.size);
       }

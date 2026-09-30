@@ -324,7 +324,7 @@ async function createProduct(req, res, next) {
     // Process and normalize variant images
     const allVariantImages = [];
     if (Array.isArray(req.body.variants)) {
-      req.body.variants = req.body.variants.map((v) => {
+      req.body.variants = req.body.variants.map((v, i) => {
         let vImages = [];
         if (Array.isArray(v.images) && v.images.length > 0) {
           vImages = v.images
@@ -344,8 +344,10 @@ async function createProduct(req, res, next) {
           if (img && img.url) allVariantImages.push(img);
         });
         const firstUrl = vImages[0]?.url || (typeof v.image === "object" ? v.image?.url : v.image) || "";
+        const sku = v.sku || `${(req.body.deity || "GEN").toUpperCase()}-${(req.body.title || "MURTI").slice(0, 3).toUpperCase()}-${(v.size || "STD").replace(/\s+/g, "").toUpperCase()}-${(v.finish || "STD").slice(0, 3).replace(/\s+/g, "").toUpperCase()}-${i}`;
         return {
           ...v,
+          sku,
           images: vImages,
           image: firstUrl,
         };
@@ -391,7 +393,11 @@ async function createProduct(req, res, next) {
       }
     }
 
-    const product = await Product.create(req.body);
+    const product = new Product(req.body);
+    product.markModified("variants");
+    product.markModified("images");
+    await product.save();
+
     const populated = await Product.findById(product._id)
       .populate("category", "name slug icon")
       .populate("subCategory", "name slug icon")
@@ -419,7 +425,7 @@ async function updateProduct(req, res, next) {
 
     const allVariantImages = [];
     if (Array.isArray(req.body.variants)) {
-      req.body.variants = req.body.variants.map((v) => {
+      req.body.variants = req.body.variants.map((v, i) => {
         let vImages = [];
         if (Array.isArray(v.images) && v.images.length > 0) {
           vImages = v.images
@@ -439,8 +445,10 @@ async function updateProduct(req, res, next) {
           if (img && img.url) allVariantImages.push(img);
         });
         const firstUrl = vImages[0]?.url || (typeof v.image === "object" ? v.image?.url : v.image) || "";
+        const sku = v.sku || `${(req.body.deity || product.deity || "GEN").toUpperCase()}-${(req.body.title || product.title || "MURTI").slice(0, 3).toUpperCase()}-${(v.size || "STD").replace(/\s+/g, "").toUpperCase()}-${(v.finish || "STD").slice(0, 3).replace(/\s+/g, "").toUpperCase()}-${i}`;
         return {
           ...v,
+          sku,
           images: vImages,
           image: firstUrl,
         };

@@ -1824,10 +1824,11 @@ export default function AdminPage() {
     try {
       let fullProduct = p;
       try {
-        const res = await api.get(`/api/products/${p.slug || p._id}`);
+        const fetchKey = p._id || p.id || p.slug;
+        const res = await api.get(`/api/products/${encodeURIComponent(fetchKey)}`);
         if (res.data) fullProduct = res.data;
       } catch (fetchErr) {
-        console.warn("Could not fetch by slug, using row data:", fetchErr);
+        console.warn("Could not fetch by ID/slug, using row data:", fetchErr);
       }
 
       setEditingProduct(fullProduct);
@@ -1880,13 +1881,21 @@ export default function AdminPage() {
       if (fullProduct.variants && fullProduct.variants.length > 0) {
         setFormVariants(
           fullProduct.variants.map((v, vIdx) => {
-            let vImages = Array.isArray(v.images) && v.images.length > 0
-              ? v.images.map((img) => (typeof img === "object" ? img?.url : img)).filter(Boolean)
-              : (v.image ? [typeof v.image === "object" ? v.image?.url : v.image].filter(Boolean) : []);
+            let vImages = [];
+            if (Array.isArray(v.images) && v.images.length > 0) {
+              vImages = v.images
+                .map((img) => (typeof img === "object" ? img?.url : img))
+                .filter((url) => url && typeof url === "string");
+            } else if (v.image) {
+              const singleUrl = typeof v.image === "object" ? v.image?.url : v.image;
+              if (singleUrl && typeof singleUrl === "string") {
+                vImages = [singleUrl];
+              }
+            }
 
-            // If this variant has NO images, but the product has product images, assign product images to 1st variant
-            if (vImages.length === 0 && vIdx === 0 && imageList.length > 0) {
-              vImages = [...imageList];
+            // If this variant has NO images, fallback to product images
+            if (vImages.length === 0 && imageList.length > 0) {
+              vImages = vIdx === 0 ? [...imageList] : [imageList[0]];
             }
 
             return {
