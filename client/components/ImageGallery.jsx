@@ -35,38 +35,58 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
 
   // Sync state with props
   useEffect(() => {
-    const combined = [
-      ...images.map((img) => ({ ...img, url: formatImageUrl(img.url), type: "image" })),
-      ...videos.map((vid) => ({ ...vid, url: formatImageUrl(vid.url), type: "video" })),
-    ];
-    setMediaList(combined);
+    const formattedImages = (images || [])
+      .map((img) => ({
+        url: formatImageUrl(typeof img === "string" ? img : img?.url),
+        alt: typeof img === "object" ? img?.alt : title,
+        type: "image",
+      }))
+      .filter((img) => img.url);
+
+    setMediaList(formattedImages);
     setActiveIndex(0);
-  }, [images, videos]);
+  }, [images, title]);
 
-  // Variant change listener
+  // Variant change listener: Show ONLY the images belonging to the selected variant
   useEffect(() => {
-    const handleVariantImage = (e) => {
-      const rawUrl = e.detail;
-      if (!rawUrl) return;
-      const url = formatImageUrl(rawUrl);
+    const handleVariantChange = (e) => {
+      const data = e.detail;
+      if (!data) return;
 
-      const idx = mediaList.findIndex((item) => item.url === url || item.url === rawUrl);
-      if (idx !== -1) {
-        setActiveIndex(idx);
-      } else {
-        const newImg = { url, alt: `${title} - Selected Variant`, type: "image" };
-        setMediaList((prev) => {
-          if (prev.some((item) => item.url === url || item.url === rawUrl)) return prev;
-          const updated = [...prev, newImg];
-          setActiveIndex(updated.length - 1);
-          return updated;
-        });
+      if (Array.isArray(data.images) && data.images.length > 0) {
+        const variantMedia = data.images
+          .map((img, idx) => ({
+            url: formatImageUrl(typeof img === "string" ? img : img?.url),
+            alt: (typeof img === "object" && img?.alt) || `${title} - Variant view ${idx + 1}`,
+            type: "image",
+          }))
+          .filter((img) => img.url);
+
+        if (variantMedia.length > 0) {
+          setMediaList(variantMedia);
+          setActiveIndex(0);
+          return;
+        }
+      }
+
+      if (data.image) {
+        const formattedUrl = formatImageUrl(data.image);
+        if (formattedUrl) {
+          setMediaList([
+            {
+              url: formattedUrl,
+              alt: `${title} - Selected Variant`,
+              type: "image",
+            },
+          ]);
+          setActiveIndex(0);
+        }
       }
     };
 
-    window.addEventListener("variantImageChange", handleVariantImage);
-    return () => window.removeEventListener("variantImageChange", handleVariantImage);
-  }, [mediaList, title]);
+    window.addEventListener("variantChange", handleVariantChange);
+    return () => window.removeEventListener("variantChange", handleVariantChange);
+  }, [title]);
 
   // Handle Main Image Hover Zoom position
   const handleMouseMove = (e) => {

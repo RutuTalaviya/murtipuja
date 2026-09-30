@@ -147,6 +147,12 @@ export default async function ProductDetailPage({ params }) {
     },
   };
 
+  const initialVariant = product.variants?.[0];
+  const initialGalleryImages =
+    initialVariant?.images && initialVariant.images.length > 0
+      ? initialVariant.images
+      : product.images || [];
+
   return (
     <main className="min-h-screen bg-white px-2 sm:px-4 md:px-6 lg:px-8 py-6 md:py-8 font-display w-full">
       {/* eslint-disable-next-line react/no-danger */}
@@ -154,9 +160,9 @@ export default async function ProductDetailPage({ params }) {
  
       <div className="w-full space-y-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-12 items-start">
-          {/* Left: Product Image & Vertical Gallery */}
+          {/* Left: Product Image & Vertical Gallery (Variant-Specific) */}
           <div className="lg:col-span-7 xl:col-span-7 w-full flex justify-center lg:justify-start lg:pl-2 xl:pl-4">
-            <ImageGallery images={product.images} videos={product.videos || []} title={product.title} />
+            <ImageGallery images={initialGalleryImages} title={product.title} />
           </div>
  
           {/* Right: Product Details & Add to Cart Panel */}
@@ -293,6 +299,57 @@ export default async function ProductDetailPage({ params }) {
             <ProductAccordion product={product} />
           </div>
         </div>
+
+        {/* Dynamic Sacred 3D & Showcase Videos Section (1 row 4 videos responsive) */}
+        {product.videos && product.videos.length > 0 && (
+          <section className="w-full bg-[#fcfaf7] py-10 sm:py-12 px-4 sm:px-8 md:px-10 border-t-2 border-b-2 border-stone-300">
+            <div className="w-full max-w-7xl mx-auto space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-stone-300 pb-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    <p className="text-[11px] sm:text-xs uppercase tracking-widest text-amber-900 font-extrabold">
+                      Sacred 3D Video Showcase
+                    </p>
+                  </div>
+                  <h2 className="font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-tight text-neutral-900">
+                    Product In Motion ({product.videos.length} {product.videos.length === 1 ? "Video" : "Videos"})
+                  </h2>
+                </div>
+                <span className="text-xs text-stone-500 font-bold uppercase tracking-wider">
+                  Real Consecrated Finishes & 360° Views
+                </span>
+              </div>
+
+              {/* 1 Row 4 Videos Responsive Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+                {product.videos.map((vid, vIdx) => {
+                  const videoUrl = typeof vid === "string" ? vid : vid?.url;
+                  if (!videoUrl) return null;
+                  return (
+                    <div
+                      key={vIdx}
+                      className="relative aspect-[9/16] sm:aspect-[4/5] bg-black border-2 border-black overflow-hidden shadow-md group rounded-none"
+                    >
+                      <video
+                        src={formatImageUrl(videoUrl)}
+                        controls
+                        playsInline
+                        className="w-full h-full object-cover"
+                        preload="metadata"
+                      />
+                      <div className="absolute top-2 left-2 z-10 pointer-events-none">
+                        <span className="bg-black/80 backdrop-blur-sm text-gold text-[9px] font-black uppercase px-2 py-0.5 border border-gold/40">
+                          Video #{vIdx + 1}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        )}
  
         {/* Dynamic Related Products Carousel in 1 Row with Zero Gap and Scroll Controls */}
         {relatedProducts.length > 0 && (

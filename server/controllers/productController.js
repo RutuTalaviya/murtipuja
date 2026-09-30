@@ -312,19 +312,42 @@ async function getProductBySlug(req, res, next) {
 /** POST /api/products (admin only) */
 async function createProduct(req, res, next) {
   try {
+    // Process and normalize variant images
+    const allVariantImages = [];
+    if (Array.isArray(req.body.variants)) {
+      req.body.variants = req.body.variants.map((v) => {
+        let vImages = [];
+        if (Array.isArray(v.images) && v.images.length > 0) {
+          vImages = v.images
+            .map((img) => (typeof img === "string" ? { url: img, alt: `${req.body.title || "Murti"} - ${v.finish || ""}` } : img))
+            .filter((img) => img && img.url);
+        } else if (v.image) {
+          vImages = [{ url: v.image, alt: `${req.body.title || "Murti"} - ${v.finish || ""}` }];
+        }
+        vImages.forEach((img) => allVariantImages.push(img));
+        return {
+          ...v,
+          images: vImages,
+          image: vImages[0]?.url || v.image || "",
+        };
+      });
+    }
+
     if (req.body.images !== undefined && Array.isArray(req.body.images)) {
       req.body.images = req.body.images
         .map((img) => (typeof img === "string" ? { url: img, alt: req.body.title || "Murti" } : img))
         .filter((img) => img && img.url);
     }
 
+    if ((!req.body.images || req.body.images.length === 0) && allVariantImages.length > 0) {
+      req.body.images = allVariantImages;
+    }
+
     if (
-      !req.body.images ||
-      !Array.isArray(req.body.images) ||
-      req.body.images.length === 0 ||
-      !req.body.images[0]?.url
+      (!req.body.images || !Array.isArray(req.body.images) || req.body.images.length === 0 || !req.body.images[0]?.url) &&
+      allVariantImages.length === 0
     ) {
-      return res.status(400).json({ message: "Product Images Gallery is required! Please upload at least 1 image." });
+      return res.status(400).json({ message: "Product Variant Images are required! Please upload at least 1 image for your variants." });
     }
 
     if (req.body.slug) {
@@ -349,15 +372,34 @@ async function createProduct(req, res, next) {
 /** PUT /api/products/:id (admin only) */
 async function updateProduct(req, res, next) {
   try {
-    if (req.body.images !== undefined) {
-      if (Array.isArray(req.body.images)) {
-        req.body.images = req.body.images
-          .map((img) => (typeof img === "string" ? { url: img, alt: req.body.title || "Murti" } : img))
-          .filter((img) => img && img.url);
-      }
-      if (!Array.isArray(req.body.images) || req.body.images.length === 0) {
-        return res.status(400).json({ message: "Product Images Gallery is required! Please upload at least 1 image." });
-      }
+    const allVariantImages = [];
+    if (Array.isArray(req.body.variants)) {
+      req.body.variants = req.body.variants.map((v) => {
+        let vImages = [];
+        if (Array.isArray(v.images) && v.images.length > 0) {
+          vImages = v.images
+            .map((img) => (typeof img === "string" ? { url: img, alt: `${req.body.title || "Murti"} - ${v.finish || ""}` } : img))
+            .filter((img) => img && img.url);
+        } else if (v.image) {
+          vImages = [{ url: v.image, alt: `${req.body.title || "Murti"} - ${v.finish || ""}` }];
+        }
+        vImages.forEach((img) => allVariantImages.push(img));
+        return {
+          ...v,
+          images: vImages,
+          image: vImages[0]?.url || v.image || "",
+        };
+      });
+    }
+
+    if (req.body.images !== undefined && Array.isArray(req.body.images)) {
+      req.body.images = req.body.images
+        .map((img) => (typeof img === "string" ? { url: img, alt: req.body.title || "Murti" } : img))
+        .filter((img) => img && img.url);
+    }
+
+    if ((!req.body.images || req.body.images.length === 0) && allVariantImages.length > 0) {
+      req.body.images = allVariantImages;
     }
 
     if (req.body.slug) {

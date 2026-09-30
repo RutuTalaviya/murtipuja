@@ -224,8 +224,9 @@ export default function AdminPage() {
   const [variantSku, setVariantSku] = useState("");
   const [isOnSale, setIsOnSale] = useState(false);
   const [formVariants, setFormVariants] = useState([
-    { size: "6 inch", finish: "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", image: "" }
+    { size: "6 inch", finish: "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", image: "", images: [] }
   ]);
+  const [draggingVariantIndex, setDraggingVariantIndex] = useState(null);
   // Product Details Accordion Tabs State
   const [productDetails, setProductDetails] = useState("");
   const [materialsAndCare, setMaterialsAndCare] = useState("");
@@ -1573,8 +1574,8 @@ export default function AdminPage() {
     });
   }
 
-  // Helper to handle multiple image files at once (from multi-file picker or drag-and-drop)
-  async function handleMultipleImagesUpload(filesList) {
+  // Helper to handle multiple image files for a specific variant (from multi-file picker or drag-and-drop)
+  async function handleMultipleVariantImagesUpload(variantIndex, filesList) {
     if (!filesList || filesList.length === 0) return;
     const files = Array.from(filesList).filter((f) => f.type.startsWith("image/"));
     if (files.length === 0) {
@@ -1584,7 +1585,7 @@ export default function AdminPage() {
 
     setActionError("");
     setProdLoading(true);
-    setUploadProgressText(`Uploading 0 of ${files.length} images...`);
+    setUploadProgressText(`Uploading 0 of ${files.length} images for variant #${variantIndex + 1}...`);
 
     const uploadedUrls = [];
     let completed = 0;
@@ -1603,13 +1604,57 @@ export default function AdminPage() {
     }
 
     if (uploadedUrls.length > 0) {
-      setGalleryImages((prev) => [...prev, ...uploadedUrls]);
+      setFormVariants((prev) => {
+        const next = [...prev];
+        const currentImages = next[variantIndex]?.images || (next[variantIndex]?.image ? [next[variantIndex].image] : []);
+        const combined = [...currentImages, ...uploadedUrls];
+        next[variantIndex] = {
+          ...next[variantIndex],
+          images: combined,
+          image: combined[0] || "",
+        };
+        return next;
+      });
+      setActionSuccess(`Uploaded ${uploadedUrls.length} image(s) for variant #${variantIndex + 1}!`);
+      setTimeout(() => setActionSuccess(""), 3000);
     } else {
       setActionError("Failed to upload selected images. Please try again.");
     }
 
     setProdLoading(false);
     setUploadProgressText("");
+    setDraggingVariantIndex(null);
+  }
+
+  function handleMoveVariantImage(variantIndex, imageIndex, direction) {
+    setFormVariants((prev) => {
+      const next = [...prev];
+      const currentImages = [...(next[variantIndex]?.images || (next[variantIndex]?.image ? [next[variantIndex].image] : []))];
+      const targetIndex = direction === "left" ? imageIndex - 1 : imageIndex + 1;
+      if (targetIndex < 0 || targetIndex >= currentImages.length) return prev;
+      const temp = currentImages[imageIndex];
+      currentImages[imageIndex] = currentImages[targetIndex];
+      currentImages[targetIndex] = temp;
+      next[variantIndex] = {
+        ...next[variantIndex],
+        images: currentImages,
+        image: currentImages[0] || "",
+      };
+      return next;
+    });
+  }
+
+  function handleDeleteVariantImage(variantIndex, imageIndex) {
+    setFormVariants((prev) => {
+      const next = [...prev];
+      const currentImages = (next[variantIndex]?.images || (next[variantIndex]?.image ? [next[variantIndex].image] : [])).filter((_, i) => i !== imageIndex);
+      next[variantIndex] = {
+        ...next[variantIndex],
+        images: currentImages,
+        image: currentImages[0] || "",
+      };
+      return next;
+    });
   }
 
   // Helper to reset product form state variables
@@ -1628,7 +1673,7 @@ export default function AdminPage() {
     setVariantFinish("Matte Black");
     setVariantStock("10");
     setVariantSku("");
-    setFormVariants([{ size: "6 inch", finish: "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", image: "" }]);
+    setFormVariants([{ size: "6 inch", finish: finishes[0]?.name || "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", image: "", images: [] }]);
     setProductTags([]);
     setCustomTagInput("");
     setProductDetails("");
@@ -1636,6 +1681,7 @@ export default function AdminPage() {
     setShippingReturns("");
     setAccordionSections([]);
     setIsDraggingImages(false);
+    setDraggingVariantIndex(null);
     setUploadProgressText("");
     setQuickCatOpen(false);
     setQuickSubOpen(false);
@@ -1825,15 +1871,21 @@ export default function AdminPage() {
 
       if (fullProduct.variants && fullProduct.variants.length > 0) {
         setFormVariants(
-          fullProduct.variants.map((v) => ({
-            size: v.size || "6 inch",
-            finish: v.finish || "Matte Black",
-            price: v.price !== undefined && v.price !== null ? v.price.toString() : "",
-            discountPrice: v.discountPrice !== undefined && v.discountPrice !== null ? v.discountPrice.toString() : "",
-            stock: v.stock !== undefined && v.stock !== null ? v.stock.toString() : "10",
-            sku: v.sku || "",
-            image: v.image || "",
-          }))
+          fullProduct.variants.map((v) => {
+            const vImages = Array.isArray(v.images) && v.images.length > 0
+              ? v.images.map((img) => (typeof img === "object" ? img?.url : img)).filter(Boolean)
+              : (v.image ? [v.image] : []);
+            return {
+              size: v.size || "6 inch",
+              finish: v.finish || "Matte Black",
+              price: v.price !== undefined && v.price !== null ? v.price.toString() : "",
+              discountPrice: v.discountPrice !== undefined && v.discountPrice !== null ? v.discountPrice.toString() : "",
+              stock: v.stock !== undefined && v.stock !== null ? v.stock.toString() : "10",
+              sku: v.sku || "",
+              image: vImages[0] || v.image || "",
+              images: vImages,
+            };
+          })
         );
         setVariantSize(fullProduct.variants[0].size || "6 inch");
         setVariantFinish(fullProduct.variants[0].finish || "Matte Black");
@@ -1841,7 +1893,7 @@ export default function AdminPage() {
         setVariantStock(totalStock.toString());
         setVariantSku(fullProduct.variants[0].sku || "");
       } else {
-        setFormVariants([{ size: "6 inch", finish: "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", image: "" }]);
+        setFormVariants([{ size: "6 inch", finish: "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", image: "", images: [] }]);
         setVariantSize("6 inch");
         setVariantFinish("Matte Black");
         setVariantStock("10");
@@ -1865,8 +1917,20 @@ export default function AdminPage() {
       return;
     }
 
-    if (!galleryImages || galleryImages.length === 0) {
-      setActionError("Product Images Gallery is required! Please upload at least 1 image (Primary Cover Image).");
+    // Extract all images from variants
+    const allVariantImages = [];
+    formVariants.forEach((v) => {
+      const vImgs = Array.isArray(v.images) && v.images.length > 0 ? v.images : (v.image ? [v.image] : []);
+      vImgs.forEach((imgUrl) => {
+        const cleanUrl = typeof imgUrl === "object" ? imgUrl?.url : imgUrl;
+        if (cleanUrl && !allVariantImages.includes(cleanUrl)) {
+          allVariantImages.push(cleanUrl);
+        }
+      });
+    });
+
+    if (allVariantImages.length === 0) {
+      setActionError("Product Variants must have at least 1 image! Please upload an image for your variants before saving.");
       return;
     }
     setActionError("");
@@ -1876,6 +1940,7 @@ export default function AdminPage() {
 
     const updatedVariants = formVariants.map((v, idx) => {
       const sku = v.sku || `${(deity || "GEN").toUpperCase()}-${title.slice(0, 3).toUpperCase()}-${v.size.replace(/\s+/g, "").toUpperCase()}-${v.finish.slice(0, 3).replace(/\s+/g, "").toUpperCase()}-${idx}`;
+      const vImgs = Array.isArray(v.images) && v.images.length > 0 ? v.images : (v.image ? [v.image] : []);
       return {
         size: v.size,
         finish: v.finish,
@@ -1884,7 +1949,11 @@ export default function AdminPage() {
         stock: Number(v.stock) || 0,
         sku: sku,
         weight: "500g",
-        image: v.image || "",
+        image: vImgs[0] || v.image || "",
+        images: vImgs.map((img) => ({
+          url: typeof img === "object" ? img.url : img,
+          alt: `${title.trim()} - ${v.finish} - ${v.size}`,
+        })).filter((img) => img.url),
       };
     });
 
@@ -1899,8 +1968,8 @@ export default function AdminPage() {
       purpose: purposes,
       tags: productTags,
       isOnSale,
-      images: galleryImages.map((img) => ({
-        url: typeof img === "object" ? img.url : img,
+      images: allVariantImages.map((imgUrl) => ({
+        url: typeof imgUrl === "object" ? imgUrl.url : imgUrl,
         alt: title.trim(),
       })).filter((img) => img.url),
       videos: galleryVideos,
@@ -4201,173 +4270,16 @@ export default function AdminPage() {
                     />
                   </div>
 
-                  {/* Product Gallery Images Manager */}
+                  {/* Product Gallery Videos Manager (Optional) */}
                   <div className="space-y-2">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <div className="flex items-center justify-between">
                       <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/80 block">
-                        Product Images Gallery * (Main Cover + Hover View + Angles)
+                        Product Videos (Optional - Spiritual Reels / 3D Views)
                       </label>
-                      <span className="text-[10px] text-amber-800 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
-                        💡 Image #1 = Primary Cover · Image #2 = Hover Image on Website
+                      <span className="text-[10px] text-charcoal/50">
+                        Optional · Showcased in dedicated grid on product details page
                       </span>
                     </div>
-
-                    <div className="bg-charcoal/5 p-4 rounded-xl space-y-4 border border-charcoal/10">
-                      {/* Drag and Drop Zone + Multi-Image Selection Trigger */}
-                      <div
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setIsDraggingImages(true);
-                        }}
-                        onDragEnter={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setIsDraggingImages(true);
-                        }}
-                        onDragLeave={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setIsDraggingImages(false);
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setIsDraggingImages(false);
-                          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                            handleMultipleImagesUpload(e.dataTransfer.files);
-                          }
-                        }}
-                        className={`p-6 border-2 border-dashed rounded-xl transition-all text-center flex flex-col items-center justify-center gap-2.5 cursor-pointer select-none ${
-                          isDraggingImages
-                            ? "border-amber-600 bg-amber-50/90 ring-4 ring-amber-300/40 scale-[1.01]"
-                            : "border-charcoal/25 bg-white hover:border-black hover:bg-neutral-50/80"
-                        }`}
-                        onClick={() => document.getElementById("product-gallery-upload")?.click()}
-                      >
-                        <input
-                          type="file"
-                          multiple
-                          accept="image/*"
-                          id="product-gallery-upload"
-                          className="hidden"
-                          onChange={(e) => {
-                            if (e.target.files && e.target.files.length > 0) {
-                              handleMultipleImagesUpload(e.target.files);
-                            }
-                            e.target.value = ""; // reset input
-                          }}
-                        />
-
-                        <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-xl shadow-xs text-amber-900">
-                          {isDraggingImages ? "📥" : "📸"}
-                        </div>
-
-                        <div className="space-y-1">
-                          <p className="text-xs sm:text-sm font-extrabold text-black uppercase tracking-wide">
-                            {isDraggingImages ? "Drop images here to upload!" : "Drag & Drop Multiple Images Here"}
-                          </p>
-                          <p className="text-[11px] text-neutral-500 font-medium">
-                            or <span className="text-amber-800 font-bold underline">Click to Browse & Select Multiple Photos</span> at once
-                          </p>
-                        </div>
-
-                        <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-[10px] text-neutral-600 font-semibold">
-                          <span className="bg-neutral-100 border border-neutral-200 px-2.5 py-0.5 rounded">⚡ Multi-Select Enabled</span>
-                          <span className="bg-neutral-100 border border-neutral-200 px-2.5 py-0.5 rounded">📦 Auto WebP Compression</span>
-                          <span className="bg-amber-100/70 text-amber-900 border border-amber-200 px-2.5 py-0.5 rounded">🌟 1st = Cover, 2nd = Hover</span>
-                        </div>
-                      </div>
-
-                      {/* Upload Progress Banner */}
-                      {uploadProgressText && (
-                        <div className="p-3 bg-amber-100 border border-amber-300 rounded-lg text-amber-950 text-xs font-bold flex items-center gap-2 animate-pulse shadow-xs">
-                          <span className="text-base animate-spin">⚙️</span>
-                          <span>{uploadProgressText}</span>
-                        </div>
-                      )}
-
-                      {/* Images Grid with Badges and Reorder Controls */}
-                      {galleryImages.length > 0 ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3 pt-2">
-                          {galleryImages.map((url, idx) => (
-                            <div
-                              key={idx}
-                              className={`relative aspect-square rounded-none border-2 bg-white overflow-hidden group shadow-sm flex flex-col justify-between ${idx === 0
-                                ? "border-black ring-2 ring-gold"
-                                : idx === 1
-                                  ? "border-amber-600"
-                                  : "border-charcoal/20"
-                                }`}
-                            >
-                              <img src={formatImageUrl(url)} alt={`Gallery ${idx + 1}`} className="object-cover w-full h-full" />
-
-                              {/* Primary / Hover Status Badge */}
-                              <div className="absolute top-1.5 left-1.5 z-10">
-                                {idx === 0 ? (
-                                  <span className="bg-black text-gold text-[8.5px] font-black px-1.5 py-0.5 rounded-none shadow uppercase border border-gold tracking-wider">
-                                    🌟 1. Primary
-                                  </span>
-                                ) : idx === 1 ? (
-                                  <span className="bg-amber-600 text-white text-[8.5px] font-black px-1.5 py-0.5 rounded-none shadow uppercase tracking-wider">
-                                    🔄 2. Hover Image
-                                  </span>
-                                ) : (
-                                  <span className="bg-black/70 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-none shadow">
-                                    Angle #{idx + 1}
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Delete Button */}
-                              <button
-                                type="button"
-                                onClick={() => setGalleryImages((prev) => prev.filter((_, i) => i !== idx))}
-                                className="absolute top-1.5 right-1.5 bg-red-600 hover:bg-red-700 text-white rounded-none w-5 h-5 flex items-center justify-center text-xs shadow z-10 transition-transform active:scale-95"
-                                title="Delete Image"
-                              >
-                                &times;
-                              </button>
-
-                              {/* Re-order Arrows Overlay at Bottom */}
-                              <div className="absolute bottom-1 inset-x-1 flex items-center justify-between bg-black/75 backdrop-blur-sm px-1.5 py-1 z-10 text-white text-[9px] font-bold">
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveImage(idx, "left")}
-                                  disabled={idx === 0}
-                                  className="hover:text-gold disabled:opacity-20 px-1 font-extrabold cursor-pointer"
-                                  title="Move Left (Make Primary / Hover)"
-                                >
-                                  ◀
-                                </button>
-                                <span className="font-mono text-[9px]">#{idx + 1}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveImage(idx, "right")}
-                                  disabled={idx === galleryImages.length - 1}
-                                  className="hover:text-gold disabled:opacity-20 px-1 font-extrabold cursor-pointer"
-                                  title="Move Right"
-                                >
-                                  ▶
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-6 text-charcoal/50 text-xs border-2 border-dashed border-charcoal/20 rounded-none bg-white space-y-1">
-                          <p className="font-bold text-black">No images uploaded yet.</p>
-                          <p className="text-[11px] text-neutral-500">Click "➕ Upload Image" above to upload your primary cover image and 2nd hover image.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Product Gallery Videos Manager */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase font-bold tracking-wider text-charcoal/60 block">
-                      Product Videos (Upload spiritual videos / 3D views)
-                    </label>
                     <div className="bg-charcoal/5 p-4 rounded-xl space-y-4">
                       {/* Video Upload Trigger */}
                       <div className="flex items-center gap-3">
@@ -4681,178 +4593,326 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  {/* Dynamic Multiple Variants Manager */}
-                  <div className="bg-charcoal/5 p-4 rounded-xl space-y-3">
-                    <div className="flex justify-between items-center">
-                      <p className="text-[10px] uppercase font-bold tracking-wider text-gold">Product Variants (Colors/Sizes)</p>
+                  {/* Dynamic Multiple Variants Manager with Per-Variant Multi-Image Upload */}
+                  <div className="bg-charcoal/5 p-4 rounded-xl space-y-4 border border-charcoal/10">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-charcoal/10 pb-3">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wider text-maroon flex items-center gap-1.5">
+                          <span>🎨</span> Product Variants (Colors / Sizes & Multi-Images) *
+                        </p>
+                        <p className="text-[10px] text-charcoal/60 font-medium">
+                          Upload specific photos for each variant with drag & drop or multi-selection. On the website, selecting a variant will show only its images.
+                        </p>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => setFormVariants([...formVariants, { size: "6 inch", finish: finishes[0]?.name || "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", image: "" }])}
-                        className="bg-maroon/10 hover:bg-maroon/20 text-maroon text-[9px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg border border-maroon/20 transition-all"
+                        onClick={() =>
+                          setFormVariants([
+                            ...formVariants,
+                            {
+                              size: "6 inch",
+                              finish: finishes[0]?.name || "Matte Black",
+                              price: "",
+                              discountPrice: "",
+                              stock: "10",
+                              sku: "",
+                              image: "",
+                              images: [],
+                            },
+                          ])
+                        }
+                        className="bg-maroon hover:bg-maroon-dark text-white text-[10px] font-bold uppercase tracking-wider px-3.5 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5 self-start sm:self-auto"
                       >
-                        ＋ Add Variant Row
+                        <span>＋</span> Add Variant
                       </button>
                     </div>
 
-                    <div className="space-y-3 divide-y divide-charcoal/5">
-                      {formVariants.map((v, index) => (
-                        <div key={index} className="grid grid-cols-7 gap-3 pt-3 first:pt-0 first:border-0 border-t border-charcoal/5 items-end">
-                          <div className="space-y-1">
-                            <label className="text-[9px] uppercase tracking-wider text-charcoal/50 block">Size *</label>
-                            <input
-                              type="text"
-                              required
-                              placeholder="e.g. 6 inch"
-                              value={v.size}
-                              onChange={(e) => {
-                                const updated = [...formVariants];
-                                updated[index].size = e.target.value;
-                                setFormVariants(updated);
-                              }}
-                              className="w-full px-2 py-1.5 border border-charcoal/15 rounded-lg bg-white outline-none text-xs"
-                            />
-                          </div>
+                    <div className="space-y-4">
+                      {formVariants.map((v, index) => {
+                        const vImages = Array.isArray(v.images) && v.images.length > 0 ? v.images : (v.image ? [v.image] : []);
+                        const isDragging = draggingVariantIndex === index;
 
-                          <div className="space-y-1">
-                            <label className="text-[9px] uppercase tracking-wider text-charcoal/50 block">Finish / Color *</label>
-                            <select
-                              required
-                              value={v.finish}
-                              onChange={(e) => {
-                                const updated = [...formVariants];
-                                updated[index].finish = e.target.value;
-                                setFormVariants(updated);
-                              }}
-                              className="w-full px-2 py-1.5 border border-charcoal/15 rounded-lg bg-white outline-none text-xs"
-                            >
-                              <option value="">Select Finish...</option>
-                              {finishes.map((f) => (
-                                <option key={f._id} value={f.name}>{f.name}</option>
-                              ))}
-                            </select>
-                          </div>
+                        return (
+                          <div
+                            key={index}
+                            className={`p-4 rounded-xl border transition-all space-y-3 bg-white shadow-xs ${
+                              isDragging ? "border-amber-600 ring-2 ring-amber-400 bg-amber-50/40" : "border-charcoal/15"
+                            }`}
+                          >
+                            {/* Card Header */}
+                            <div className="flex items-center justify-between border-b border-charcoal/10 pb-2">
+                              <span className="text-[11px] font-black uppercase tracking-wider text-charcoal flex items-center gap-1.5">
+                                <span className="w-5 h-5 rounded-full bg-maroon text-white flex items-center justify-center text-[10px] font-bold">
+                                  {index + 1}
+                                </span>
+                                Variant #{index + 1} {v.finish ? `(${v.finish} · ${v.size})` : ""}
+                              </span>
+                              {formVariants.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setFormVariants(formVariants.filter((_, idx) => idx !== index))}
+                                  className="text-red-600 hover:text-red-800 text-[10.5px] font-bold uppercase tracking-wider px-2 py-1 rounded bg-red-50 hover:bg-red-100 transition-colors"
+                                  title="Remove Variant"
+                                >
+                                  ✕ Remove Variant
+                                </button>
+                              )}
+                            </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[9px] uppercase tracking-wider text-charcoal/50 block">Price (₹)</label>
-                            <input
-                              type="number"
-                              placeholder={basePrice || "Price"}
-                              value={v.price}
-                              onChange={(e) => {
-                                const updated = [...formVariants];
-                                updated[index].price = e.target.value;
-                                setFormVariants(updated);
-                              }}
-                              className="w-full px-2 py-1.5 border border-charcoal/15 rounded-lg bg-white outline-none text-xs"
-                            />
-                          </div>
+                            {/* Row 1: Variant Specs */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 items-end">
+                              <div className="space-y-1">
+                                <label className="text-[9px] uppercase font-bold tracking-wider text-charcoal/60 block">Size *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  placeholder="e.g. 6 inch"
+                                  value={v.size}
+                                  onChange={(e) => {
+                                    const updated = [...formVariants];
+                                    updated[index].size = e.target.value;
+                                    setFormVariants(updated);
+                                  }}
+                                  className="w-full px-2.5 py-1.5 border border-charcoal/15 rounded-lg bg-neutral-50/50 outline-none focus:bg-white text-xs font-semibold"
+                                />
+                              </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[9px] uppercase tracking-wider text-charcoal/50 block">Sale Price (₹)</label>
-                            <input
-                              type="number"
-                              placeholder="Discount"
-                              value={v.discountPrice || ""}
-                              onChange={(e) => {
-                                const updated = [...formVariants];
-                                updated[index].discountPrice = e.target.value;
-                                setFormVariants(updated);
-                              }}
-                              className="w-full px-2 py-1.5 border border-charcoal/15 rounded-lg bg-white outline-none text-xs"
-                            />
-                          </div>
+                              <div className="space-y-1">
+                                <label className="text-[9px] uppercase font-bold tracking-wider text-charcoal/60 block">Finish / Color *</label>
+                                <select
+                                  required
+                                  value={v.finish}
+                                  onChange={(e) => {
+                                    const updated = [...formVariants];
+                                    updated[index].finish = e.target.value;
+                                    setFormVariants(updated);
+                                  }}
+                                  className="w-full px-2.5 py-1.5 border border-charcoal/15 rounded-lg bg-neutral-50/50 outline-none focus:bg-white text-xs font-semibold"
+                                >
+                                  <option value="">Select Finish...</option>
+                                  {finishes.map((f) => (
+                                    <option key={f._id} value={f.name}>{f.name}</option>
+                                  ))}
+                                </select>
+                              </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[9px] uppercase tracking-wider text-charcoal/50 block">Stock *</label>
-                            <input
-                              type="number"
-                              required
-                              value={v.stock}
-                              onChange={(e) => {
-                                const updated = [...formVariants];
-                                updated[index].stock = e.target.value;
-                                setFormVariants(updated);
-                              }}
-                              className="w-full px-2 py-1.5 border border-charcoal/15 rounded-lg bg-white outline-none text-xs"
-                            />
-                          </div>
+                              <div className="space-y-1">
+                                <label className="text-[9px] uppercase font-bold tracking-wider text-charcoal/60 block">Price (₹)</label>
+                                <input
+                                  type="number"
+                                  placeholder={basePrice || "Price"}
+                                  value={v.price}
+                                  onChange={(e) => {
+                                    const updated = [...formVariants];
+                                    updated[index].price = e.target.value;
+                                    setFormVariants(updated);
+                                  }}
+                                  className="w-full px-2.5 py-1.5 border border-charcoal/15 rounded-lg bg-neutral-50/50 outline-none focus:bg-white text-xs"
+                                />
+                              </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[9px] uppercase tracking-wider text-charcoal/50 block">Variant Image</label>
-                            <div className="flex gap-1 items-center">
-                              <input
-                                type="text"
-                                placeholder="Link or upload"
-                                value={v.image || ""}
-                                onChange={(e) => {
-                                  const updated = [...formVariants];
-                                  updated[index].image = e.target.value;
-                                  setFormVariants(updated);
+                              <div className="space-y-1">
+                                <label className="text-[9px] uppercase font-bold tracking-wider text-charcoal/60 block">Sale Price (₹)</label>
+                                <input
+                                  type="number"
+                                  placeholder="Discount"
+                                  value={v.discountPrice || ""}
+                                  onChange={(e) => {
+                                    const updated = [...formVariants];
+                                    updated[index].discountPrice = e.target.value;
+                                    setFormVariants(updated);
+                                  }}
+                                  className="w-full px-2.5 py-1.5 border border-charcoal/15 rounded-lg bg-neutral-50/50 outline-none focus:bg-white text-xs"
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-[9px] uppercase font-bold tracking-wider text-charcoal/60 block">Stock *</label>
+                                <input
+                                  type="number"
+                                  required
+                                  value={v.stock}
+                                  onChange={(e) => {
+                                    const updated = [...formVariants];
+                                    updated[index].stock = e.target.value;
+                                    setFormVariants(updated);
+                                  }}
+                                  className="w-full px-2.5 py-1.5 border border-charcoal/15 rounded-lg bg-neutral-50/50 outline-none focus:bg-white text-xs"
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-[9px] uppercase font-bold tracking-wider text-charcoal/60 block">SKU (Auto)</label>
+                                <input
+                                  type="text"
+                                  placeholder="Auto SKU"
+                                  value={v.sku}
+                                  onChange={(e) => {
+                                    const updated = [...formVariants];
+                                    updated[index].sku = e.target.value;
+                                    setFormVariants(updated);
+                                  }}
+                                  className="w-full px-2.5 py-1.5 border border-charcoal/15 rounded-lg bg-neutral-50/50 outline-none focus:bg-white text-xs font-mono"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Row 2: Per-Variant Multi-Image Upload Area & Drag & Drop */}
+                            <div className="space-y-2 pt-1 border-t border-dashed border-charcoal/15">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                                <label className="text-[9.5px] uppercase font-black tracking-wider text-charcoal/80 flex items-center gap-1">
+                                  <span>📸</span> Variant Images ({vImages.length} uploaded) *
+                                </label>
+                                <span className="text-[9px] text-amber-800 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                                  Image #1 = Variant Primary Cover · Image #2 = Variant Hover
+                                </span>
+                              </div>
+
+                              {/* Drag & Drop Dropzone for Variant */}
+                              <div
+                                onDragOver={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setDraggingVariantIndex(index);
                                 }}
-                                className="flex-1 min-w-0 px-2 py-1.5 border border-charcoal/15 rounded-lg bg-white outline-none text-xs"
-                              />
-                              <input
-                                type="file"
-                                accept="image/*"
-                                id={`variant-upload-${index}`}
-                                className="hidden"
-                                onChange={async (e) => {
-                                  const file = e.target.files?.[0];
-                                  if (!file) return;
-                                  try {
-                                    setActionError("");
-                                    setProdLoading(true);
-                                    const uploadedUrl = await handleImageUpload(file);
-                                    if (uploadedUrl) {
-                                      const updated = [...formVariants];
-                                      updated[index].image = uploadedUrl;
-                                      setFormVariants(updated);
-                                    }
-                                  } catch (err) {
-                                    setActionError("Variant image upload failed.");
-                                  } finally {
-                                    setProdLoading(false);
-                                    e.target.value = "";
+                                onDragEnter={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setDraggingVariantIndex(index);
+                                }}
+                                onDragLeave={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setDraggingVariantIndex(null);
+                                }}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setDraggingVariantIndex(null);
+                                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                                    handleMultipleVariantImagesUpload(index, e.dataTransfer.files);
                                   }
                                 }}
-                              />
-                              <label
-                                htmlFor={`variant-upload-${index}`}
-                                className="bg-maroon hover:bg-maroon-dark text-white text-[10px] font-bold px-2 py-2 rounded-lg transition-all cursor-pointer shadow-sm text-center flex-shrink-0"
+                                onClick={() => document.getElementById(`variant-multi-upload-${index}`)?.click()}
+                                className={`p-4 border-2 border-dashed rounded-xl transition-all text-center flex flex-col sm:flex-row items-center justify-between gap-3 cursor-pointer select-none ${
+                                  isDragging
+                                    ? "border-amber-600 bg-amber-50 ring-2 ring-amber-400"
+                                    : "border-charcoal/20 bg-neutral-50/60 hover:border-black hover:bg-white"
+                                }`}
                               >
-                                Browse
-                              </label>
-                            </div>
-                          </div>
+                                <input
+                                  type="file"
+                                  multiple
+                                  accept="image/*"
+                                  id={`variant-multi-upload-${index}`}
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    if (e.target.files && e.target.files.length > 0) {
+                                      handleMultipleVariantImagesUpload(index, e.target.files);
+                                    }
+                                    e.target.value = "";
+                                  }}
+                                />
 
-                          <div className="flex gap-2 items-center">
-                            <div className="space-y-1 flex-1">
-                              <label className="text-[9px] uppercase tracking-wider text-charcoal/50 block">SKU (Auto)</label>
-                              <input
-                                type="text"
-                                placeholder="Auto SKU"
-                                value={v.sku}
-                                onChange={(e) => {
-                                  const updated = [...formVariants];
-                                  updated[index].sku = e.target.value;
-                                  setFormVariants(updated);
-                                }}
-                                className="w-full px-2 py-1.5 border border-charcoal/15 rounded-lg bg-white outline-none text-xs font-mono"
-                              />
+                                <div className="flex items-center gap-3 text-left">
+                                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-lg text-amber-900 shrink-0">
+                                    {isDragging ? "📥" : "📷"}
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-bold text-black">
+                                      {isDragging ? "Drop images here to upload!" : "Drag & Drop Multiple Images for this Variant"}
+                                    </p>
+                                    <p className="text-[10px] text-neutral-500 font-medium">
+                                      or <span className="text-amber-800 font-bold underline">Click to Select Multiple Photos</span> at once
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <span className="bg-maroon hover:bg-maroon-dark text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all shadow-xs shrink-0">
+                                  Browse Images
+                                </span>
+                              </div>
+
+                              {/* Thumbnails list for this variant */}
+                              {vImages.length > 0 && (
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5 pt-1">
+                                  {vImages.map((imgUrl, imgIdx) => {
+                                    const src = typeof imgUrl === "object" ? imgUrl?.url : imgUrl;
+                                    return (
+                                      <div
+                                        key={imgIdx}
+                                        className={`relative aspect-square rounded-lg border-2 bg-white overflow-hidden group shadow-2xs flex flex-col justify-between ${
+                                          imgIdx === 0
+                                            ? "border-black ring-1 ring-gold"
+                                            : imgIdx === 1
+                                            ? "border-amber-600"
+                                            : "border-charcoal/20"
+                                        }`}
+                                      >
+                                        <img
+                                          src={formatImageUrl(src)}
+                                          alt={`Variant ${index + 1} Image ${imgIdx + 1}`}
+                                          className="object-cover w-full h-full"
+                                        />
+
+                                        {/* Status Badge */}
+                                        <div className="absolute top-1 left-1 z-10">
+                                          {imgIdx === 0 ? (
+                                            <span className="bg-black text-gold text-[7.5px] font-black px-1 py-0.5 shadow uppercase border border-gold tracking-wider">
+                                              🌟 1. Cover
+                                            </span>
+                                          ) : imgIdx === 1 ? (
+                                            <span className="bg-amber-600 text-white text-[7.5px] font-black px-1 py-0.5 shadow uppercase tracking-wider">
+                                              🔄 2. Hover
+                                            </span>
+                                          ) : (
+                                            <span className="bg-black/70 text-white text-[7.5px] font-bold px-1 py-0.5 shadow">
+                                              #{imgIdx + 1}
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        {/* Delete Button */}
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteVariantImage(index, imgIdx)}
+                                          className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white w-4.5 h-4.5 rounded flex items-center justify-center text-[10px] shadow z-10 transition-transform active:scale-90"
+                                          title="Delete Image"
+                                        >
+                                          &times;
+                                        </button>
+
+                                        {/* Re-order Arrows */}
+                                        <div className="absolute bottom-0.5 inset-x-0.5 flex items-center justify-between bg-black/80 backdrop-blur-xs px-1 py-0.5 z-10 text-white text-[8px] font-bold rounded">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleMoveVariantImage(index, imgIdx, "left")}
+                                            disabled={imgIdx === 0}
+                                            className="hover:text-gold disabled:opacity-20 px-0.5 cursor-pointer"
+                                            title="Move Left (Make Cover / Hover)"
+                                          >
+                                            ◀
+                                          </button>
+                                          <span className="font-mono text-[8px]">#{imgIdx + 1}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleMoveVariantImage(index, imgIdx, "right")}
+                                            disabled={imgIdx === vImages.length - 1}
+                                            className="hover:text-gold disabled:opacity-20 px-0.5 cursor-pointer"
+                                            title="Move Right"
+                                          >
+                                            ▶
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
-                            {formVariants.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => setFormVariants(formVariants.filter((_, idx) => idx !== index))}
-                                className="text-red-500 hover:text-red-700 font-bold text-xs p-1"
-                                title="Remove Variant"
-                              >
-                                ✕
-                              </button>
-                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 

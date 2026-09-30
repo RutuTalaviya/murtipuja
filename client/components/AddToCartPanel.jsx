@@ -44,11 +44,29 @@ export default function AddToCartPanel({ product, finishes }) {
 
   // Emit custom event when selected variant changes to update the image gallery
   useEffect(() => {
-    if (selectedVariant && selectedVariant.image) {
-      const event = new CustomEvent("variantImageChange", { detail: selectedVariant.image });
+    if (selectedVariant) {
+      const variantImages =
+        Array.isArray(selectedVariant.images) && selectedVariant.images.length > 0
+          ? selectedVariant.images
+          : selectedVariant.image
+          ? [{ url: selectedVariant.image, alt: `${product.title} - ${selectedVariant.finish}` }]
+          : [];
+
+      const event = new CustomEvent("variantChange", {
+        detail: {
+          variant: selectedVariant,
+          images: variantImages,
+          image: selectedVariant.image,
+        },
+      });
       window.dispatchEvent(event);
+
+      // Also trigger legacy event for backwards compatibility
+      if (selectedVariant.image) {
+        window.dispatchEvent(new CustomEvent("variantImageChange", { detail: selectedVariant.image }));
+      }
     }
-  }, [selectedVariant]);
+  }, [selectedVariant, product.title]);
 
   const isSaleActive = Boolean(product.isOnSale && selectedVariant?.discountPrice && selectedVariant.discountPrice < selectedVariant.price);
   const inStock = selectedVariant ? selectedVariant.stock > 0 : false;
