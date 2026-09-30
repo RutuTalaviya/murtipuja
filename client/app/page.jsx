@@ -88,61 +88,66 @@ export default async function HomePage() {
       {/* 3. Series & Category-Wise 4 Products Showcase Sections */}
       <HomeCategoryShowcase categories={categories} products={allProducts} deities={deities} />
 
-      {/* 4. Full-Screen Edge-to-Edge Campaign Spotlight - DYNAMIC SPOTLIGHT */}
+      {/* 4. Dynamic Campaign Spotlight Banner */}
       {(() => {
-        const shivaProduct = allProducts.find(
-          (p) => p.deity && p.deity.toLowerCase() === "shiva"
-        );
-        const spotlightImage = shivaProduct?.images?.[0]?.url || "/images/shiva.png";
-        const spotlightTitle = shivaProduct?.title || "The Obsidian Shiva";
+        // Priority: 1. Featured product with image, 2. Shiva product, 3. First product with image
+        const featuredProduct =
+          allProducts.find((p) => p.isFeatured && p.images?.[0]?.url) ||
+          allProducts.find((p) => p.deity && p.deity.toLowerCase() === "shiva" && p.images?.[0]?.url) ||
+          allProducts.find((p) => p.images?.[0]?.url) ||
+          allProducts[0];
+
+        const spotlightImage = featuredProduct?.images?.[0]?.url || "/images/shiva.png";
+        const spotlightTitle = featuredProduct?.title || "The Obsidian Shiva";
         const spotlightDescription =
-          shivaProduct?.description ||
+          featuredProduct?.description ||
           "Cast with a high-density sandstone core and post-cured in matte obsidian black. Sculpted to microscopic detail capturing the sacred crescent moon, trishul, and meditative posture with unmatched spiritual presence.";
-        const spotlightLink = shivaProduct?.slug
-          ? `/products/${shivaProduct.slug}`
-          : "/products?category=shiva";
+        const spotlightLink = featuredProduct?.slug
+          ? `/products/${featuredProduct.slug}`
+          : "/products";
+        const deityName = featuredProduct?.deity || "Shiva";
 
         return (
-          <section className="w-full min-h-[80vh] lg:min-h-[85vh] bg-white grid grid-cols-1 lg:grid-cols-12 overflow-hidden border-b border-stone-200">
+          <section className="w-full bg-white grid grid-cols-1 lg:grid-cols-12 overflow-hidden border-b border-stone-300">
             {/* Left Content Half */}
-            <div className="lg:col-span-7 p-8 sm:p-12 md:p-16 lg:p-20 xl:p-24 flex flex-col justify-center space-y-6 sm:space-y-8 bg-white">
+            <div className="lg:col-span-7 p-6 sm:p-10 md:p-12 lg:p-14 xl:p-16 flex flex-col justify-center space-y-4 sm:space-y-6 bg-white">
               
               <div className="flex flex-wrap items-center gap-3">
-                <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-950 border border-amber-200 px-4 py-1.5 text-xs font-extrabold tracking-widest uppercase shadow-sm">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-950 border border-amber-200 px-3.5 py-1 text-xs font-extrabold tracking-widest uppercase shadow-2xs">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                   <span>Highlight Release</span>
                 </div>
                 <span className="text-xs text-stone-500 uppercase tracking-widest font-extrabold">
-                  {shivaProduct?.deity ? `${shivaProduct.deity.toUpperCase()} SERIES` : "Drop 01 · Signature Series"}
+                  {featuredProduct?.deity ? `${featuredProduct.deity.toUpperCase()} SERIES` : "Drop 01 · Signature Series"}
                 </span>
               </div>
 
-              <div className="space-y-2.5">
-                <h2 className="font-display text-4xl sm:text-5xl md:text-6xl xl:text-7xl font-extrabold uppercase tracking-tight text-neutral-900 leading-[0.95]">
+              <div className="space-y-2">
+                <h2 className="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold uppercase tracking-tight text-neutral-900 leading-[1.08] max-w-2xl line-clamp-3">
                   {spotlightTitle}
                 </h2>
-                <p className="text-amber-800 text-xs sm:text-sm md:text-base font-extrabold uppercase tracking-wider">
-                  {shivaProduct?.deity ? `Lord ${shivaProduct.deity}` : "Lord Shiva"} · Micro-Precision Sacred 3D Sculpture
+                <p className="text-amber-800 text-xs sm:text-sm font-extrabold uppercase tracking-wider">
+                  {featuredProduct?.deity ? `Lord ${featuredProduct.deity}` : "Sacred Murti"} · Micro-Precision Sacred 3D Sculpture
                 </p>
               </div>
 
-              <p className="text-stone-600 text-sm sm:text-base md:text-lg leading-relaxed font-normal max-w-2xl">
+              <p className="text-stone-600 text-xs sm:text-sm md:text-base leading-relaxed font-normal max-w-xl line-clamp-4">
                 {spotlightDescription}
               </p>
 
               {/* Action CTAs */}
-              <div className="flex flex-wrap items-center gap-4 pt-4">
+              <div className="flex flex-wrap items-center gap-3 pt-2">
                 <Link
                   href={spotlightLink}
-                  className="group inline-flex items-center gap-3 bg-neutral-900 hover:bg-neutral-800 text-white px-9 py-4 font-extrabold text-xs tracking-widest uppercase transition-all duration-300 shadow-lg hover:shadow-2xl hover:-translate-y-0.5"
+                  className="group inline-flex items-center gap-2.5 bg-neutral-900 hover:bg-neutral-800 text-white px-7 py-3.5 font-extrabold text-xs tracking-widest uppercase transition-all duration-300 shadow-md hover:shadow-xl hover:-translate-y-0.5"
                 >
-                  <span>Explore {shivaProduct?.deity || "Shiva"} Series</span>
-                  <span className="group-hover:translate-x-1.5 transition-transform">→</span>
+                  <span>Explore {deityName} Series</span>
+                  <span className="group-hover:translate-x-1 transition-transform">→</span>
                 </Link>
 
                 <Link
                   href="/products"
-                  className="inline-flex items-center gap-2 text-neutral-700 hover:text-black px-6 py-4 font-bold text-xs tracking-widest uppercase transition-colors hover:bg-stone-100 border border-stone-200"
+                  className="inline-flex items-center gap-2 text-neutral-800 hover:text-black px-5 py-3.5 font-bold text-xs tracking-widest uppercase transition-colors hover:bg-stone-100 border border-stone-300"
                 >
                   <span>View All Finishes</span>
                 </Link>
@@ -150,26 +155,26 @@ export default async function HomePage() {
 
             </div>
 
-            {/* Right Visual Half - Clean Image Panel without Floating Boxes */}
-            <div className="lg:col-span-5 relative bg-gradient-to-br from-[#faf7f2] via-[#f4eee4] to-[#ebe1d1] min-h-[450px] lg:min-h-full flex items-center justify-center p-8 sm:p-14 lg:p-16 overflow-hidden select-none">
+            {/* Right Visual Half - Clean Image Panel */}
+            <div className="lg:col-span-5 relative bg-gradient-to-br from-[#faf7f2] via-[#f4eee4] to-[#ebe1d1] min-h-[340px] sm:min-h-[380px] lg:min-h-[460px] flex items-center justify-center p-6 sm:p-10 lg:p-12 overflow-hidden select-none border-t lg:border-t-0 lg:border-l border-stone-300">
               
               {/* Ambient Radial Glow */}
-              <div className="absolute w-96 h-96 rounded-full bg-amber-300/30 blur-3xl pointer-events-none" />
+              <div className="absolute w-72 h-72 rounded-full bg-amber-300/30 blur-3xl pointer-events-none" />
               
               {/* Faint Sacred Om Watermark */}
-              <span className="absolute text-[220px] lg:text-[280px] font-serif select-none text-stone-900/[0.04] pointer-events-none">
+              <span className="absolute text-[160px] sm:text-[200px] lg:text-[240px] font-serif select-none text-stone-900/[0.04] pointer-events-none">
                 🕉️
               </span>
 
-              {/* Clean Product Visual Model (Handled dynamically from Backend) */}
-              <div className="relative z-10 group/img flex items-center justify-center w-full">
+              {/* Clean Product Visual Model */}
+              <div className="relative z-10 group/img flex items-center justify-center w-full max-h-[320px] sm:max-h-[360px] lg:max-h-[400px]">
                 <ImageWithSkeleton
                   src={spotlightImage}
                   alt={spotlightTitle}
-                  width={520}
-                  height={520}
+                  width={440}
+                  height={440}
                   priority
-                  className="w-full max-w-[340px] sm:max-w-[420px] lg:max-w-[460px] xl:max-w-[500px] h-auto object-contain drop-shadow-[0_30px_45px_rgba(0,0,0,0.22)] transition-transform duration-700 group-hover/img:scale-105"
+                  className="w-auto h-auto max-w-[85%] max-h-[280px] sm:max-h-[330px] lg:max-h-[380px] object-contain drop-shadow-[0_20px_35px_rgba(0,0,0,0.22)] transition-transform duration-700 group-hover/img:scale-105"
                 />
               </div>
 
