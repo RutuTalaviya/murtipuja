@@ -312,6 +312,12 @@ async function getProductBySlug(req, res, next) {
 /** POST /api/products (admin only) */
 async function createProduct(req, res, next) {
   try {
+    if (req.body.images !== undefined && Array.isArray(req.body.images)) {
+      req.body.images = req.body.images
+        .map((img) => (typeof img === "string" ? { url: img, alt: req.body.title || "Murti" } : img))
+        .filter((img) => img && img.url);
+    }
+
     if (
       !req.body.images ||
       !Array.isArray(req.body.images) ||
@@ -321,6 +327,13 @@ async function createProduct(req, res, next) {
       return res.status(400).json({ message: "Product Images Gallery is required! Please upload at least 1 image." });
     }
 
+    if (req.body.slug) {
+      const slugConflict = await Product.findOne({ slug: req.body.slug });
+      if (slugConflict) {
+        req.body.slug = `${req.body.slug}-${Date.now().toString().slice(-4)}`;
+      }
+    }
+
     const product = await Product.create(req.body);
     const populated = await Product.findById(product._id)
       .populate("category", "name slug icon")
@@ -328,6 +341,7 @@ async function createProduct(req, res, next) {
       .lean();
     return res.status(201).json(populated);
   } catch (error) {
+    console.error("createProduct backend error:", error);
     next(error);
   }
 }
@@ -336,12 +350,23 @@ async function createProduct(req, res, next) {
 async function updateProduct(req, res, next) {
   try {
     if (req.body.images !== undefined) {
-      if (
-        !Array.isArray(req.body.images) ||
-        req.body.images.length === 0 ||
-        !req.body.images[0]?.url
-      ) {
+      if (Array.isArray(req.body.images)) {
+        req.body.images = req.body.images
+          .map((img) => (typeof img === "string" ? { url: img, alt: req.body.title || "Murti" } : img))
+          .filter((img) => img && img.url);
+      }
+      if (!Array.isArray(req.body.images) || req.body.images.length === 0) {
         return res.status(400).json({ message: "Product Images Gallery is required! Please upload at least 1 image." });
+      }
+    }
+
+    if (req.body.slug) {
+      const slugConflict = await Product.findOne({
+        slug: req.body.slug,
+        _id: { $ne: req.params.id },
+      });
+      if (slugConflict) {
+        req.body.slug = `${req.body.slug}-${Date.now().toString().slice(-4)}`;
       }
     }
 
@@ -358,6 +383,7 @@ async function updateProduct(req, res, next) {
     }
     return res.status(200).json(product);
   } catch (error) {
+    console.error("updateProduct backend error:", error);
     next(error);
   }
 }

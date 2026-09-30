@@ -1768,38 +1768,76 @@ export default function AdminPage() {
     setProdLoading(true);
     setActionError("");
     try {
-      const res = await api.get(`/api/products/${p.slug}`);
-      const fullProduct = res.data;
+      let fullProduct = p;
+      try {
+        const res = await api.get(`/api/products/${p.slug || p._id}`);
+        if (res.data) fullProduct = res.data;
+      } catch (fetchErr) {
+        console.warn("Could not fetch by slug, using row data:", fetchErr);
+      }
+
       setEditingProduct(fullProduct);
       setTitle(fullProduct.title || "");
       setDescription(fullProduct.description || "");
       setDeity(fullProduct.deity || "");
       setBasePrice(fullProduct.basePrice?.toString() || "");
-      setSelectedCatId(fullProduct.category?.[0]?._id || fullProduct.category?.[0] || "");
-      const subCatIds = fullProduct.subCategory?.map((s) => s._id || s) || [];
+
+      // Robust Category extraction (handles array of objects, array of IDs, or single object)
+      let catId = "";
+      if (Array.isArray(fullProduct.category) && fullProduct.category.length > 0) {
+        catId = fullProduct.category[0]?._id || fullProduct.category[0] || "";
+      } else if (fullProduct.category) {
+        catId = fullProduct.category._id || fullProduct.category || "";
+      }
+      setSelectedCatId(catId ? catId.toString() : "");
+
+      // Robust Subcategories extraction
+      const rawSub = fullProduct.subCategory;
+      let subCatIds = [];
+      if (Array.isArray(rawSub)) {
+        subCatIds = rawSub.map((s) => (s && s._id ? s._id : s)).filter(Boolean);
+      } else if (rawSub) {
+        subCatIds = [rawSub._id || rawSub].filter(Boolean);
+      }
       setSelectedSubCatIds(subCatIds);
-      setGalleryImages(fullProduct.images?.map(img => img.url) || []);
-      setGalleryVideos(fullProduct.videos || []);
-      setPurposes(fullProduct.purpose || []);
-      setIsOnSale(fullProduct.isOnSale || false);
+
+      // Robust Gallery Images extraction (handles { url: "..." } and string URLs)
+      const rawImages = Array.isArray(fullProduct.images) ? fullProduct.images : [];
+      const imageList = rawImages
+        .map((img) => (typeof img === "object" ? img?.url : img))
+        .filter((url) => url && typeof url === "string");
+      setGalleryImages(imageList);
+
+      // Robust Videos extraction
+      const rawVideos = Array.isArray(fullProduct.videos) ? fullProduct.videos : [];
+      const videoList = rawVideos
+        .map((v) => (typeof v === "string" ? { url: v } : v))
+        .filter(Boolean);
+      setGalleryVideos(videoList);
+
+      setPurposes(Array.isArray(fullProduct.purpose) ? fullProduct.purpose : []);
+      setIsOnSale(Boolean(fullProduct.isOnSale));
       setProductTags(Array.isArray(fullProduct.tags) ? fullProduct.tags : []);
       setProductDetails(fullProduct.productDetails || "");
       setMaterialsAndCare(fullProduct.materialsAndCare || "");
       setShippingReturns(fullProduct.shippingReturns || "");
       setAccordionSections(Array.isArray(fullProduct.accordionSections) ? fullProduct.accordionSections : []);
+
       if (fullProduct.variants && fullProduct.variants.length > 0) {
-        setFormVariants(fullProduct.variants.map(v => ({
-          size: v.size || "6 inch",
-          finish: v.finish || "Matte Black",
-          price: v.price?.toString() || "",
-          discountPrice: v.discountPrice?.toString() || "",
-          stock: v.stock?.toString() || "10",
-          sku: v.sku || "",
-          image: v.image || "",
-        })));
+        setFormVariants(
+          fullProduct.variants.map((v) => ({
+            size: v.size || "6 inch",
+            finish: v.finish || "Matte Black",
+            price: v.price !== undefined && v.price !== null ? v.price.toString() : "",
+            discountPrice: v.discountPrice !== undefined && v.discountPrice !== null ? v.discountPrice.toString() : "",
+            stock: v.stock !== undefined && v.stock !== null ? v.stock.toString() : "10",
+            sku: v.sku || "",
+            image: v.image || "",
+          }))
+        );
         setVariantSize(fullProduct.variants[0].size || "6 inch");
         setVariantFinish(fullProduct.variants[0].finish || "Matte Black");
-        const totalStock = fullProduct.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+        const totalStock = fullProduct.variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
         setVariantStock(totalStock.toString());
         setVariantSku(fullProduct.variants[0].sku || "");
       } else {
@@ -1809,8 +1847,10 @@ export default function AdminPage() {
         setVariantStock("10");
         setVariantSku("");
       }
+
       setIsAddingProduct(true);
     } catch (err) {
+      console.error("handleEditProduct error:", err);
       setActionError("Failed to fetch product details. Please try again.");
     } finally {
       setProdLoading(false);
@@ -1820,8 +1860,8 @@ export default function AdminPage() {
   // Handle product creation or update submission
   async function handleCreateProduct(e) {
     e.preventDefault();
-    if (!title || !description || !basePrice || !selectedCatId) {
-      setActionError("Please fill out all required fields.");
+    if (!title?.trim() || !description?.trim() || !basePrice || !selectedCatId) {
+      setActionError("Please fill out all required fields (Title, Description, Base Price, Main Category).");
       return;
     }
 
@@ -1849,38 +1889,47 @@ export default function AdminPage() {
     });
 
     const productPayload = {
-      title,
-      slug: generatedSlug,
-      description,
-      deity: deity || "General",
+      title: title.trim(),
+      slug: editingProduct ? (editingProduct.slug || generatedSlug) : generatedSlug,
+      description: description.trim(),
+      deity: deity?.trim() || "General",
       basePrice: Number(basePrice),
       category: selectedCatId ? [selectedCatId] : [],
       subCategory: selectedSubCatIds,
       purpose: purposes,
       tags: productTags,
       isOnSale,
-      images: galleryImages.length > 0 ? galleryImages.map(url => ({ url, alt: title })) : [],
+      images: galleryImages.map((img) => ({
+        url: typeof img === "object" ? img.url : img,
+        alt: title.trim(),
+      })).filter((img) => img.url),
       videos: galleryVideos,
       productDetails: productDetails.trim(),
       materialsAndCare: materialsAndCare.trim(),
       shippingReturns: shippingReturns.trim(),
-      accordionSections: accordionSections.filter(s => s.title?.trim() && s.content?.trim()),
-      variants: updatedVariants
+      accordionSections: accordionSections.filter((s) => s.title?.trim() && s.content?.trim()),
+      variants: updatedVariants,
     };
 
     try {
       if (editingProduct) {
         // Update flow
         const res = await updateProduct(editingProduct._id, productPayload);
-        setProducts(products.map((p) => (p._id === editingProduct._id ? res.data : p)));
+        const updatedDoc = res.data;
+        setProducts(products.map((p) => (p._id === editingProduct._id ? updatedDoc : p)));
+        setActionSuccess(`Product "${title}" updated successfully!`);
       } else {
         // Create flow
         const res = await createProduct(productPayload);
-        setProducts([res.data, ...products]);
+        const createdDoc = res.data;
+        setProducts([createdDoc, ...products]);
+        setActionSuccess(`Product "${title}" created successfully!`);
       }
       resetProductForm();
+      setTimeout(() => setActionSuccess(""), 4000);
     } catch (err) {
-      setActionError(err.response?.data?.message || "Failed to save product.");
+      console.error("Save product error:", err);
+      setActionError(err.response?.data?.message || err.message || "Failed to save product.");
     } finally {
       setProdLoading(false);
     }
