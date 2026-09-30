@@ -1607,7 +1607,10 @@ export default function AdminPage() {
       setFormVariants((prev) => {
         const next = [...prev];
         const currentImages = next[variantIndex]?.images || (next[variantIndex]?.image ? [next[variantIndex].image] : []);
-        const combined = [...currentImages, ...uploadedUrls];
+        const cleanCurrent = currentImages
+          .map((img) => (typeof img === "object" ? img?.url : img))
+          .filter((u) => u && typeof u === "string");
+        const combined = [...cleanCurrent, ...uploadedUrls];
         next[variantIndex] = {
           ...next[variantIndex],
           images: combined,
@@ -1629,7 +1632,9 @@ export default function AdminPage() {
   function handleMoveVariantImage(variantIndex, imageIndex, direction) {
     setFormVariants((prev) => {
       const next = [...prev];
-      const currentImages = [...(next[variantIndex]?.images || (next[variantIndex]?.image ? [next[variantIndex].image] : []))];
+      const currentImages = [...(next[variantIndex]?.images || (next[variantIndex]?.image ? [next[variantIndex].image] : []))]
+        .map((img) => (typeof img === "object" ? img?.url : img))
+        .filter((u) => u && typeof u === "string");
       const targetIndex = direction === "left" ? imageIndex - 1 : imageIndex + 1;
       if (targetIndex < 0 || targetIndex >= currentImages.length) return prev;
       const temp = currentImages[imageIndex];
@@ -1647,7 +1652,10 @@ export default function AdminPage() {
   function handleDeleteVariantImage(variantIndex, imageIndex) {
     setFormVariants((prev) => {
       const next = [...prev];
-      const currentImages = (next[variantIndex]?.images || (next[variantIndex]?.image ? [next[variantIndex].image] : [])).filter((_, i) => i !== imageIndex);
+      const currentImages = (next[variantIndex]?.images || (next[variantIndex]?.image ? [next[variantIndex].image] : []))
+        .map((img) => (typeof img === "object" ? img?.url : img))
+        .filter((_, i) => i !== imageIndex)
+        .filter((u) => u && typeof u === "string");
       next[variantIndex] = {
         ...next[variantIndex],
         images: currentImages,
@@ -1858,7 +1866,7 @@ export default function AdminPage() {
       const rawVideos = Array.isArray(fullProduct.videos) ? fullProduct.videos : [];
       const videoList = rawVideos
         .map((v) => (typeof v === "string" ? { url: v } : v))
-        .filter(Boolean);
+        .filter((v) => v && v.url);
       setGalleryVideos(videoList);
 
       setPurposes(Array.isArray(fullProduct.purpose) ? fullProduct.purpose : []);
@@ -1871,18 +1879,25 @@ export default function AdminPage() {
 
       if (fullProduct.variants && fullProduct.variants.length > 0) {
         setFormVariants(
-          fullProduct.variants.map((v) => {
-            const vImages = Array.isArray(v.images) && v.images.length > 0
+          fullProduct.variants.map((v, vIdx) => {
+            let vImages = Array.isArray(v.images) && v.images.length > 0
               ? v.images.map((img) => (typeof img === "object" ? img?.url : img)).filter(Boolean)
-              : (v.image ? [v.image] : []);
+              : (v.image ? [typeof v.image === "object" ? v.image?.url : v.image].filter(Boolean) : []);
+
+            // If this variant has NO images, but the product has product images, assign product images to 1st variant
+            if (vImages.length === 0 && vIdx === 0 && imageList.length > 0) {
+              vImages = [...imageList];
+            }
+
             return {
+              _id: v._id,
               size: v.size || "6 inch",
-              finish: v.finish || "Matte Black",
+              finish: v.finish || (finishes[0]?.name || "Matte Black"),
               price: v.price !== undefined && v.price !== null ? v.price.toString() : "",
               discountPrice: v.discountPrice !== undefined && v.discountPrice !== null ? v.discountPrice.toString() : "",
               stock: v.stock !== undefined && v.stock !== null ? v.stock.toString() : "10",
               sku: v.sku || "",
-              image: vImages[0] || v.image || "",
+              image: vImages[0] || "",
               images: vImages,
             };
           })
@@ -1893,9 +1908,10 @@ export default function AdminPage() {
         setVariantStock(totalStock.toString());
         setVariantSku(fullProduct.variants[0].sku || "");
       } else {
-        setFormVariants([{ size: "6 inch", finish: "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", image: "", images: [] }]);
+        const initialImgs = imageList.length > 0 ? [...imageList] : [];
+        setFormVariants([{ size: "6 inch", finish: finishes[0]?.name || "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", image: initialImgs[0] || "", images: initialImgs }]);
         setVariantSize("6 inch");
-        setVariantFinish("Matte Black");
+        setVariantFinish(finishes[0]?.name || "Matte Black");
         setVariantStock("10");
         setVariantSku("");
       }
@@ -1923,7 +1939,7 @@ export default function AdminPage() {
       const vImgs = Array.isArray(v.images) && v.images.length > 0 ? v.images : (v.image ? [v.image] : []);
       vImgs.forEach((imgUrl) => {
         const cleanUrl = typeof imgUrl === "object" ? imgUrl?.url : imgUrl;
-        if (cleanUrl && !allVariantImages.includes(cleanUrl)) {
+        if (cleanUrl && typeof cleanUrl === "string" && !allVariantImages.includes(cleanUrl)) {
           allVariantImages.push(cleanUrl);
         }
       });
@@ -1941,7 +1957,11 @@ export default function AdminPage() {
     const updatedVariants = formVariants.map((v, idx) => {
       const sku = v.sku || `${(deity || "GEN").toUpperCase()}-${title.slice(0, 3).toUpperCase()}-${v.size.replace(/\s+/g, "").toUpperCase()}-${v.finish.slice(0, 3).replace(/\s+/g, "").toUpperCase()}-${idx}`;
       const vImgs = Array.isArray(v.images) && v.images.length > 0 ? v.images : (v.image ? [v.image] : []);
-      return {
+      const cleanImgStrings = vImgs
+        .map((img) => (typeof img === "object" ? img?.url : img))
+        .filter((url) => url && typeof url === "string");
+
+      const variantObj = {
         size: v.size,
         finish: v.finish,
         price: Number(v.price) || Number(basePrice),
@@ -1949,13 +1969,23 @@ export default function AdminPage() {
         stock: Number(v.stock) || 0,
         sku: sku,
         weight: "500g",
-        image: vImgs[0] || v.image || "",
-        images: vImgs.map((img) => ({
-          url: typeof img === "object" ? img.url : img,
+        image: cleanImgStrings[0] || "",
+        images: cleanImgStrings.map((url) => ({
+          url,
           alt: `${title.trim()} - ${v.finish} - ${v.size}`,
-        })).filter((img) => img.url),
+        })),
       };
+      if (v._id) {
+        variantObj._id = v._id;
+      }
+      return variantObj;
     });
+
+    // Clean categories and subcategories
+    const cleanCatId = typeof selectedCatId === "object" ? selectedCatId?._id : selectedCatId;
+    const cleanSubCatIds = (selectedSubCatIds || [])
+      .map((s) => (typeof s === "object" ? s?._id : s))
+      .filter((id) => id && typeof id === "string");
 
     const productPayload = {
       title: title.trim(),
@@ -1963,8 +1993,8 @@ export default function AdminPage() {
       description: description.trim(),
       deity: deity?.trim() || "General",
       basePrice: Number(basePrice),
-      category: selectedCatId ? [selectedCatId] : [],
-      subCategory: selectedSubCatIds,
+      category: cleanCatId ? [cleanCatId] : [],
+      subCategory: cleanSubCatIds,
       purpose: purposes,
       tags: productTags,
       isOnSale,
@@ -1972,7 +2002,7 @@ export default function AdminPage() {
         url: typeof imgUrl === "object" ? imgUrl.url : imgUrl,
         alt: title.trim(),
       })).filter((img) => img.url),
-      videos: galleryVideos,
+      videos: (galleryVideos || []).map((v) => (typeof v === "object" ? v : { url: v })).filter((v) => v && v.url),
       productDetails: productDetails.trim(),
       materialsAndCare: materialsAndCare.trim(),
       shippingReturns: shippingReturns.trim(),
@@ -1981,11 +2011,12 @@ export default function AdminPage() {
     };
 
     try {
-      if (editingProduct) {
+      const editId = editingProduct?._id || editingProduct?.id;
+      if (editId) {
         // Update flow
-        const res = await updateProduct(editingProduct._id, productPayload);
+        const res = await updateProduct(editId, productPayload);
         const updatedDoc = res.data;
-        setProducts(products.map((p) => (p._id === editingProduct._id ? updatedDoc : p)));
+        setProducts(products.map((p) => (p._id === editId ? updatedDoc : p)));
         setActionSuccess(`Product "${title}" updated successfully!`);
       } else {
         // Create flow

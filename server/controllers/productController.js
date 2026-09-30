@@ -319,28 +319,53 @@ async function createProduct(req, res, next) {
         let vImages = [];
         if (Array.isArray(v.images) && v.images.length > 0) {
           vImages = v.images
-            .map((img) => (typeof img === "string" ? { url: img, alt: `${req.body.title || "Murti"} - ${v.finish || ""}` } : img))
-            .filter((img) => img && img.url);
+            .map((img) => {
+              if (typeof img === "string") return { url: img, alt: `${req.body.title || "Murti"} - ${v.finish || ""}` };
+              if (img && typeof img === "object" && img.url) return { url: img.url, alt: img.alt || `${req.body.title || "Murti"} - ${v.finish || ""}` };
+              return null;
+            })
+            .filter(Boolean);
         } else if (v.image) {
-          vImages = [{ url: v.image, alt: `${req.body.title || "Murti"} - ${v.finish || ""}` }];
+          const singleUrl = typeof v.image === "object" ? v.image?.url : v.image;
+          if (singleUrl) {
+            vImages = [{ url: singleUrl, alt: `${req.body.title || "Murti"} - ${v.finish || ""}` }];
+          }
         }
-        vImages.forEach((img) => allVariantImages.push(img));
+        vImages.forEach((img) => {
+          if (img && img.url) allVariantImages.push(img);
+        });
+        const firstUrl = vImages[0]?.url || (typeof v.image === "object" ? v.image?.url : v.image) || "";
         return {
           ...v,
           images: vImages,
-          image: vImages[0]?.url || v.image || "",
+          image: firstUrl,
         };
       });
     }
 
     if (req.body.images !== undefined && Array.isArray(req.body.images)) {
       req.body.images = req.body.images
-        .map((img) => (typeof img === "string" ? { url: img, alt: req.body.title || "Murti" } : img))
-        .filter((img) => img && img.url);
+        .map((img) => {
+          if (typeof img === "string") return { url: img, alt: req.body.title || "Murti" };
+          if (img && typeof img === "object" && img.url) return { url: img.url, alt: img.alt || req.body.title || "Murti" };
+          return null;
+        })
+        .filter(Boolean);
     }
 
     if ((!req.body.images || req.body.images.length === 0) && allVariantImages.length > 0) {
       req.body.images = allVariantImages;
+    }
+
+    if (req.body.category) {
+      req.body.category = (Array.isArray(req.body.category) ? req.body.category : [req.body.category])
+        .map((c) => (typeof c === "object" ? c?._id : c))
+        .filter((id) => id && mongoose.Types.ObjectId.isValid(id));
+    }
+    if (req.body.subCategory) {
+      req.body.subCategory = (Array.isArray(req.body.subCategory) ? req.body.subCategory : [req.body.subCategory])
+        .map((s) => (typeof s === "object" ? s?._id : s))
+        .filter((id) => id && mongoose.Types.ObjectId.isValid(id));
     }
 
     if (
@@ -378,28 +403,53 @@ async function updateProduct(req, res, next) {
         let vImages = [];
         if (Array.isArray(v.images) && v.images.length > 0) {
           vImages = v.images
-            .map((img) => (typeof img === "string" ? { url: img, alt: `${req.body.title || "Murti"} - ${v.finish || ""}` } : img))
-            .filter((img) => img && img.url);
+            .map((img) => {
+              if (typeof img === "string") return { url: img, alt: `${req.body.title || "Murti"} - ${v.finish || ""}` };
+              if (img && typeof img === "object" && img.url) return { url: img.url, alt: img.alt || `${req.body.title || "Murti"} - ${v.finish || ""}` };
+              return null;
+            })
+            .filter(Boolean);
         } else if (v.image) {
-          vImages = [{ url: v.image, alt: `${req.body.title || "Murti"} - ${v.finish || ""}` }];
+          const singleUrl = typeof v.image === "object" ? v.image?.url : v.image;
+          if (singleUrl) {
+            vImages = [{ url: singleUrl, alt: `${req.body.title || "Murti"} - ${v.finish || ""}` }];
+          }
         }
-        vImages.forEach((img) => allVariantImages.push(img));
+        vImages.forEach((img) => {
+          if (img && img.url) allVariantImages.push(img);
+        });
+        const firstUrl = vImages[0]?.url || (typeof v.image === "object" ? v.image?.url : v.image) || "";
         return {
           ...v,
           images: vImages,
-          image: vImages[0]?.url || v.image || "",
+          image: firstUrl,
         };
       });
     }
 
     if (req.body.images !== undefined && Array.isArray(req.body.images)) {
       req.body.images = req.body.images
-        .map((img) => (typeof img === "string" ? { url: img, alt: req.body.title || "Murti" } : img))
-        .filter((img) => img && img.url);
+        .map((img) => {
+          if (typeof img === "string") return { url: img, alt: req.body.title || "Murti" };
+          if (img && typeof img === "object" && img.url) return { url: img.url, alt: img.alt || req.body.title || "Murti" };
+          return null;
+        })
+        .filter(Boolean);
     }
 
     if ((!req.body.images || req.body.images.length === 0) && allVariantImages.length > 0) {
       req.body.images = allVariantImages;
+    }
+
+    if (req.body.category) {
+      req.body.category = (Array.isArray(req.body.category) ? req.body.category : [req.body.category])
+        .map((c) => (typeof c === "object" ? c?._id : c))
+        .filter((id) => id && mongoose.Types.ObjectId.isValid(id));
+    }
+    if (req.body.subCategory) {
+      req.body.subCategory = (Array.isArray(req.body.subCategory) ? req.body.subCategory : [req.body.subCategory])
+        .map((s) => (typeof s === "object" ? s?._id : s))
+        .filter((id) => id && mongoose.Types.ObjectId.isValid(id));
     }
 
     if (req.body.slug) {
@@ -412,18 +462,29 @@ async function updateProduct(req, res, next) {
       }
     }
 
-    const product = await Product.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    })
-      .populate("category", "name slug icon")
-      .populate("subCategory", "name slug icon")
-      .lean();
+    let product;
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      product = await Product.findByIdAndUpdate(req.params.id, req.body, {
+        new: true,
+        runValidators: true,
+      });
+    } else {
+      product = await Product.findOneAndUpdate({ slug: req.params.id }, req.body, {
+        new: true,
+        runValidators: true,
+      });
+    }
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
-    return res.status(200).json(product);
+
+    const populated = await Product.findById(product._id)
+      .populate("category", "name slug icon")
+      .populate("subCategory", "name slug icon")
+      .lean();
+
+    return res.status(200).json(populated);
   } catch (error) {
     console.error("updateProduct backend error:", error);
     next(error);
