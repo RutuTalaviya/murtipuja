@@ -246,7 +246,7 @@ async function getProducts(req, res, next) {
     }
 
     const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10)));
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10)));
 
     const isRandomSort = !req.query.sort || req.query.sort === "random";
     const sortOption = isRandomSort ? "-createdAt" : sort;

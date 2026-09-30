@@ -85,8 +85,8 @@ export default async function HomePage() {
         </div>
       </div>
 
-      {/* 3. Category-Wise 4 Random Products Sections + Mixed Paginated View More */}
-      <HomeCategoryShowcase categories={categories} products={allProducts} />
+      {/* 3. Series & Category-Wise 4 Products Showcase Sections */}
+      <HomeCategoryShowcase categories={categories} products={allProducts} deities={deities} />
 
       {/* 4. Full-Screen Edge-to-Edge Campaign Spotlight - DYNAMIC SPOTLIGHT */}
       {(() => {
