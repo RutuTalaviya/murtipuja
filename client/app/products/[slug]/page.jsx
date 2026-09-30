@@ -288,12 +288,6 @@ export default async function ProductDetailPage({ params }) {
  
             {/* Interactive Accordion: Product Details, Materials & Care, Shipping & Returns */}
             <ProductAccordion product={product} />
-
-            <div className="pt-2 text-xs text-neutral-400 font-extrabold uppercase tracking-widest space-y-2">
-              <p className="flex items-center gap-2"><span>⚡</span> 0.1MM Precision Engineering</p>
-              <p className="flex items-center gap-2"><span>📦</span> Dispatches in 48 hrs · Insured Delivery</p>
-              <p className="flex items-center gap-2"><span>🛡️</span> 7-Day Easy Return & Replacement</p>
-            </div>
           </div>
         </div>
  
