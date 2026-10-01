@@ -1914,9 +1914,13 @@ export default function AdminPage() {
               }
             }
 
-            // If this variant has NO images, fallback to product images
-            if (vImages.length === 0 && imageList.length > 0) {
-              vImages = vIdx === 0 ? [...imageList] : [imageList[0]];
+            // If this variant has NO images or fewer images than the full product gallery,
+            // merge all product gallery images so all uploaded images appear in the editor
+            if (
+              (vImages.length === 0 && imageList.length > 0) ||
+              (vImages.length < imageList.length && (fullProduct.variants.length === 1 || vIdx === 0))
+            ) {
+              vImages = Array.from(new Set([...vImages, ...imageList])).filter(Boolean);
             }
 
             return {
