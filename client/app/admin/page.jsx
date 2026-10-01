@@ -2025,16 +2025,27 @@ export default function AdminPage() {
         // Update flow
         const res = await updateProduct(editId, productPayload);
         const updatedDoc = res.data;
-        setProducts(products.map((p) => (p._id === editId ? updatedDoc : p)));
+        setProducts((prevProducts) =>
+          prevProducts.map((p) => (String(p._id || p.id) === String(editId) ? updatedDoc : p))
+        );
         setActionSuccess(`Product "${title}" updated successfully!`);
       } else {
         // Create flow
         const res = await createProduct(productPayload);
         const createdDoc = res.data;
-        setProducts([createdDoc, ...products]);
+        setProducts((prevProducts) => [createdDoc, ...prevProducts]);
         setActionSuccess(`Product "${title}" created successfully!`);
       }
       resetProductForm();
+      // Re-fetch products fresh from server to ensure complete sync
+      try {
+        const prodRes = await getProducts({ limit: 50 });
+        if (prodRes?.data?.products) {
+          setProducts(prodRes.data.products);
+        }
+      } catch (refetchErr) {
+        console.warn("Product list refresh error:", refetchErr);
+      }
       setTimeout(() => setActionSuccess(""), 4000);
     } catch (err) {
       console.error("Save product error:", err);
@@ -2050,7 +2061,7 @@ export default function AdminPage() {
     setActionError("");
     try {
       await deleteProduct(id);
-      setProducts(products.filter((p) => p._id !== id));
+      setProducts((prevProducts) => prevProducts.filter((p) => String(p._id || p.id) !== String(id)));
     } catch (err) {
       setActionError("Failed to delete product. Please try again.");
     }

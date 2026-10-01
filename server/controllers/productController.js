@@ -345,12 +345,22 @@ async function createProduct(req, res, next) {
         });
         const firstUrl = vImages[0]?.url || (typeof v.image === "object" ? v.image?.url : v.image) || "";
         const sku = v.sku || `${(req.body.deity || "GEN").toUpperCase()}-${(req.body.title || "MURTI").slice(0, 3).toUpperCase()}-${(v.size || "STD").replace(/\s+/g, "").toUpperCase()}-${(v.finish || "STD").slice(0, 3).replace(/\s+/g, "").toUpperCase()}-${i}`;
-        return {
-          ...v,
+        
+        const variantObj = {
+          size: v.size || "6 inch",
+          finish: v.finish || "Standard",
+          price: Number(v.price) || Number(req.body.basePrice || 0),
+          discountPrice: v.discountPrice !== undefined && v.discountPrice !== null && v.discountPrice !== "" ? Number(v.discountPrice) : null,
+          stock: Number(v.stock) || 0,
           sku,
+          weight: v.weight || "500g",
           images: vImages,
           image: firstUrl,
         };
+        if (v._id && mongoose.Types.ObjectId.isValid(v._id)) {
+          variantObj._id = new mongoose.Types.ObjectId(v._id);
+        }
+        return variantObj;
       });
     }
 
@@ -371,12 +381,14 @@ async function createProduct(req, res, next) {
     if (req.body.category) {
       req.body.category = (Array.isArray(req.body.category) ? req.body.category : [req.body.category])
         .map((c) => (typeof c === "object" ? c?._id : c))
-        .filter((id) => id && mongoose.Types.ObjectId.isValid(id));
+        .filter((id) => id && mongoose.Types.ObjectId.isValid(id))
+        .map((id) => new mongoose.Types.ObjectId(id));
     }
     if (req.body.subCategory) {
       req.body.subCategory = (Array.isArray(req.body.subCategory) ? req.body.subCategory : [req.body.subCategory])
         .map((s) => (typeof s === "object" ? s?._id : s))
-        .filter((id) => id && mongoose.Types.ObjectId.isValid(id));
+        .filter((id) => id && mongoose.Types.ObjectId.isValid(id))
+        .map((id) => new mongoose.Types.ObjectId(id));
     }
 
     if (
@@ -396,6 +408,8 @@ async function createProduct(req, res, next) {
     const product = new Product(req.body);
     product.markModified("variants");
     product.markModified("images");
+    product.markModified("category");
+    product.markModified("subCategory");
     await product.save();
 
     const populated = await Product.findById(product._id)
@@ -412,103 +426,137 @@ async function createProduct(req, res, next) {
 /** PUT /api/products/:id (admin only) */
 async function updateProduct(req, res, next) {
   try {
-    let product;
+    let existingProduct;
     if (mongoose.Types.ObjectId.isValid(req.params.id)) {
-      product = await Product.findById(req.params.id);
+      existingProduct = await Product.findById(req.params.id);
     } else {
-      product = await Product.findOne({ slug: req.params.id });
+      existingProduct = await Product.findOne({ slug: req.params.id });
     }
 
-    if (!product) {
+    if (!existingProduct) {
       return res.status(404).json({ message: "Product not found" });
     }
 
     const allVariantImages = [];
+    let processedVariants = existingProduct.variants || [];
     if (Array.isArray(req.body.variants)) {
-      req.body.variants = req.body.variants.map((v, i) => {
+      processedVariants = req.body.variants.map((v, i) => {
         let vImages = [];
         if (Array.isArray(v.images) && v.images.length > 0) {
           vImages = v.images
             .map((img) => {
-              if (typeof img === "string") return { url: img, alt: `${req.body.title || product.title || "Murti"} - ${v.finish || ""}` };
-              if (img && typeof img === "object" && img.url) return { url: img.url, alt: img.alt || `${req.body.title || product.title || "Murti"} - ${v.finish || ""}` };
+              if (typeof img === "string") return { url: img, alt: `${req.body.title || existingProduct.title || "Murti"} - ${v.finish || ""}` };
+              if (img && typeof img === "object" && img.url) return { url: img.url, alt: img.alt || `${req.body.title || existingProduct.title || "Murti"} - ${v.finish || ""}` };
               return null;
             })
             .filter(Boolean);
         } else if (v.image) {
           const singleUrl = typeof v.image === "object" ? v.image?.url : v.image;
           if (singleUrl) {
-            vImages = [{ url: singleUrl, alt: `${req.body.title || product.title || "Murti"} - ${v.finish || ""}` }];
+            vImages = [{ url: singleUrl, alt: `${req.body.title || existingProduct.title || "Murti"} - ${v.finish || ""}` }];
           }
         }
         vImages.forEach((img) => {
           if (img && img.url) allVariantImages.push(img);
         });
         const firstUrl = vImages[0]?.url || (typeof v.image === "object" ? v.image?.url : v.image) || "";
-        const sku = v.sku || `${(req.body.deity || product.deity || "GEN").toUpperCase()}-${(req.body.title || product.title || "MURTI").slice(0, 3).toUpperCase()}-${(v.size || "STD").replace(/\s+/g, "").toUpperCase()}-${(v.finish || "STD").slice(0, 3).replace(/\s+/g, "").toUpperCase()}-${i}`;
-        return {
-          ...v,
+        const sku = v.sku || `${(req.body.deity || existingProduct.deity || "GEN").toUpperCase()}-${(req.body.title || existingProduct.title || "MURTI").slice(0, 3).toUpperCase()}-${(v.size || "STD").replace(/\s+/g, "").toUpperCase()}-${(v.finish || "STD").slice(0, 3).replace(/\s+/g, "").toUpperCase()}-${i}`;
+        
+        const variantObj = {
+          size: v.size || "6 inch",
+          finish: v.finish || "Standard",
+          price: Number(v.price) || Number(req.body.basePrice || existingProduct.basePrice || 0),
+          discountPrice: v.discountPrice !== undefined && v.discountPrice !== null && v.discountPrice !== "" ? Number(v.discountPrice) : null,
+          stock: Number(v.stock) || 0,
           sku,
+          weight: v.weight || "500g",
           images: vImages,
           image: firstUrl,
         };
+        if (v._id && mongoose.Types.ObjectId.isValid(v._id)) {
+          variantObj._id = new mongoose.Types.ObjectId(v._id);
+        }
+        return variantObj;
       });
     }
 
+    let processedImages = existingProduct.images || [];
     if (req.body.images !== undefined && Array.isArray(req.body.images)) {
-      req.body.images = req.body.images
+      processedImages = req.body.images
         .map((img) => {
-          if (typeof img === "string") return { url: img, alt: req.body.title || product.title || "Murti" };
-          if (img && typeof img === "object" && img.url) return { url: img.url, alt: img.alt || req.body.title || product.title || "Murti" };
+          if (typeof img === "string") return { url: img, alt: req.body.title || existingProduct.title || "Murti" };
+          if (img && typeof img === "object" && img.url) return { url: img.url, alt: img.alt || req.body.title || existingProduct.title || "Murti" };
           return null;
         })
         .filter(Boolean);
     }
 
-    if ((!req.body.images || req.body.images.length === 0) && allVariantImages.length > 0) {
-      req.body.images = allVariantImages;
+    if ((!processedImages || processedImages.length === 0) && allVariantImages.length > 0) {
+      processedImages = allVariantImages;
     }
 
-    if (req.body.category) {
-      req.body.category = (Array.isArray(req.body.category) ? req.body.category : [req.body.category])
+    let categoryIds = existingProduct.category;
+    if (req.body.category !== undefined) {
+      categoryIds = (Array.isArray(req.body.category) ? req.body.category : [req.body.category])
         .map((c) => (typeof c === "object" ? c?._id : c))
-        .filter((id) => id && mongoose.Types.ObjectId.isValid(id));
-    }
-    if (req.body.subCategory) {
-      req.body.subCategory = (Array.isArray(req.body.subCategory) ? req.body.subCategory : [req.body.subCategory])
-        .map((s) => (typeof s === "object" ? s?._id : s))
-        .filter((id) => id && mongoose.Types.ObjectId.isValid(id));
+        .filter((id) => id && mongoose.Types.ObjectId.isValid(id))
+        .map((id) => new mongoose.Types.ObjectId(id));
     }
 
-    if (req.body.slug && req.body.slug !== product.slug) {
+    let subCategoryIds = existingProduct.subCategory;
+    if (req.body.subCategory !== undefined) {
+      subCategoryIds = (Array.isArray(req.body.subCategory) ? req.body.subCategory : [req.body.subCategory])
+        .map((s) => (typeof s === "object" ? s?._id : s))
+        .filter((id) => id && mongoose.Types.ObjectId.isValid(id))
+        .map((id) => new mongoose.Types.ObjectId(id));
+    }
+
+    let targetSlug = existingProduct.slug;
+    if (req.body.slug && req.body.slug !== existingProduct.slug) {
+      targetSlug = req.body.slug.toLowerCase().trim();
       const slugConflict = await Product.findOne({
-        slug: req.body.slug,
-        _id: { $ne: product._id },
+        slug: targetSlug,
+        _id: { $ne: existingProduct._id },
       });
       if (slugConflict) {
-        req.body.slug = `${req.body.slug}-${Date.now().toString().slice(-4)}`;
+        targetSlug = `${targetSlug}-${Date.now().toString().slice(-4)}`;
       }
     }
 
-    // Set updated fields on Mongoose document
-    Object.assign(product, req.body);
-    if (req.body.variants) {
-      product.variants = req.body.variants;
-      product.markModified("variants");
-    }
-    if (req.body.images) {
-      product.images = req.body.images;
-      product.markModified("images");
-    }
+    const updateDoc = {
+      title: req.body.title !== undefined ? req.body.title.trim() : existingProduct.title,
+      slug: targetSlug,
+      description: req.body.description !== undefined ? req.body.description.trim() : existingProduct.description,
+      deity: req.body.deity !== undefined ? req.body.deity.trim() : existingProduct.deity,
+      basePrice: req.body.basePrice !== undefined ? Number(req.body.basePrice) : existingProduct.basePrice,
+      isOnSale: req.body.isOnSale !== undefined ? Boolean(req.body.isOnSale) : existingProduct.isOnSale,
+      isFeatured: req.body.isFeatured !== undefined ? Boolean(req.body.isFeatured) : existingProduct.isFeatured,
+      isCustomizable: req.body.isCustomizable !== undefined ? Boolean(req.body.isCustomizable) : existingProduct.isCustomizable,
+      category: categoryIds,
+      subCategory: subCategoryIds,
+      purpose: req.body.purpose !== undefined ? req.body.purpose : existingProduct.purpose,
+      tags: req.body.tags !== undefined ? req.body.tags : existingProduct.tags,
+      images: processedImages,
+      videos: req.body.videos !== undefined ? req.body.videos : existingProduct.videos,
+      productDetails: req.body.productDetails !== undefined ? req.body.productDetails : existingProduct.productDetails,
+      materialsAndCare: req.body.materialsAndCare !== undefined ? req.body.materialsAndCare : existingProduct.materialsAndCare,
+      shippingReturns: req.body.shippingReturns !== undefined ? req.body.shippingReturns : existingProduct.shippingReturns,
+      accordionSections: req.body.accordionSections !== undefined ? req.body.accordionSections : existingProduct.accordionSections,
+      variants: processedVariants,
+    };
 
-    await product.save();
-
-    const populated = await Product.findById(product._id)
+    const updated = await Product.findByIdAndUpdate(
+      existingProduct._id,
+      { $set: updateDoc },
+      { new: true, runValidators: true }
+    )
       .populate("category", "name slug icon")
       .populate("subCategory", "name slug icon")
       .lean();
 
-    return res.status(200).json(populated);
+    console.log(`[Product Update] Successfully updated "${updated.title}" (${updated._id}) with ${updated.variants?.length} variants and ${updated.images?.length} images`);
+
+    return res.status(200).json(updated);
   } catch (error) {
     console.error("updateProduct backend error:", error);
     next(error);
