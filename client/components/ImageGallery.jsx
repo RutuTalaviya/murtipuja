@@ -7,7 +7,15 @@ import { formatImageUrl } from "@/lib/api";
 
 export default function ImageGallery({ images = [], videos = [], title = "" }) {
   const [mounted, setMounted] = useState(false);
-  const [mediaList, setMediaList] = useState([]);
+  const [mediaList, setMediaList] = useState(() => {
+    return (images || [])
+      .map((img) => ({
+        url: formatImageUrl(typeof img === "string" ? img : img?.url),
+        alt: typeof img === "object" ? img?.alt : title,
+        type: "image",
+      }))
+      .filter((img) => img.url);
+  });
   const [activeIndex, setActiveIndex] = useState(0);
   const [isMainImageLoaded, setIsMainImageLoaded] = useState(false);
 

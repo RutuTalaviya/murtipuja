@@ -1497,9 +1497,11 @@ export default function AdminPage() {
   async function handleImageUpload(file) {
     if (!file) return null;
 
-    const isImage = file.type.startsWith("image/");
-    if (!isImage) {
-      // Video or other file: direct base64 upload
+    const isImage = file.type.startsWith("image/") || /\.(jpg|jpeg|png|webp|avif|gif|bmp|tiff|svg)$/i.test(file.name);
+    const isAnimatedOrSvg = /\.(gif|svg)$/i.test(file.name) || file.type === "image/gif" || file.type === "image/svg+xml";
+
+    if (!isImage || isAnimatedOrSvg) {
+      // Video, GIF, SVG or raw file: direct base64 upload
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = async (e) => {
@@ -1520,7 +1522,7 @@ export default function AdminPage() {
       });
     }
 
-    // Pre-compress image via Canvas in browser (max 1600px, 0.85 quality)
+    // Pre-compress JPG/PNG/WebP image via Canvas in browser (max 1600px, 0.85 quality)
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -1554,12 +1556,21 @@ export default function AdminPage() {
             });
             resolve(res.data.url);
           } catch (err) {
-            console.error("Image compression/upload error:", err);
-            reject(err);
+            console.error("Image compression/upload error, falling back to direct upload:", err);
+            try {
+              const base64 = e.target.result.split(",")[1];
+              const res = await api.post("/api/upload", {
+                filename: file.name,
+                base64: base64,
+              });
+              resolve(res.data.url);
+            } catch (fallbackErr) {
+              reject(fallbackErr);
+            }
           }
         };
         img.onerror = () => {
-          // Fallback if image element fails
+          // Direct base64 fallback if image element fails
           api.post("/api/upload", {
             filename: file.name,
             base64: e.target.result.split(",")[1],
@@ -1577,9 +1588,11 @@ export default function AdminPage() {
   // Helper to handle multiple image files for a specific variant (from multi-file picker or drag-and-drop)
   async function handleMultipleVariantImagesUpload(variantIndex, filesList) {
     if (!filesList || filesList.length === 0) return;
-    const files = Array.from(filesList).filter((f) => f.type.startsWith("image/"));
+    const files = Array.from(filesList).filter(
+      (f) => f.type.startsWith("image/") || /\.(jpg|jpeg|png|webp|avif|gif|bmp|tiff|svg)$/i.test(f.name)
+    );
     if (files.length === 0) {
-      setActionError("Please select valid image files (JPG, PNG, WebP).");
+      setActionError("Please select valid image files (JPG, PNG, WebP, AVIF, GIF).");
       return;
     }
 

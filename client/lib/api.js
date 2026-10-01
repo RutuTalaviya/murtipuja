@@ -28,28 +28,33 @@ export function formatImageUrl(url) {
   ) {
     return trimmed;
   }
+
+  // If URL points to localhost:5000 or 127.0.0.1:5000, replace with api.murtipuja.com
+  if (trimmed.includes("localhost:5000") || trimmed.includes("127.0.0.1:5000")) {
+    return trimmed.replace(/^https?:\/\/(localhost|127\.0\.0\.1):5000/, "https://api.murtipuja.com");
+  }
+
+  // If URL incorrectly points to frontend domain murtipuja.com/uploads/ (instead of api.murtipuja.com/uploads/), fix it
+  if (trimmed.includes("murtipuja.com/uploads/") && !trimmed.includes("api.murtipuja.com")) {
+    return trimmed.replace(/^https?:\/\/(www\.)?murtipuja\.com\/uploads\//, "https://api.murtipuja.com/uploads/");
+  }
+
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    if (trimmed.includes("localhost:5000") || trimmed.includes("127.0.0.1:5000")) {
-      return trimmed.replace(/^https?:\/\/(localhost|127\.0\.0\.1):5000/, "https://api.murtipuja.com");
-    }
     return trimmed;
   }
 
-  const isLocalDev =
-    typeof window !== "undefined"
-      ? window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-      : process.env.NODE_ENV === "development";
+  // Local development on localhost
+  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    if (trimmed.startsWith("/uploads/")) return trimmed;
+    if (trimmed.startsWith("uploads/")) return `/${trimmed}`;
+    return trimmed;
+  }
 
+  // Production: Always resolve relative /uploads/ to backend domain https://api.murtipuja.com/uploads/...
   if (trimmed.startsWith("/uploads/")) {
-    if (isLocalDev) {
-      return trimmed;
-    }
     return `https://api.murtipuja.com${trimmed}`;
   }
   if (trimmed.startsWith("uploads/")) {
-    if (isLocalDev) {
-      return `/${trimmed}`;
-    }
     return `https://api.murtipuja.com/${trimmed}`;
   }
   return trimmed;
