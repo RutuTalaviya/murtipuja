@@ -1823,12 +1823,32 @@ export default function AdminPage() {
     setActionError("");
     try {
       let fullProduct = p;
-      try {
-        const fetchKey = p._id || p.id || p.slug;
-        const res = await api.get(`/api/products/${encodeURIComponent(fetchKey)}`);
-        if (res.data) fullProduct = res.data;
-      } catch (fetchErr) {
-        console.warn("Could not fetch by ID/slug, using row data:", fetchErr);
+      const primaryKey = p._id || p.id;
+      const fallbackSlug = p.slug;
+
+      let fetched = false;
+      if (primaryKey) {
+        try {
+          const res = await api.get(`/api/products/${encodeURIComponent(primaryKey)}`);
+          if (res?.data) {
+            fullProduct = res.data;
+            fetched = true;
+          }
+        } catch (idErr) {
+          // ID fetch failed, will try slug
+        }
+      }
+
+      if (!fetched && fallbackSlug) {
+        try {
+          const res = await api.get(`/api/products/${encodeURIComponent(fallbackSlug)}`);
+          if (res?.data) {
+            fullProduct = res.data;
+            fetched = true;
+          }
+        } catch (slugErr) {
+          // Slug fetch failed
+        }
       }
 
       setEditingProduct(fullProduct);

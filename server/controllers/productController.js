@@ -253,7 +253,6 @@ async function getProducts(req, res, next) {
 
     let [products, total] = await Promise.all([
       Product.find(filter)
-        .select("-videos -description")
         .populate("category", "name slug icon parentCategory")
         .populate("subCategory", "name slug icon parentCategory")
         .sort(sortOption)
@@ -288,15 +287,44 @@ async function getProducts(req, res, next) {
 /** GET /api/products/:slug */
 async function getProductBySlug(req, res, next) {
   try {
-    let product;
-    if (mongoose.Types.ObjectId.isValid(req.params.slug)) {
-      product = await Product.findById(req.params.slug)
+    const rawKey = decodeURIComponent(req.params.slug || "").trim();
+    if (!rawKey) {
+      return res.status(400).json({ message: "Product slug or ID is required" });
+    }
+
+    let product = null;
+
+    // 1. Try finding by MongoDB ObjectId
+    if (mongoose.Types.ObjectId.isValid(rawKey)) {
+      product = await Product.findById(rawKey)
         .populate("category", "name slug icon parentCategory")
         .populate("subCategory", "name slug icon parentCategory")
         .lean();
     }
+
+    // 2. Try finding by exact slug
     if (!product) {
-      product = await Product.findOne({ slug: req.params.slug })
+      product = await Product.findOne({ slug: rawKey.toLowerCase() })
+        .populate("category", "name slug icon parentCategory")
+        .populate("subCategory", "name slug icon parentCategory")
+        .lean();
+    }
+
+    // 3. Try finding by case-insensitive regex slug
+    if (!product) {
+      product = await Product.findOne({
+        slug: new RegExp(`^${escapeRegex(rawKey)}$`, "i"),
+      })
+        .populate("category", "name slug icon parentCategory")
+        .populate("subCategory", "name slug icon parentCategory")
+        .lean();
+    }
+
+    // 4. Try finding by title
+    if (!product) {
+      product = await Product.findOne({
+        title: new RegExp(`^${escapeRegex(rawKey)}$`, "i"),
+      })
         .populate("category", "name slug icon parentCategory")
         .populate("subCategory", "name slug icon parentCategory")
         .lean();
@@ -306,14 +334,19 @@ async function getProductBySlug(req, res, next) {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    const ComboOffer = require("../models/ComboOffer");
-    const combos = await ComboOffer.find({ products: product._id, isActive: true })
-      .populate("products", "title slug images variants basePrice")
-      .lean();
-    product.comboOffers = combos;
+    try {
+      const ComboOffer = require("../models/ComboOffer");
+      const combos = await ComboOffer.find({ products: product._id, isActive: true })
+        .populate("products", "title slug images variants basePrice")
+        .lean();
+      product.comboOffers = combos || [];
+    } catch (comboErr) {
+      product.comboOffers = [];
+    }
 
     return res.status(200).json(product);
   } catch (error) {
+    console.error("getProductBySlug backend error:", error);
     next(error);
   }
 }
@@ -426,11 +459,22 @@ async function createProduct(req, res, next) {
 /** PUT /api/products/:id (admin only) */
 async function updateProduct(req, res, next) {
   try {
-    let existingProduct;
-    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
-      existingProduct = await Product.findById(req.params.id);
-    } else {
-      existingProduct = await Product.findOne({ slug: req.params.id });
+    const rawId = (req.params.id || "").trim();
+    let existingProduct = null;
+
+    if (mongoose.Types.ObjectId.isValid(rawId)) {
+      existingProduct = await Product.findById(rawId);
+    }
+    if (!existingProduct && req.body.slug) {
+      existingProduct = await Product.findOne({ slug: req.body.slug.toLowerCase().trim() });
+    }
+    if (!existingProduct && rawId) {
+      existingProduct = await Product.findOne({ slug: rawId.toLowerCase() });
+    }
+    if (!existingProduct && rawId) {
+      existingProduct = await Product.findOne({
+        slug: new RegExp(`^${escapeRegex(rawId)}$`, "i"),
+      });
     }
 
     if (!existingProduct) {
@@ -566,7 +610,14 @@ async function updateProduct(req, res, next) {
 /** DELETE /api/products/:id (admin only) */
 async function deleteProduct(req, res, next) {
   try {
-    const product = await Product.findByIdAndDelete(req.params.id);
+    const rawId = (req.params.id || "").trim();
+    let product = null;
+    if (mongoose.Types.ObjectId.isValid(rawId)) {
+      product = await Product.findByIdAndDelete(rawId);
+    }
+    if (!product && rawId) {
+      product = await Product.findOneAndDelete({ slug: rawId.toLowerCase() });
+    }
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
