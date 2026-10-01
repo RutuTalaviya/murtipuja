@@ -1,29 +1,44 @@
 import axios from "axios";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+// Helper to determine the API base URL
+function getApiBaseUrl() {
+  if (typeof window !== "undefined") {
+    // In browser on any domain (e.g. murtipuja.com or localhost:3000),
+    // use relative URL "" so requests always go to the current host and Next.js / Nginx handles proxying.
+    return "";
+  }
+  return (process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000").replace(/\/+$/, "");
+}
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: getApiBaseUrl(),
   headers: { "Content-Type": "application/json" },
 });
 
-/** Helper to resolve relative backend /uploads/ paths to full API URL */
+/** Helper to resolve relative backend /uploads/ paths to clean accessible URLs */
 export function formatImageUrl(url) {
   if (!url || typeof url !== "string") return "";
   const trimmed = url.trim();
   if (
-    trimmed.startsWith("http://") ||
-    trimmed.startsWith("https://") ||
     trimmed.startsWith("data:") ||
     trimmed.startsWith("blob:")
   ) {
     return trimmed;
   }
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    // If an image URL contains hardcoded localhost:5000 on a live site, strip the host to make it relative
+    if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+      if (trimmed.includes("localhost:5000/uploads/") || trimmed.includes("127.0.0.1:5000/uploads/")) {
+        return trimmed.replace(/^https?:\/\/(localhost|127\.0\.0\.1):5000/, "");
+      }
+    }
+    return trimmed;
+  }
   if (trimmed.startsWith("/uploads/")) {
-    return `${API_BASE_URL.replace(/\/+$/, "")}${trimmed}`;
+    return trimmed;
   }
   if (trimmed.startsWith("uploads/")) {
-    return `${API_BASE_URL.replace(/\/+$/, "")}/${trimmed}`;
+    return `/${trimmed}`;
   }
   return trimmed;
 }
@@ -43,6 +58,7 @@ export function getGuestId() {
 // as a fallback so cart routes always have something to identify the cart with.
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
+    config.baseURL = "";
     const token = localStorage.getItem("mp_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
