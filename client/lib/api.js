@@ -3,8 +3,11 @@ import axios from "axios";
 // Helper to determine the API base URL
 function getApiBaseUrl() {
   if (typeof window !== "undefined") {
-    // In browser on any domain (e.g. murtipuja.com or localhost:3000),
-    // use relative URL "" so requests always go to the current host and Next.js / Nginx handles proxying.
+    // In browser: if running on production (murtipuja.com), use https://api.murtipuja.com
+    if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+      return "https://api.murtipuja.com";
+    }
+    // In local dev, use Next.js proxy / relative URL
     return "";
   }
   return (process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000").replace(/\/+$/, "");
@@ -26,18 +29,24 @@ export function formatImageUrl(url) {
     return trimmed;
   }
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    // If an image URL contains hardcoded localhost:5000 on a live site, strip the host to make it relative
+    // If an image URL contains hardcoded localhost:5000 on a live site, point to api.murtipuja.com
     if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-      if (trimmed.includes("localhost:5000/uploads/") || trimmed.includes("127.0.0.1:5000/uploads/")) {
-        return trimmed.replace(/^https?:\/\/(localhost|127\.0\.0\.1):5000/, "");
+      if (trimmed.includes("localhost:5000") || trimmed.includes("127.0.0.1:5000")) {
+        return trimmed.replace(/^https?:\/\/(localhost|127\.0\.0\.1):5000/, "https://api.murtipuja.com");
       }
     }
     return trimmed;
   }
   if (trimmed.startsWith("/uploads/")) {
+    if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+      return `https://api.murtipuja.com${trimmed}`;
+    }
     return trimmed;
   }
   if (trimmed.startsWith("uploads/")) {
+    if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+      return `https://api.murtipuja.com/${trimmed}`;
+    }
     return `/${trimmed}`;
   }
   return trimmed;
@@ -58,7 +67,11 @@ export function getGuestId() {
 // as a fallback so cart routes always have something to identify the cart with.
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    config.baseURL = "";
+    if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+      config.baseURL = "https://api.murtipuja.com";
+    } else {
+      config.baseURL = "";
+    }
     const token = localStorage.getItem("mp_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
