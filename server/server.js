@@ -108,8 +108,8 @@ if (fs.existsSync(clientUploadsDir)) {
   app.use("/uploads", express.static(clientUploadsDir, staticUploadOptions));
 }
 
-// POST upload route (compresses images to optimized WebP & handles videos)
-app.post("/api/upload", async (req, res) => {
+// POST upload route (supports both /api/upload and /upload)
+app.post(["/api/upload", "/upload"], async (req, res) => {
   try {
     const { filename, base64 } = req.body;
     if (!filename || !base64) {
@@ -180,10 +180,11 @@ app.post("/api/upload", async (req, res) => {
   }
 });
 
-app.get("/api/health", (req, res) => {
+app.get(["/api/health", "/health"], (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// Mount routes with /api prefix (standard direct calls)
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
@@ -197,6 +198,21 @@ app.use("/api", navMenuRoutes);
 app.use("/api", bannerRoutes);
 app.use("/api", videoRoutes);
 app.use("/api/pages", pageRoutes);
+
+// ALSO mount routes without /api prefix (for Nginx reverse proxies that strip /api)
+app.use("/auth", authRoutes);
+app.use("/products", productRoutes);
+app.use("/cart", cartRoutes);
+app.use("/categories", categoryRoutes);
+app.use("/tags", tagRoutes);
+app.use("/purposes", purposeRoutes);
+app.use("/finishes", finishRoutes);
+app.use("/admin", offerRoutes);
+app.use("/", orderRoutes);
+app.use("/", navMenuRoutes);
+app.use("/", bannerRoutes);
+app.use("/", videoRoutes);
+app.use("/pages", pageRoutes);
 
 app.use(notFound);
 
