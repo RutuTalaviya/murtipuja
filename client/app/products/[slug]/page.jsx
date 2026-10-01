@@ -199,8 +199,7 @@ export default async function ProductDetailPage({ params }) {
                   );
                 })}
               </div>
-              <h1 className="font-display text-3xl sm:text-4xl font-extrabold uppercase tracking-wide text-black mb-3">{product.title}</h1>
-              <p className="text-neutral-600 mb-6 leading-relaxed font-semibold text-xs md:text-sm">{product.description}</p>
+              <h1 className="font-display text-3xl sm:text-4xl font-extrabold uppercase tracking-wide text-black mb-4">{product.title}</h1>
             </div>
  
             <AddToCartPanel product={product} finishes={finishes} />
