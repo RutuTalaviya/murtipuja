@@ -8,6 +8,7 @@ import ImageGallery from "@/components/ImageGallery";
 import AddComboButton from "@/components/AddComboButton";
 import RelatedDropsCarousel from "@/components/RelatedDropsCarousel";
 import ProductAccordion from "@/components/ProductAccordion";
+import ProductVideoShowcase from "@/components/ProductVideoShowcase";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -63,7 +64,7 @@ export default async function ProductDetailPage({ params }) {
   try {
     const primaryCat = Array.isArray(product.category) && product.category.length > 0 ? product.category[0] : product.category;
     const catQuery = primaryCat?.name || primaryCat?.slug || product.deity || "";
-    
+
     // Fetch products filtered by category/deity
     const relatedData = await fetchProducts({
       category: catQuery,
@@ -152,21 +153,21 @@ export default async function ProductDetailPage({ params }) {
     initialVariant?.images && initialVariant.images.length > 0
       ? initialVariant.images
       : initialVariant?.image
-      ? [{ url: initialVariant.image, alt: `${product.title} - ${initialVariant.finish || ""}` }]
-      : product.images || [];
+        ? [{ url: initialVariant.image, alt: `${product.title} - ${initialVariant.finish || ""}` }]
+        : product.images || [];
 
   return (
     <main className="min-h-screen bg-white px-2 sm:px-4 md:px-6 lg:px-8 py-6 md:py-8 font-display w-full">
       {/* eslint-disable-next-line react/no-danger */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
- 
+
       <div className="w-full space-y-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-12 items-start">
           {/* Left: Product Image & Vertical Gallery (Variant-Specific) */}
           <div className="lg:col-span-7 xl:col-span-7 w-full flex justify-center lg:justify-start lg:pl-2 xl:pl-4">
             <ImageGallery images={initialGalleryImages} title={product.title} />
           </div>
- 
+
           {/* Right: Product Details & Add to Cart Panel */}
           <div className="lg:col-span-5 xl:col-span-5 sticky top-24 space-y-6">
             <div>
@@ -201,9 +202,9 @@ export default async function ProductDetailPage({ params }) {
               </div>
               <h1 className="font-display text-3xl sm:text-4xl font-extrabold uppercase tracking-wide text-black mb-4">{product.title}</h1>
             </div>
- 
+
             <AddToCartPanel product={product} finishes={finishes} />
- 
+
             {/* Combo Offers Section */}
             {product.comboOffers && product.comboOffers.length > 0 && (
               <div className="mt-8 pt-6 border-t-2 border-neutral-100">
@@ -216,142 +217,96 @@ export default async function ProductDetailPage({ params }) {
                       (p) => p._id.toString() !== product._id.toString()
                     );
                     if (otherProducts.length === 0) return null;
- 
+
                     return (
-                        <div
-                          key={combo._id}
-                          className="bg-neutral-50 border-2 border-black rounded-none p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition-all relative overflow-hidden group"
-                        >
-                          <div className="flex justify-between items-center gap-2">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-xs">✨</span>
-                              <h4 className="text-xs font-extrabold text-black font-display uppercase tracking-wider">
-                                {combo.title}
-                              </h4>
+                      <div
+                        key={combo._id}
+                        className="bg-neutral-50 border-2 border-black rounded-none p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition-all relative overflow-hidden group"
+                      >
+                        <div className="flex justify-between items-center gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs">✨</span>
+                            <h4 className="text-xs font-extrabold text-black font-display uppercase tracking-wider">
+                              {combo.title}
+                            </h4>
+                          </div>
+                          <span className="bg-gold text-black text-[10px] font-extrabold px-3 py-1 border border-black rounded-none uppercase tracking-widest">
+                            Save {combo.discountType === "percentage" ? `${combo.discountValue}%` : `₹${combo.discountValue}`}
+                          </span>
+                        </div>
+
+                        {combo.description && (
+                          <p className="text-[11px] text-neutral-500 font-semibold leading-relaxed -mt-2">
+                            {combo.description}
+                          </p>
+                        )}
+
+                        <div className="flex flex-col sm:flex-row items-center gap-3 py-1">
+                          {/* Current product card */}
+                          <div className="flex items-center gap-2 bg-white p-2 border-2 border-black rounded-none w-full sm:flex-1 min-w-0">
+                            <div className="relative w-12 h-12 rounded-none bg-neutral-100 overflow-hidden flex-shrink-0 border border-neutral-200">
+                              {product.images?.[0]?.url && (
+                                <img
+                                  src={formatImageUrl(product.images[0].url)}
+                                  alt={product.title}
+                                  className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+                                />
+                              )}
                             </div>
-                            <span className="bg-gold text-black text-[10px] font-extrabold px-3 py-1 border border-black rounded-none uppercase tracking-widest">
-                              Save {combo.discountType === "percentage" ? `${combo.discountValue}%` : `₹${combo.discountValue}`}
-                            </span>
+                            <div className="text-left min-w-0 font-display">
+                              <p className="text-[10px] font-extrabold text-black uppercase tracking-wider">This Item</p>
+                              <p className="text-[10px] text-neutral-500 font-semibold truncate">{product.title}</p>
+                            </div>
                           </div>
 
-                          {combo.description && (
-                            <p className="text-[11px] text-neutral-500 font-semibold leading-relaxed -mt-2">
-                              {combo.description}
-                            </p>
-                          )}
+                          {/* Separator badge */}
+                          <div className="w-7 h-7 rounded-none border-2 border-black bg-gold text-black flex items-center justify-center font-extrabold text-xs flex-shrink-0">
+                            +
+                          </div>
 
-                          <div className="flex flex-col sm:flex-row items-center gap-3 py-1">
-                            {/* Current product card */}
-                            <div className="flex items-center gap-2 bg-white p-2 border-2 border-black rounded-none w-full sm:flex-1 min-w-0">
+                          {/* Other product card */}
+                          {otherProducts.map((op) => (
+                            <div key={op._id} className="flex items-center gap-2 bg-white p-2 border-2 border-black rounded-none w-full sm:flex-1 min-w-0">
                               <div className="relative w-12 h-12 rounded-none bg-neutral-100 overflow-hidden flex-shrink-0 border border-neutral-200">
-                                {product.images?.[0]?.url && (
+                                {op.images?.[0]?.url && (
                                   <img
-                                    src={formatImageUrl(product.images[0].url)}
-                                    alt={product.title}
+                                    src={formatImageUrl(op.images[0].url)}
+                                    alt={op.title}
                                     className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
                                   />
                                 )}
                               </div>
                               <div className="text-left min-w-0 font-display">
-                                <p className="text-[10px] font-extrabold text-black uppercase tracking-wider">This Item</p>
-                                <p className="text-[10px] text-neutral-500 font-semibold truncate">{product.title}</p>
+                                <p className="text-[10px] font-extrabold text-black uppercase tracking-wider">Add Product</p>
+                                <p className="text-[10px] text-neutral-500 font-semibold truncate" title={op.title}>{op.title}</p>
                               </div>
                             </div>
-
-                            {/* Separator badge */}
-                            <div className="w-7 h-7 rounded-none border-2 border-black bg-gold text-black flex items-center justify-center font-extrabold text-xs flex-shrink-0">
-                              +
-                            </div>
-
-                            {/* Other product card */}
-                            {otherProducts.map((op) => (
-                              <div key={op._id} className="flex items-center gap-2 bg-white p-2 border-2 border-black rounded-none w-full sm:flex-1 min-w-0">
-                                <div className="relative w-12 h-12 rounded-none bg-neutral-100 overflow-hidden flex-shrink-0 border border-neutral-200">
-                                  {op.images?.[0]?.url && (
-                                    <img
-                                      src={formatImageUrl(op.images[0].url)}
-                                      alt={op.title}
-                                      className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
-                                    />
-                                  )}
-                                </div>
-                                <div className="text-left min-w-0 font-display">
-                                  <p className="text-[10px] font-extrabold text-black uppercase tracking-wider">Add Product</p>
-                                  <p className="text-[10px] text-neutral-500 font-semibold truncate" title={op.title}>{op.title}</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          <div className="space-y-2">
-                            <AddComboButton combo={combo} product={product} />
-                            <p className="text-[9px] text-center text-neutral-400 font-bold uppercase tracking-wider">
-                              💡 Bundle includes default variant configurations for each murti
-                            </p>
-                          </div>
+                          ))}
                         </div>
-                      );
+
+                        <div className="space-y-2">
+                          <AddComboButton combo={combo} product={product} />
+                          <p className="text-[9px] text-center text-neutral-400 font-bold uppercase tracking-wider">
+                            💡 Bundle includes default variant configurations for each murti
+                          </p>
+                        </div>
+                      </div>
+                    );
                   })}
                 </div>
               </div>
             )}
- 
+
             {/* Interactive Accordion: Product Details, Materials & Care, Shipping & Returns */}
             <ProductAccordion product={product} />
           </div>
         </div>
 
-        {/* Dynamic Sacred 3D & Showcase Videos Section (1 row 4 videos responsive) */}
+        {/* Dynamic Sacred 3D & Showcase Videos Section with Left/Right Arrow Carousel */}
         {product.videos && product.videos.length > 0 && (
-          <section className="w-full bg-[#fcfaf7] py-10 sm:py-12 px-4 sm:px-8 md:px-10 border-t-2 border-b-2 border-stone-300">
-            <div className="w-full max-w-7xl mx-auto space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-stone-300 pb-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                    <p className="text-[11px] sm:text-xs uppercase tracking-widest text-amber-900 font-extrabold">
-                      Sacred 3D Video Showcase
-                    </p>
-                  </div>
-                  <h2 className="font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-tight text-neutral-900">
-                    Product In Motion ({product.videos.length} {product.videos.length === 1 ? "Video" : "Videos"})
-                  </h2>
-                </div>
-                <span className="text-xs text-stone-500 font-bold uppercase tracking-wider">
-                  Real Consecrated Finishes & 360° Views
-                </span>
-              </div>
-
-              {/* 1 Row 4 Videos Responsive Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                {product.videos.map((vid, vIdx) => {
-                  const videoUrl = typeof vid === "string" ? vid : vid?.url;
-                  if (!videoUrl) return null;
-                  return (
-                    <div
-                      key={vIdx}
-                      className="relative aspect-[9/16] sm:aspect-[4/5] bg-black border-2 border-black overflow-hidden shadow-md group rounded-none"
-                    >
-                      <video
-                        src={formatImageUrl(videoUrl)}
-                        controls
-                        playsInline
-                        className="w-full h-full object-cover"
-                        preload="metadata"
-                      />
-                      <div className="absolute top-2 left-2 z-10 pointer-events-none">
-                        <span className="bg-black/80 backdrop-blur-sm text-gold text-[9px] font-black uppercase px-2 py-0.5 border border-gold/40">
-                          Video #{vIdx + 1}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
+          <ProductVideoShowcase videos={product.videos} productTitle={product.title} />
         )}
- 
+
         {/* Dynamic Related Products Carousel in 1 Row with Zero Gap and Scroll Controls */}
         {relatedProducts.length > 0 && (
           <RelatedDropsCarousel products={relatedProducts} currentDeity={product.deity} />
