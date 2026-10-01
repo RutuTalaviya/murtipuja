@@ -29,25 +29,28 @@ export function formatImageUrl(url) {
     return trimmed;
   }
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    // If an image URL contains hardcoded localhost:5000 on a live site, point to api.murtipuja.com
-    if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-      if (trimmed.includes("localhost:5000") || trimmed.includes("127.0.0.1:5000")) {
-        return trimmed.replace(/^https?:\/\/(localhost|127\.0\.0\.1):5000/, "https://api.murtipuja.com");
-      }
+    if (trimmed.includes("localhost:5000") || trimmed.includes("127.0.0.1:5000")) {
+      return trimmed.replace(/^https?:\/\/(localhost|127\.0\.0\.1):5000/, "https://api.murtipuja.com");
     }
     return trimmed;
   }
+
+  const isLocalDev =
+    typeof window !== "undefined"
+      ? window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+      : process.env.NODE_ENV === "development";
+
   if (trimmed.startsWith("/uploads/")) {
-    if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-      return `https://api.murtipuja.com${trimmed}`;
+    if (isLocalDev) {
+      return trimmed;
     }
-    return trimmed;
+    return `https://api.murtipuja.com${trimmed}`;
   }
   if (trimmed.startsWith("uploads/")) {
-    if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-      return `https://api.murtipuja.com/${trimmed}`;
+    if (isLocalDev) {
+      return `/${trimmed}`;
     }
-    return `/${trimmed}`;
+    return `https://api.murtipuja.com/${trimmed}`;
   }
   return trimmed;
 }

@@ -348,6 +348,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                   alt={media.alt || `${title} thumbnail ${idx + 1}`}
                   fill
                   sizes="80px"
+                  unoptimized
                   className="object-contain p-1"
                 />
               )}
@@ -390,6 +391,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                 alt={activeMedia.alt || title}
                 fill
                 sizes="(max-width: 768px) 100vw, 540px"
+                unoptimized
                 onLoad={() => setIsMainImageLoaded(true)}
                 onError={() => setIsMainImageLoaded(true)}
                 className={`object-contain p-2 sm:p-3 transition-all duration-300 ease-out select-none pointer-events-none ${
@@ -462,6 +464,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                       alt={media.alt || `${title} thumbnail ${idx + 1}`}
                       fill
                       sizes="80px"
+                      unoptimized
                       className="object-contain p-1"
                     />
                   )}

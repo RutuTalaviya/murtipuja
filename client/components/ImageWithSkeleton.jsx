@@ -61,7 +61,7 @@ export default function ImageWithSkeleton({
         </div>
       )}
 
-      {/* Next.js Optimized Image */}
+      {/* Next.js Image */}
       <Image
         src={formattedSrc}
         alt={alt}
@@ -70,7 +70,7 @@ export default function ImageWithSkeleton({
         height={!fill ? height : undefined}
         sizes={sizes || "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"}
         priority={priority}
-        unoptimized={unoptimized}
+        unoptimized={unoptimized || formattedSrc.includes("/uploads/") || formattedSrc.includes("api.murtipuja.com")}
         style={style}
         onLoad={() => setIsLoaded(true)}
         onError={() => {
