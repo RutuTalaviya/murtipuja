@@ -179,11 +179,8 @@ export default function AddToCartPanel({ product, finishes }) {
         {/* Finish / Color Selection */}
         {uniqueFinishes.length > 0 && (
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-extrabold mb-2 flex items-center justify-between">
-              <span>Finish / Color</span>
-              <span className="text-[9px] text-black font-extrabold bg-gold border-2 border-black px-2.5 py-0.5 rounded-none uppercase tracking-widest">
-                {selectedFinish}
-              </span>
+            <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-extrabold mb-2">
+              Finish / Color
             </p>
             <div className="flex items-center gap-3">
               {uniqueFinishes.map((finish) => {
