@@ -1823,31 +1823,32 @@ export default function AdminPage() {
     setActionError("");
     try {
       let fullProduct = p;
-      const primaryKey = p._id || p.id;
-      const fallbackSlug = p.slug;
+      // Prefer slug first for cleaner URLs and immediate backward/forward compatibility
+      const preferredKey = p.slug || p._id || p.id;
+      const fallbackKey = p._id || p.id;
 
       let fetched = false;
-      if (primaryKey) {
+      if (preferredKey) {
         try {
-          const res = await api.get(`/api/products/${encodeURIComponent(primaryKey)}`);
+          const res = await api.get(`/api/products/${encodeURIComponent(preferredKey)}`);
           if (res?.data) {
             fullProduct = res.data;
             fetched = true;
           }
-        } catch (idErr) {
-          // ID fetch failed, will try slug
+        } catch (prefErr) {
+          // Preferred key fetch failed, will try fallback key
         }
       }
 
-      if (!fetched && fallbackSlug) {
+      if (!fetched && fallbackKey && fallbackKey !== preferredKey) {
         try {
-          const res = await api.get(`/api/products/${encodeURIComponent(fallbackSlug)}`);
+          const res = await api.get(`/api/products/${encodeURIComponent(fallbackKey)}`);
           if (res?.data) {
             fullProduct = res.data;
             fetched = true;
           }
-        } catch (slugErr) {
-          // Slug fetch failed
+        } catch (fallbackErr) {
+          // Fallback key fetch failed
         }
       }
 
