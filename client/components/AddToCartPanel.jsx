@@ -63,13 +63,40 @@ export default function AddToCartPanel({ product, finishes }) {
   // Emit custom event when selected variant changes to update the image gallery
   useEffect(() => {
     if (selectedVariant) {
-      let variantImages = [];
-      if (Array.isArray(selectedVariant.images) && selectedVariant.images.length > 0) {
-        variantImages = selectedVariant.images;
-      } else if (selectedVariant.image) {
-        variantImages = [{ url: selectedVariant.image, alt: `${product.title} - ${selectedVariant.finish || ""}` }];
-      } else if (Array.isArray(product.images) && product.images.length > 0) {
-        variantImages = product.images;
+      const seen = new Set();
+      const variantImages = [];
+
+      const addImg = (img, fallbackAlt) => {
+        if (!img) return;
+        const rawUrl = typeof img === "object" ? img?.url : img;
+        if (rawUrl && typeof rawUrl === "string" && !seen.has(rawUrl.trim())) {
+          seen.add(rawUrl.trim());
+          variantImages.push({
+            url: rawUrl.trim(),
+            alt: (typeof img === "object" ? img?.alt : fallbackAlt) || fallbackAlt || product.title,
+          });
+        }
+      };
+
+      // 1. Prioritize selected variant photos at index 0
+      if (Array.isArray(selectedVariant.images)) {
+        selectedVariant.images.forEach((img) => addImg(img, `${product.title} - ${selectedVariant.finish || ""}`));
+      }
+      if (selectedVariant.image) {
+        addImg(selectedVariant.image, `${product.title} - ${selectedVariant.finish || ""}`);
+      }
+
+      // 2. Append all other product gallery images
+      if (Array.isArray(product.images)) {
+        product.images.forEach((img) => addImg(img, product.title));
+      }
+
+      // 3. Append other variants images if still needed
+      if (Array.isArray(product.variants)) {
+        product.variants.forEach((v) => {
+          if (Array.isArray(v.images)) v.images.forEach((img) => addImg(img, `${product.title} - ${v.finish || ""}`));
+          if (v.image) addImg(v.image, `${product.title} - ${v.finish || ""}`);
+        });
       }
 
       const event = new CustomEvent("variantChange", {
@@ -86,7 +113,7 @@ export default function AddToCartPanel({ product, finishes }) {
         window.dispatchEvent(new CustomEvent("variantImageChange", { detail: selectedVariant.image || variantImages[0]?.url }));
       }
     }
-  }, [selectedVariant, product.title, product.images]);
+  }, [selectedVariant, product.title, product.images, product.variants]);
 
   const isSaleActive = Boolean(product.isOnSale && selectedVariant?.discountPrice && selectedVariant.discountPrice < selectedVariant.price);
   const inStock = selectedVariant ? selectedVariant.stock > 0 : false;

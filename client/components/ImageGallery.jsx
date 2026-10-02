@@ -5,28 +5,37 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import { formatImageUrl } from "@/lib/api";
 
+function formatMediaItems(items, defaultTitle) {
+  const list = Array.isArray(items) ? items : items ? [items] : [];
+  const seen = new Set();
+  const result = [];
+  list.forEach((item, idx) => {
+    if (!item) return;
+    const rawUrl = typeof item === "object" ? item?.url : item;
+    if (rawUrl && typeof rawUrl === "string" && rawUrl.trim()) {
+      const cleanUrl = rawUrl.trim();
+      const formatted = formatImageUrl(cleanUrl);
+      if (formatted && !seen.has(formatted)) {
+        seen.add(formatted);
+        result.push({
+          url: formatted,
+          alt: (typeof item === "object" ? item?.alt : defaultTitle) || defaultTitle || `View ${idx + 1}`,
+          type: "image",
+        });
+      }
+    }
+  });
+  return result;
+}
+
 export default function ImageGallery({ images = [], videos = [], title = "" }) {
   const [mounted, setMounted] = useState(false);
-  const [mediaList, setMediaList] = useState(() => {
-    return (images || [])
-      .map((img) => ({
-        url: formatImageUrl(typeof img === "string" ? img : img?.url),
-        alt: typeof img === "object" ? img?.alt : title,
-        type: "image",
-      }))
-      .filter((img) => img.url);
-  });
+  const [mediaList, setMediaList] = useState(() => formatMediaItems(images, title));
   const [activeIndex, setActiveIndex] = useState(0);
-  const [isMainImageLoaded, setIsMainImageLoaded] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // Reset main image loading when active index changes
-  useEffect(() => {
-    setIsMainImageLoaded(false);
-  }, [activeIndex]);
 
   // Hover Magnifier Zoom State (Main Gallery Box)
   const [isHovering, setIsHovering] = useState(false);
@@ -43,33 +52,21 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
 
   // Sync state with props
   useEffect(() => {
-    const formattedImages = (images || [])
-      .map((img) => ({
-        url: formatImageUrl(typeof img === "string" ? img : img?.url),
-        alt: typeof img === "object" ? img?.alt : title,
-        type: "image",
-      }))
-      .filter((img) => img.url);
-
-    setMediaList(formattedImages);
-    setActiveIndex(0);
+    const formatted = formatMediaItems(images, title);
+    if (formatted.length > 0) {
+      setMediaList(formatted);
+      setActiveIndex(0);
+    }
   }, [images, title]);
 
-  // Variant change listener: Show ONLY the images belonging to the selected variant
+  // Variant change listener: Show variant images with full gallery accessible
   useEffect(() => {
     const handleVariantChange = (e) => {
       const data = e.detail;
       if (!data) return;
 
       if (Array.isArray(data.images) && data.images.length > 0) {
-        const variantMedia = data.images
-          .map((img, idx) => ({
-            url: formatImageUrl(typeof img === "string" ? img : img?.url),
-            alt: (typeof img === "object" && img?.alt) || `${title} - Variant view ${idx + 1}`,
-            type: "image",
-          }))
-          .filter((img) => img.url);
-
+        const variantMedia = formatMediaItems(data.images, title);
         if (variantMedia.length > 0) {
           setMediaList(variantMedia);
           setActiveIndex(0);
@@ -80,13 +77,10 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
       if (data.image) {
         const formattedUrl = formatImageUrl(data.image);
         if (formattedUrl) {
-          setMediaList([
-            {
-              url: formattedUrl,
-              alt: `${title} - Selected Variant`,
-              type: "image",
-            },
-          ]);
+          setMediaList((prev) => {
+            const filtered = prev.filter((m) => m.url !== formattedUrl);
+            return [{ url: formattedUrl, alt: `${title} - Selected Variant`, type: "image" }, ...filtered];
+          });
           setActiveIndex(0);
         }
       }
@@ -314,8 +308,9 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
 
   if (!mediaList || mediaList.length === 0) {
     return (
-      <div className="relative aspect-square bg-neutral-100 rounded-none overflow-hidden border-2 border-black flex items-center justify-center text-neutral-400 font-extrabold text-xs uppercase tracking-wider">
-        No media available
+      <div className="relative aspect-square w-full max-w-[540px] bg-neutral-50 rounded-none overflow-hidden border-2 border-black flex flex-col items-center justify-center text-neutral-400 font-extrabold text-xs uppercase tracking-wider p-6 text-center">
+        <span className="text-4xl mb-2 opacity-60">🛕</span>
+        <span>MurtiPuja Idol</span>
       </div>
     );
   }
@@ -343,7 +338,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
             >
               {media.type === "video" ? (
                 <div className="relative w-full h-full bg-neutral-900">
-                  <video src={formatImageUrl(media.url)} className="w-full h-full object-cover opacity-60" muted playsInline />
+                  <video src={media.url} className="w-full h-full object-cover opacity-60" muted playsInline />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="w-6 h-6 rounded-none bg-black border border-white flex items-center justify-center text-white text-[10px] font-bold">
                       ▶
@@ -352,7 +347,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                 </div>
               ) : (
                 <Image
-                  src={formatImageUrl(media.url)}
+                  src={media.url}
                   alt={media.alt || `${title} thumbnail ${idx + 1}`}
                   fill
                   sizes="80px"
@@ -381,7 +376,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
         >
           {activeMedia.type === "video" ? (
             <video
-              src={formatImageUrl(activeMedia.url)}
+              src={activeMedia.url}
               controls
               className="w-full h-full object-contain"
               autoPlay
@@ -391,26 +386,19 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
             />
           ) : (
             <div className="relative w-full h-full overflow-hidden flex items-center justify-center p-3 sm:p-4">
-              {!isMainImageLoaded && (
-                <div className="skeleton-box absolute inset-0 z-10 pointer-events-none transition-opacity duration-300" />
-              )}
               <Image
-                src={formatImageUrl(activeMedia.url)}
+                src={activeMedia.url}
                 alt={activeMedia.alt || title}
                 fill
                 sizes="(max-width: 768px) 100vw, 540px"
                 unoptimized
-                onLoad={() => setIsMainImageLoaded(true)}
-                onError={() => setIsMainImageLoaded(true)}
-                className={`object-contain p-2 sm:p-3 transition-all duration-300 ease-out select-none pointer-events-none ${
-                  isMainImageLoaded ? "opacity-100" : "opacity-0"
-                } ${
+                priority
+                className={`object-contain p-2 sm:p-3 transition-transform duration-300 ease-out select-none pointer-events-none ${
                   isHovering ? "scale-[2.2]" : "scale-100"
                 }`}
                 style={{
                   transformOrigin: isHovering ? `${zoomPos.x}% ${zoomPos.y}%` : "center center",
                 }}
-                priority
               />
             </div>
           )}
@@ -461,14 +449,14 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                 >
                   {media.type === "video" ? (
                     <div className="relative w-full h-full bg-neutral-900">
-                      <video src={formatImageUrl(media.url)} className="w-full h-full object-cover opacity-60" muted playsInline />
+                      <video src={media.url} className="w-full h-full object-cover opacity-60" muted playsInline />
                       <div className="absolute inset-0 flex items-center justify-center">
                         <span className="text-white text-[9px] font-bold">▶</span>
                       </div>
                     </div>
                   ) : (
                     <Image
-                      src={formatImageUrl(media.url)}
+                      src={media.url}
                       alt={media.alt || `${title} thumbnail ${idx + 1}`}
                       fill
                       sizes="80px"
@@ -597,7 +585,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
             {activeMedia.type === "video" ? (
               <div className="relative max-w-4xl max-h-[75vh] w-full aspect-video flex items-center justify-center">
                 <video
-                  src={formatImageUrl(activeMedia.url)}
+                  src={activeMedia.url}
                   controls
                   autoPlay
                   className="w-full h-full object-contain"
@@ -612,7 +600,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={formatImageUrl(activeMedia.url)}
+                  src={activeMedia.url}
                   alt={activeMedia.alt || title}
                   className="max-w-full max-h-full object-contain pointer-events-none drop-shadow-2xl select-none"
                   draggable={false}
@@ -683,7 +671,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
                     ) : (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img
-                        src={formatImageUrl(media.url)}
+                        src={media.url}
                         alt={media.alt || `Thumbnail ${idx + 1}`}
                         className="w-full h-full object-contain p-1"
                       />

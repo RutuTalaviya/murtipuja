@@ -148,13 +148,43 @@ export default async function ProductDetailPage({ params }) {
     },
   };
 
+  // Combine all images: variant-specific images first, followed by all product gallery images (no duplicates)
   const initialVariant = product.variants?.[0];
-  const initialGalleryImages =
-    initialVariant?.images && initialVariant.images.length > 0
-      ? initialVariant.images
-      : initialVariant?.image
-        ? [{ url: initialVariant.image, alt: `${product.title} - ${initialVariant.finish || ""}` }]
-        : product.images || [];
+  const seenUrls = new Set();
+  const initialGalleryImages = [];
+
+  const addImg = (img, fallbackAlt) => {
+    if (!img) return;
+    const rawUrl = typeof img === "object" ? img?.url : img;
+    if (rawUrl && typeof rawUrl === "string" && !seenUrls.has(rawUrl.trim())) {
+      seenUrls.add(rawUrl.trim());
+      initialGalleryImages.push({
+        url: rawUrl.trim(),
+        alt: (typeof img === "object" ? img?.alt : fallbackAlt) || fallbackAlt || product.title,
+      });
+    }
+  };
+
+  // 1. Add current variant images
+  if (Array.isArray(initialVariant?.images)) {
+    initialVariant.images.forEach((img) => addImg(img, `${product.title} - ${initialVariant.finish || ""}`));
+  }
+  if (initialVariant?.image) {
+    addImg(initialVariant.image, `${product.title} - ${initialVariant.finish || ""}`);
+  }
+
+  // 2. Add all product gallery images
+  if (Array.isArray(product.images)) {
+    product.images.forEach((img) => addImg(img, product.title));
+  }
+
+  // 3. Fallback to all other variants' images if product.images was empty
+  if (initialGalleryImages.length === 0 && Array.isArray(product.variants)) {
+    product.variants.forEach((v) => {
+      if (Array.isArray(v.images)) v.images.forEach((img) => addImg(img, `${product.title} - ${v.finish || ""}`));
+      if (v.image) addImg(v.image, `${product.title} - ${v.finish || ""}`);
+    });
+  }
 
   return (
     <main className="min-h-screen bg-white px-2 sm:px-4 md:px-6 lg:px-8 py-6 md:py-8 font-display w-full">
