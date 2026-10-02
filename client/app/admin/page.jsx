@@ -1678,6 +1678,60 @@ export default function AdminPage() {
     });
   }
 
+  // Helper to sanitize SKU tokens
+  function cleanSkuToken(str) {
+    if (!str) return "";
+    return str
+      .toString()
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+  }
+
+  function cleanSizeToken(str) {
+    if (!str) return "6INCH";
+    return str
+      .toString()
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, "")
+      .replace(/[^A-Z0-9-]/g, "");
+  }
+
+  // Compute Auto SKU in format: [Main Category]-[SubCategory]-[Size]-[Finish / Color]
+  function computeVariantSku(sizeVal, finishVal, catIdVal = selectedCatId, subCatIdsVal = selectedSubCatIds) {
+    // 1. Main Category
+    const cleanCat = typeof catIdVal === "object" ? catIdVal?._id : catIdVal;
+    const mainCat = (categories || []).find((c) => {
+      const cId = typeof c === "object" ? c._id : c;
+      return cId && cleanCat && cId.toString() === cleanCat.toString();
+    });
+    const mainCatName = mainCat?.name || (typeof cleanCat === "string" && !cleanCat.match(/^[0-9a-fA-F]{24}$/) ? cleanCat : "");
+    const mainCatToken = cleanSkuToken(mainCatName) || cleanSkuToken(deity) || "MURTI";
+
+    // 2. Subcategory
+    let subCatName = "";
+    const firstSubId = Array.isArray(subCatIdsVal) && subCatIdsVal.length > 0 ? subCatIdsVal[0] : null;
+    const cleanSub = typeof firstSubId === "object" ? firstSubId?._id : firstSubId;
+    if (cleanSub) {
+      const subCat = (categories || []).find((c) => {
+        const cId = typeof c === "object" ? c._id : c;
+        return cId && cId.toString() === cleanSub.toString();
+      });
+      subCatName = subCat?.name || (typeof cleanSub === "string" && !cleanSub.match(/^[0-9a-fA-F]{24}$/) ? cleanSub : "");
+    }
+    const subCatToken = cleanSkuToken(subCatName) || cleanSkuToken(deity) || cleanSkuToken(title?.slice(0, 4)) || "GEN";
+
+    // 3. Size
+    const sizeToken = cleanSizeToken(sizeVal || "6 inch");
+
+    // 4. Finish / Color
+    const finishToken = cleanSkuToken(finishVal || "Matte Black");
+
+    return `${mainCatToken}-${subCatToken}-${sizeToken}-${finishToken}`;
+  }
+
   // Helper to reset product form state variables
   function resetProductForm() {
     setTitle("");
@@ -1694,7 +1748,7 @@ export default function AdminPage() {
     setVariantFinish("Matte Black");
     setVariantStock("10");
     setVariantSku("");
-    setFormVariants([{ size: "6 inch", finish: finishes[0]?.name || "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", image: "", images: [] }]);
+    setFormVariants([{ size: "6 inch", finish: finishes[0]?.name || "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", isCustomSku: false, image: "", images: [] }]);
     setProductTags([]);
     setCustomTagInput("");
     setProductDetails("");
@@ -1757,6 +1811,12 @@ export default function AdminPage() {
       if (!deity || deity === "General") {
         setDeity(newCat.name);
       }
+      setFormVariants((prev) =>
+        prev.map((v) => ({
+          ...v,
+          sku: v.isCustomSku ? v.sku : computeVariantSku(v.size, v.finish, newCat._id, selectedSubCatIds),
+        }))
+      );
       setQuickCatName("");
       setQuickCatSlug("");
       setQuickCatDesc("");
@@ -1803,9 +1863,14 @@ export default function AdminPage() {
 
       const newSub = res.data;
       setCategories((prev) => [...prev, newSub]);
-      if (!selectedSubCatIds.includes(newSub._id)) {
-        setSelectedSubCatIds((prev) => [...prev, newSub._id]);
-      }
+      const newSubIds = selectedSubCatIds.includes(newSub._id) ? selectedSubCatIds : [...selectedSubCatIds, newSub._id];
+      setSelectedSubCatIds(newSubIds);
+      setFormVariants((prev) =>
+        prev.map((v) => ({
+          ...v,
+          sku: v.isCustomSku ? v.sku : computeVariantSku(v.size, v.finish, selectedCatId, newSubIds),
+        }))
+      );
       setQuickSubName("");
       setQuickSubSlug("");
       setQuickSubDesc("");
@@ -1944,6 +2009,7 @@ export default function AdminPage() {
               discountPrice: v.discountPrice !== undefined && v.discountPrice !== null ? v.discountPrice.toString() : "",
               stock: v.stock !== undefined && v.stock !== null ? v.stock.toString() : "10",
               sku: v.sku || "",
+              isCustomSku: !!v.sku,
               image: vImages[0] || "",
               images: vImages,
             };
@@ -1956,7 +2022,7 @@ export default function AdminPage() {
         setVariantSku(fullProduct.variants[0].sku || "");
       } else {
         const initialImgs = imageList.length > 0 ? [...imageList] : [];
-        setFormVariants([{ size: "6 inch", finish: finishes[0]?.name || "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", image: initialImgs[0] || "", images: initialImgs }]);
+        setFormVariants([{ size: "6 inch", finish: finishes[0]?.name || "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", isCustomSku: false, image: initialImgs[0] || "", images: initialImgs }]);
         setVariantSize("6 inch");
         setVariantFinish(finishes[0]?.name || "Matte Black");
         setVariantStock("10");
@@ -2001,8 +2067,15 @@ export default function AdminPage() {
 
     const generatedSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
+    // Clean categories and subcategories
+    const cleanCatId = typeof selectedCatId === "object" ? selectedCatId?._id : selectedCatId;
+    const cleanSubCatIds = (selectedSubCatIds || [])
+      .map((s) => (typeof s === "object" ? s?._id : s))
+      .filter((id) => id && typeof id === "string");
+
     const updatedVariants = formVariants.map((v, idx) => {
-      const sku = v.sku || `${(deity || "GEN").toUpperCase()}-${title.slice(0, 3).toUpperCase()}-${v.size.replace(/\s+/g, "").toUpperCase()}-${v.finish.slice(0, 3).replace(/\s+/g, "").toUpperCase()}-${idx}`;
+      const autoSku = computeVariantSku(v.size, v.finish, cleanCatId, cleanSubCatIds);
+      const sku = v.sku?.trim() || autoSku;
       const vImgs = Array.isArray(v.images) && v.images.length > 0 ? v.images : (v.image ? [v.image] : []);
       const cleanImgStrings = vImgs
         .map((img) => (typeof img === "object" ? img?.url : img))
@@ -2027,12 +2100,6 @@ export default function AdminPage() {
       }
       return variantObj;
     });
-
-    // Clean categories and subcategories
-    const cleanCatId = typeof selectedCatId === "object" ? selectedCatId?._id : selectedCatId;
-    const cleanSubCatIds = (selectedSubCatIds || [])
-      .map((s) => (typeof s === "object" ? s?._id : s))
-      .filter((id) => id && typeof id === "string");
 
     const productPayload = {
       title: title.trim(),
@@ -4196,6 +4263,12 @@ export default function AdminPage() {
                           if (matchedCat && (!deity || deity === "General")) {
                             setDeity(matchedCat.name);
                           }
+                          setFormVariants((prev) =>
+                            prev.map((v) => ({
+                              ...v,
+                              sku: v.isCustomSku ? v.sku : computeVariantSku(v.size, v.finish, catId, selectedSubCatIds),
+                            }))
+                          );
                         }}
                         className="w-full px-4 py-2 border border-charcoal/15 rounded-xl bg-transparent outline-none focus:ring-1 focus:ring-gold text-xs font-semibold"
                       >
@@ -4323,11 +4396,19 @@ export default function AdminPage() {
                               key={sub._id}
                               type="button"
                               onClick={() => {
+                                let newSubIds;
                                 if (isSelected) {
-                                  setSelectedSubCatIds(selectedSubCatIds.filter((id) => id !== sub._id));
+                                  newSubIds = selectedSubCatIds.filter((id) => id !== sub._id);
                                 } else {
-                                  setSelectedSubCatIds([...selectedSubCatIds, sub._id]);
+                                  newSubIds = [...selectedSubCatIds, sub._id];
                                 }
+                                setSelectedSubCatIds(newSubIds);
+                                setFormVariants((prev) =>
+                                  prev.map((v) => ({
+                                    ...v,
+                                    sku: v.isCustomSku ? v.sku : computeVariantSku(v.size, v.finish, selectedCatId, newSubIds),
+                                  }))
+                                );
                               }}
                               className={`text-xs py-1.5 px-3 rounded-xl border font-semibold transition-all flex items-center gap-1.5 ${isSelected
                                 ? "bg-maroon text-white border-maroon shadow-xs"
@@ -4695,21 +4776,25 @@ export default function AdminPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                          const defSize = "6 inch";
+                          const defFinish = finishes[0]?.name || "Matte Black";
+                          const defSku = computeVariantSku(defSize, defFinish, selectedCatId, selectedSubCatIds);
                           setFormVariants([
                             ...formVariants,
                             {
-                              size: "6 inch",
-                              finish: finishes[0]?.name || "Matte Black",
+                              size: defSize,
+                              finish: defFinish,
                               price: "",
                               discountPrice: "",
                               stock: "10",
-                              sku: "",
+                              sku: defSku,
+                              isCustomSku: false,
                               image: "",
                               images: [],
                             },
-                          ])
-                        }
+                          ]);
+                        }}
                         className="bg-maroon hover:bg-maroon-dark text-white text-[10px] font-bold uppercase tracking-wider px-3.5 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5 self-start sm:self-auto"
                       >
                         <span>＋</span> Add Variant
@@ -4758,8 +4843,12 @@ export default function AdminPage() {
                                   placeholder="e.g. 6 inch"
                                   value={v.size}
                                   onChange={(e) => {
+                                    const newSize = e.target.value;
                                     const updated = [...formVariants];
-                                    updated[index].size = e.target.value;
+                                    updated[index].size = newSize;
+                                    if (!updated[index].isCustomSku) {
+                                      updated[index].sku = computeVariantSku(newSize, updated[index].finish, selectedCatId, selectedSubCatIds);
+                                    }
                                     setFormVariants(updated);
                                   }}
                                   className="w-full px-2.5 py-1.5 border border-charcoal/15 rounded-lg bg-neutral-50/50 outline-none focus:bg-white text-xs font-semibold"
@@ -4772,8 +4861,12 @@ export default function AdminPage() {
                                   required
                                   value={v.finish}
                                   onChange={(e) => {
+                                    const newFinish = e.target.value;
                                     const updated = [...formVariants];
-                                    updated[index].finish = e.target.value;
+                                    updated[index].finish = newFinish;
+                                    if (!updated[index].isCustomSku) {
+                                      updated[index].sku = computeVariantSku(updated[index].size, newFinish, selectedCatId, selectedSubCatIds);
+                                    }
                                     setFormVariants(updated);
                                   }}
                                   className="w-full px-2.5 py-1.5 border border-charcoal/15 rounded-lg bg-neutral-50/50 outline-none focus:bg-white text-xs font-semibold"
@@ -4834,11 +4927,12 @@ export default function AdminPage() {
                                 <label className="text-[9px] uppercase font-bold tracking-wider text-charcoal/60 block">SKU (Auto)</label>
                                 <input
                                   type="text"
-                                  placeholder="Auto SKU"
+                                  placeholder={computeVariantSku(v.size, v.finish, selectedCatId, selectedSubCatIds)}
                                   value={v.sku}
                                   onChange={(e) => {
                                     const updated = [...formVariants];
                                     updated[index].sku = e.target.value;
+                                    updated[index].isCustomSku = !!e.target.value.trim();
                                     setFormVariants(updated);
                                   }}
                                   className="w-full px-2.5 py-1.5 border border-charcoal/15 rounded-lg bg-neutral-50/50 outline-none focus:bg-white text-xs font-mono"

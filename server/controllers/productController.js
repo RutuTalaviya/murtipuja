@@ -357,6 +357,25 @@ async function createProduct(req, res, next) {
     // Process and normalize variant images
     const allVariantImages = [];
     if (Array.isArray(req.body.variants)) {
+      // Fetch category and subcategory names for auto SKU if needed
+      let mainCatName = "";
+      let subCatName = "";
+      if (req.body.category && req.body.category[0]) {
+        try {
+          const catDoc = await Category.findById(req.body.category[0]).select("name slug");
+          if (catDoc) mainCatName = catDoc.name;
+        } catch (e) {}
+      }
+      if (req.body.subCategory && req.body.subCategory[0]) {
+        try {
+          const subDoc = await Category.findById(req.body.subCategory[0]).select("name slug");
+          if (subDoc) subCatName = subDoc.name;
+        } catch (e) {}
+      }
+
+      const cleanSkuToken = (str) => (!str ? "" : str.toString().trim().toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/(^-|-$)/g, ""));
+      const cleanSizeToken = (str) => (!str ? "6INCH" : str.toString().trim().toUpperCase().replace(/\s+/g, "").replace(/[^A-Z0-9-]/g, ""));
+
       req.body.variants = req.body.variants.map((v, i) => {
         let vImages = [];
         if (Array.isArray(v.images) && v.images.length > 0) {
@@ -377,7 +396,13 @@ async function createProduct(req, res, next) {
           if (img && img.url) allVariantImages.push(img);
         });
         const firstUrl = vImages[0]?.url || (typeof v.image === "object" ? v.image?.url : v.image) || "";
-        const sku = v.sku || `${(req.body.deity || "GEN").toUpperCase()}-${(req.body.title || "MURTI").slice(0, 3).toUpperCase()}-${(v.size || "STD").replace(/\s+/g, "").toUpperCase()}-${(v.finish || "STD").slice(0, 3).replace(/\s+/g, "").toUpperCase()}-${i}`;
+        
+        const catToken = cleanSkuToken(mainCatName) || cleanSkuToken(req.body.deity) || "MURTI";
+        const subToken = cleanSkuToken(subCatName) || cleanSkuToken(req.body.deity) || cleanSkuToken((req.body.title || "").slice(0, 4)) || "GEN";
+        const sizeToken = cleanSizeToken(v.size);
+        const finishToken = cleanSkuToken(v.finish || "STD");
+        const autoSku = `${catToken}-${subToken}-${sizeToken}-${finishToken}`;
+        const sku = v.sku || autoSku;
         
         const variantObj = {
           size: v.size || "6 inch",
@@ -484,6 +509,27 @@ async function updateProduct(req, res, next) {
     const allVariantImages = [];
     let processedVariants = existingProduct.variants || [];
     if (Array.isArray(req.body.variants)) {
+      // Fetch category and subcategory names for auto SKU if needed
+      let mainCatName = "";
+      let subCatName = "";
+      const catId = (req.body.category && req.body.category[0]) || (existingProduct.category && existingProduct.category[0]);
+      const subCatId = (req.body.subCategory && req.body.subCategory[0]) || (existingProduct.subCategory && existingProduct.subCategory[0]);
+      if (catId) {
+        try {
+          const catDoc = await Category.findById(catId).select("name slug");
+          if (catDoc) mainCatName = catDoc.name;
+        } catch (e) {}
+      }
+      if (subCatId) {
+        try {
+          const subDoc = await Category.findById(subCatId).select("name slug");
+          if (subDoc) subCatName = subDoc.name;
+        } catch (e) {}
+      }
+
+      const cleanSkuToken = (str) => (!str ? "" : str.toString().trim().toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/(^-|-$)/g, ""));
+      const cleanSizeToken = (str) => (!str ? "6INCH" : str.toString().trim().toUpperCase().replace(/\s+/g, "").replace(/[^A-Z0-9-]/g, ""));
+
       processedVariants = req.body.variants.map((v, i) => {
         let vImages = [];
         if (Array.isArray(v.images) && v.images.length > 0) {
@@ -504,7 +550,13 @@ async function updateProduct(req, res, next) {
           if (img && img.url) allVariantImages.push(img);
         });
         const firstUrl = vImages[0]?.url || (typeof v.image === "object" ? v.image?.url : v.image) || "";
-        const sku = v.sku || `${(req.body.deity || existingProduct.deity || "GEN").toUpperCase()}-${(req.body.title || existingProduct.title || "MURTI").slice(0, 3).toUpperCase()}-${(v.size || "STD").replace(/\s+/g, "").toUpperCase()}-${(v.finish || "STD").slice(0, 3).replace(/\s+/g, "").toUpperCase()}-${i}`;
+        
+        const catToken = cleanSkuToken(mainCatName) || cleanSkuToken(req.body.deity || existingProduct.deity) || "MURTI";
+        const subToken = cleanSkuToken(subCatName) || cleanSkuToken(req.body.deity || existingProduct.deity) || cleanSkuToken((req.body.title || existingProduct.title || "").slice(0, 4)) || "GEN";
+        const sizeToken = cleanSizeToken(v.size);
+        const finishToken = cleanSkuToken(v.finish || "STD");
+        const autoSku = `${catToken}-${subToken}-${sizeToken}-${finishToken}`;
+        const sku = v.sku || autoSku;
         
         const variantObj = {
           size: v.size || "6 inch",
