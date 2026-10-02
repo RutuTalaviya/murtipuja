@@ -99,18 +99,21 @@ export default function AddToCartPanel({ product, finishes }) {
         });
       }
 
+      // Skip the first 2 images (cover and hover) so details gallery only displays showcase images
+      const galleryImages = variantImages.slice(2);
+
       const event = new CustomEvent("variantChange", {
         detail: {
           variant: selectedVariant,
-          images: variantImages,
-          image: selectedVariant.image || (variantImages[0]?.url || ""),
+          images: galleryImages,
+          image: galleryImages[0]?.url || selectedVariant.image || "",
         },
       });
       window.dispatchEvent(event);
 
       // Also trigger legacy event for backwards compatibility
-      if (selectedVariant.image || variantImages[0]?.url) {
-        window.dispatchEvent(new CustomEvent("variantImageChange", { detail: selectedVariant.image || variantImages[0]?.url }));
+      if (galleryImages[0]?.url || selectedVariant.image) {
+        window.dispatchEvent(new CustomEvent("variantImageChange", { detail: galleryImages[0]?.url || selectedVariant.image }));
       }
     }
   }, [selectedVariant, product.title, product.images, product.variants]);

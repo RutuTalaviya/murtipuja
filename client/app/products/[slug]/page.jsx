@@ -186,6 +186,9 @@ export default async function ProductDetailPage({ params }) {
     });
   }
 
+  // Skip the first 2 images (primary cover and hover preview images) for the product gallery
+  const finalGalleryImages = initialGalleryImages.slice(2);
+
   return (
     <main className="min-h-screen bg-white px-2 sm:px-4 md:px-6 lg:px-8 py-6 md:py-8 font-display w-full">
       {/* eslint-disable-next-line react/no-danger */}
@@ -195,7 +198,7 @@ export default async function ProductDetailPage({ params }) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-12 items-start">
           {/* Left: Product Image & Vertical Gallery (Variant-Specific) */}
           <div className="lg:col-span-7 xl:col-span-7 w-full flex justify-center lg:justify-start lg:pl-2 xl:pl-4">
-            <ImageGallery images={initialGalleryImages} title={product.title} />
+            <ImageGallery images={finalGalleryImages} title={product.title} />
           </div>
 
           {/* Right: Product Details & Add to Cart Panel */}
