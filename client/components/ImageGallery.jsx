@@ -77,10 +77,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
       if (data.image) {
         const formattedUrl = formatImageUrl(data.image);
         if (formattedUrl) {
-          setMediaList((prev) => {
-            const filtered = prev.filter((m) => m.url !== formattedUrl);
-            return [{ url: formattedUrl, alt: `${title} - Selected Variant`, type: "image" }, ...filtered];
-          });
+          setMediaList([{ url: formattedUrl, alt: `${title} - Selected Variant`, type: "image" }]);
           setActiveIndex(0);
         }
       }

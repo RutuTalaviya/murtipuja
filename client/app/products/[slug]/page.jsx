@@ -148,7 +148,7 @@ export default async function ProductDetailPage({ params }) {
     },
   };
 
-  // Combine all images: variant-specific images first, followed by all product gallery images (no duplicates)
+  // Variant-specific images for initial load (only matching initial variant / finish)
   const initialVariant = product.variants?.[0];
   const seenUrls = new Set();
   const initialGalleryImages = [];
@@ -166,28 +166,31 @@ export default async function ProductDetailPage({ params }) {
   };
 
   // 1. Add current variant images
-  if (Array.isArray(initialVariant?.images)) {
+  if (Array.isArray(initialVariant?.images) && initialVariant.images.length > 0) {
     initialVariant.images.forEach((img) => addImg(img, `${product.title} - ${initialVariant.finish || ""}`));
   }
   if (initialVariant?.image) {
     addImg(initialVariant.image, `${product.title} - ${initialVariant.finish || ""}`);
   }
 
-  // 2. Add all product gallery images
-  if (Array.isArray(product.images)) {
-    product.images.forEach((img) => addImg(img, product.title));
-  }
-
-  // 3. Fallback to all other variants' images if product.images was empty
-  if (initialGalleryImages.length === 0 && Array.isArray(product.variants)) {
-    product.variants.forEach((v) => {
+  // 2. If no images on this exact variant, check other variants with the same finish/color
+  if (initialGalleryImages.length === 0 && initialVariant?.finish && Array.isArray(product.variants)) {
+    const sameFinishVariants = product.variants.filter(
+      (v) => (v.finish || "").toLowerCase().trim() === (initialVariant.finish || "").toLowerCase().trim()
+    );
+    sameFinishVariants.forEach((v) => {
       if (Array.isArray(v.images)) v.images.forEach((img) => addImg(img, `${product.title} - ${v.finish || ""}`));
       if (v.image) addImg(v.image, `${product.title} - ${v.finish || ""}`);
     });
   }
 
-  // Skip the first 2 images (primary cover and hover preview images) for the product gallery
-  const finalGalleryImages = initialGalleryImages.slice(2);
+  // 3. Fallback to product level images only if this variant has no images
+  if (initialGalleryImages.length === 0 && Array.isArray(product.images)) {
+    product.images.forEach((img) => addImg(img, product.title));
+  }
+
+  // Skip the first 2 images (primary cover and hover preview images) if 3 or more exist, else show available
+  const finalGalleryImages = initialGalleryImages.length > 2 ? initialGalleryImages.slice(2) : initialGalleryImages;
 
   return (
     <main className="min-h-screen bg-white px-2 sm:px-4 md:px-6 lg:px-8 py-6 md:py-8 font-display w-full">

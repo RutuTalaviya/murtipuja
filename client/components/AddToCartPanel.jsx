@@ -78,45 +78,52 @@ export default function AddToCartPanel({ product, finishes }) {
         }
       };
 
-      // 1. Prioritize selected variant photos at index 0
-      if (Array.isArray(selectedVariant.images)) {
+      // 1. Add images of the currently selected variant
+      if (Array.isArray(selectedVariant.images) && selectedVariant.images.length > 0) {
         selectedVariant.images.forEach((img) => addImg(img, `${product.title} - ${selectedVariant.finish || ""}`));
       }
       if (selectedVariant.image) {
         addImg(selectedVariant.image, `${product.title} - ${selectedVariant.finish || ""}`);
       }
 
-      // 2. Append all other product gallery images
-      if (Array.isArray(product.images)) {
-        product.images.forEach((img) => addImg(img, product.title));
-      }
-
-      // 3. Append other variants images if still needed
-      if (Array.isArray(product.variants)) {
-        product.variants.forEach((v) => {
+      // 2. If no images on this exact variant, check other variants with the same finish/color
+      if (variantImages.length === 0 && selectedVariant.finish && Array.isArray(product.variants)) {
+        const sameFinishVariants = product.variants.filter(
+          (v) => (v.finish || "").toLowerCase().trim() === (selectedVariant.finish || "").toLowerCase().trim()
+        );
+        sameFinishVariants.forEach((v) => {
           if (Array.isArray(v.images)) v.images.forEach((img) => addImg(img, `${product.title} - ${v.finish || ""}`));
           if (v.image) addImg(v.image, `${product.title} - ${v.finish || ""}`);
         });
       }
 
-      // Skip the first 2 images (cover and hover) so details gallery only displays showcase images
-      const galleryImages = variantImages.slice(2);
+      // 3. Only if this variant / finish has NO images at all, fallback to product level images
+      if (variantImages.length === 0 && Array.isArray(product.images)) {
+        product.images.forEach((img) => addImg(img, product.title));
+      }
+
+      // Skip the first 2 images (cover and hover) if 3 or more exist, else show available
+      const galleryImages = variantImages.length > 2 ? variantImages.slice(2) : variantImages;
 
       const event = new CustomEvent("variantChange", {
         detail: {
           variant: selectedVariant,
           images: galleryImages,
-          image: galleryImages[0]?.url || selectedVariant.image || "",
+          image: galleryImages[0]?.url || selectedVariant.image || (variantImages[0]?.url || ""),
         },
       });
       window.dispatchEvent(event);
 
       // Also trigger legacy event for backwards compatibility
-      if (galleryImages[0]?.url || selectedVariant.image) {
-        window.dispatchEvent(new CustomEvent("variantImageChange", { detail: galleryImages[0]?.url || selectedVariant.image }));
+      if (galleryImages[0]?.url || selectedVariant.image || variantImages[0]?.url) {
+        window.dispatchEvent(
+          new CustomEvent("variantImageChange", {
+            detail: galleryImages[0]?.url || selectedVariant.image || variantImages[0]?.url,
+          })
+        );
       }
     }
-  }, [selectedVariant, product.title, product.images, product.variants]);
+  }, [selectedVariant, selectedFinish, selectedSize, product.title, product.images, product.variants]);
 
   const isSaleActive = Boolean(product.isOnSale && selectedVariant?.discountPrice && selectedVariant.discountPrice < selectedVariant.price);
   const inStock = selectedVariant ? selectedVariant.stock > 0 : false;
