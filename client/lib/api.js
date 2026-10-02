@@ -210,6 +210,83 @@ export const updatePageContent = (slug, data) => api.put(`/api/pages/${slug}`, d
 export const resetPageToDefault = (slug) => api.post(`/api/pages/${slug}/reset-default`);
 export const resetAllPagesToDefaults = () => api.post("/api/pages/reset-all-defaults");
 
+/**
+ * Extracts showcase gallery images for a selected product variant / finish.
+ * Automatically skips the first 2 images (Primary Cover and Hover Preview).
+ * E.g., if a variant has 5 images (1, 2, 3, 4, 5) -> returns [3, 4, 5].
+ * E.g., if a variant has 4 images (1, 2, 3, 4) -> returns [3, 4].
+ */
+export function getVariantGalleryMedia(variant, allVariants = [], productImages = [], productTitle = "") {
+  const seen = new Set();
+  const collected = [];
+
+  const addImg = (img, fallbackAlt) => {
+    if (!img) return;
+    const rawUrl = typeof img === "object" ? img?.url : img;
+    if (rawUrl && typeof rawUrl === "string" && rawUrl.trim() && !seen.has(rawUrl.trim())) {
+      seen.add(rawUrl.trim());
+      collected.push({
+        url: rawUrl.trim(),
+        alt: (typeof img === "object" ? img?.alt : fallbackAlt) || fallbackAlt || productTitle,
+      });
+    }
+  };
+
+  const finishName = (variant?.finish || "").toLowerCase().trim();
+
+  // 1. Check if the selected variant has multi-images in `images` array
+  if (Array.isArray(variant?.images) && variant.images.length > 0) {
+    variant.images.forEach((img) => addImg(img, `${productTitle} - ${variant.finish || ""}`));
+  }
+
+  // 2. If this exact variant didn't have multi-images, check other variants with the exact same finish/color
+  if (collected.length <= 1 && finishName && Array.isArray(allVariants)) {
+    const sameFinishVariants = allVariants.filter(
+      (v) => (v.finish || "").toLowerCase().trim() === finishName
+    );
+    sameFinishVariants.forEach((v) => {
+      if (Array.isArray(v.images) && v.images.length > 0) {
+        v.images.forEach((img) => addImg(img, `${productTitle} - ${v.finish || ""}`));
+      }
+    });
+  }
+
+  // 3. Check if product.images has images tagged with this finish name
+  if (collected.length <= 1 && finishName && Array.isArray(productImages)) {
+    const finishMatchingImages = productImages.filter((img) => {
+      const alt = (typeof img === "object" ? img?.alt : "") || "";
+      return alt.toLowerCase().includes(finishName);
+    });
+    if (finishMatchingImages.length > 0) {
+      finishMatchingImages.forEach((img) => addImg(img, `${productTitle} - ${variant?.finish || ""}`));
+    }
+  }
+
+  // 4. If we still have 0 images, check single variant.image
+  if (collected.length === 0 && variant?.image) {
+    addImg(variant.image, `${productTitle} - ${variant?.finish || ""}`);
+  }
+
+  // 5. Fallback: If this color/variant has NO multi-images at all, use general product.images
+  if (collected.length <= 1 && Array.isArray(productImages) && productImages.length > 0) {
+    productImages.forEach((img) => addImg(img, productTitle));
+  }
+
+  // 6. Final fallback: Collect images across all variants
+  if (collected.length === 0 && Array.isArray(allVariants)) {
+    allVariants.forEach((v) => {
+      if (Array.isArray(v.images)) v.images.forEach((img) => addImg(img, `${productTitle} - ${v.finish || ""}`));
+      if (v.image) addImg(v.image, `${productTitle} - ${v.finish || ""}`);
+    });
+  }
+
+  // Skip the first 2 images (Primary Cover and Hover Preview) if at least 3 images exist
+  if (collected.length >= 3) {
+    return collected.slice(2);
+  }
+  return collected;
+}
+
 export default api;
 
 

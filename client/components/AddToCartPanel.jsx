@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
+import { getVariantGalleryMedia } from "@/lib/api";
 
 export default function AddToCartPanel({ product, finishes }) {
   const router = useRouter();
@@ -63,62 +64,27 @@ export default function AddToCartPanel({ product, finishes }) {
   // Emit custom event when selected variant changes to update the image gallery
   useEffect(() => {
     if (selectedVariant) {
-      const seen = new Set();
-      const variantImages = [];
-
-      const addImg = (img, fallbackAlt) => {
-        if (!img) return;
-        const rawUrl = typeof img === "object" ? img?.url : img;
-        if (rawUrl && typeof rawUrl === "string" && !seen.has(rawUrl.trim())) {
-          seen.add(rawUrl.trim());
-          variantImages.push({
-            url: rawUrl.trim(),
-            alt: (typeof img === "object" ? img?.alt : fallbackAlt) || fallbackAlt || product.title,
-          });
-        }
-      };
-
-      // 1. Add images of the currently selected variant
-      if (Array.isArray(selectedVariant.images) && selectedVariant.images.length > 0) {
-        selectedVariant.images.forEach((img) => addImg(img, `${product.title} - ${selectedVariant.finish || ""}`));
-      }
-      if (selectedVariant.image) {
-        addImg(selectedVariant.image, `${product.title} - ${selectedVariant.finish || ""}`);
-      }
-
-      // 2. If no images on this exact variant, check other variants with the same finish/color
-      if (variantImages.length === 0 && selectedVariant.finish && Array.isArray(product.variants)) {
-        const sameFinishVariants = product.variants.filter(
-          (v) => (v.finish || "").toLowerCase().trim() === (selectedVariant.finish || "").toLowerCase().trim()
-        );
-        sameFinishVariants.forEach((v) => {
-          if (Array.isArray(v.images)) v.images.forEach((img) => addImg(img, `${product.title} - ${v.finish || ""}`));
-          if (v.image) addImg(v.image, `${product.title} - ${v.finish || ""}`);
-        });
-      }
-
-      // 3. Only if this variant / finish has NO images at all, fallback to product level images
-      if (variantImages.length === 0 && Array.isArray(product.images)) {
-        product.images.forEach((img) => addImg(img, product.title));
-      }
-
-      // Skip the first 2 images (cover and hover) if 3 or more exist, else show available
-      const galleryImages = variantImages.length > 2 ? variantImages.slice(2) : variantImages;
+      const galleryImages = getVariantGalleryMedia(
+        selectedVariant,
+        product.variants,
+        product.images,
+        product.title
+      );
 
       const event = new CustomEvent("variantChange", {
         detail: {
           variant: selectedVariant,
           images: galleryImages,
-          image: galleryImages[0]?.url || selectedVariant.image || (variantImages[0]?.url || ""),
+          image: galleryImages[0]?.url || selectedVariant.image || "",
         },
       });
       window.dispatchEvent(event);
 
       // Also trigger legacy event for backwards compatibility
-      if (galleryImages[0]?.url || selectedVariant.image || variantImages[0]?.url) {
+      if (galleryImages[0]?.url || selectedVariant.image) {
         window.dispatchEvent(
           new CustomEvent("variantImageChange", {
-            detail: galleryImages[0]?.url || selectedVariant.image || variantImages[0]?.url,
+            detail: galleryImages[0]?.url || selectedVariant.image,
           })
         );
       }
