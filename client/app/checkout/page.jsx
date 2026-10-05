@@ -576,44 +576,55 @@ export default function CheckoutPage() {
 
             {/* Coupon Code Form & Available Offers */}
             <div className="mb-6 space-y-3">
-              <form onSubmit={handleApplyCoupon}>
-                <label className="block text-[9.5px] font-extrabold text-neutral-400 uppercase tracking-widest mb-1.5">Apply Promo/Coupon Code</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="e.g. FESTIVE10"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                    className="flex-1 px-3 py-2 border-2 border-neutral-200 rounded-none bg-transparent outline-none focus:border-black text-xs font-bold text-black font-mono"
-                  />
-                  <button
-                    type="submit"
-                    disabled={couponLoading}
-                    className="bg-black hover:bg-gold hover:text-black border-2 border-black text-white px-5 py-2.5 rounded-none text-xs font-extrabold uppercase tracking-widest disabled:opacity-50 transition-colors"
-                  >
-                    {couponLoading ? "..." : "Apply"}
-                  </button>
-                </div>
-                {appliedCouponCode && (
-                  <p className="text-green-700 text-xs font-bold uppercase tracking-wider mt-1.5 flex items-center justify-between">
-                    <span>✓ Coupon <strong className="text-[9.5px] bg-green-50 border border-green-200 text-green-800 px-1.5 py-0.5 rounded-none font-extrabold">{appliedCouponCode}</strong> applied!</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        removeCoupon();
-                        setCouponCode("");
-                      }}
-                      className="text-red-600 hover:underline font-extrabold text-[10px] uppercase tracking-widest ml-1"
-                    >
-                      Remove
-                    </button>
+              {calculations.comboDiscount > 0 ? (
+                <div className="bg-amber-50 border-2 border-amber-400 p-3 text-xs space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                    <span>🎁</span> Combo Offer Active (-₹{calculations.comboDiscount})
                   </p>
-                )}
-                {couponError && <p className="text-red-600 text-xs mt-1.5 font-semibold">{couponError}</p>}
-              </form>
+                  <p className="text-[10.5px] text-amber-800 font-medium leading-relaxed">
+                    A special Combo Deal is applied to your cart. As per store policy, coupons cannot be combined with combo deals (Only 1 offer applies per order).
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={handleApplyCoupon}>
+                  <label className="block text-[9.5px] font-extrabold text-neutral-400 uppercase tracking-widest mb-1.5">Apply Promo/Coupon Code</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. FESTIVE10"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      className="flex-1 px-3 py-2 border-2 border-neutral-200 rounded-none bg-transparent outline-none focus:border-black text-xs font-bold text-black font-mono"
+                    />
+                    <button
+                      type="submit"
+                      disabled={couponLoading}
+                      className="bg-black hover:bg-gold hover:text-black border-2 border-black text-white px-5 py-2.5 rounded-none text-xs font-extrabold uppercase tracking-widest disabled:opacity-50 transition-colors cursor-pointer"
+                    >
+                      {couponLoading ? "..." : "Apply"}
+                    </button>
+                  </div>
+                  {appliedCouponCode && (
+                    <p className="text-green-700 text-xs font-bold uppercase tracking-wider mt-1.5 flex items-center justify-between">
+                      <span>✓ Coupon <strong className="text-[9.5px] bg-green-50 border border-green-200 text-green-800 px-1.5 py-0.5 rounded-none font-extrabold">{appliedCouponCode}</strong> applied!</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          removeCoupon();
+                          setCouponCode("");
+                        }}
+                        className="text-red-600 hover:underline font-extrabold text-[10px] uppercase tracking-widest ml-1 cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    </p>
+                  )}
+                  {couponError && <p className="text-red-600 text-xs mt-1.5 font-semibold">{couponError}</p>}
+                </form>
+              )}
 
-              {/* Available Active Coupons Chips */}
-              {availableCoupons.length > 0 && !appliedCouponCode && (
+              {/* Available Active Coupons Chips (only shown if no combo deal active and no coupon applied) */}
+              {availableCoupons.length > 0 && !appliedCouponCode && calculations.comboDiscount === 0 && (
                 <div className="bg-neutral-50 p-3 border border-neutral-200 space-y-2">
                   <p className="text-[9px] font-extrabold uppercase tracking-widest text-neutral-400">Available Coupons</p>
                   <div className="flex flex-wrap gap-1.5">
@@ -631,7 +642,7 @@ export default function CheckoutPage() {
                             setCouponError(result.message);
                           }
                         }}
-                        className="group text-left border border-black/20 hover:border-black bg-white px-2.5 py-1.5 transition-all text-xs flex items-center gap-2 shadow-2xs hover:bg-black hover:text-white"
+                        className="group text-left border border-black/20 hover:border-black bg-white px-2.5 py-1.5 transition-all text-xs flex items-center gap-2 shadow-2xs hover:bg-black hover:text-white cursor-pointer"
                         title={c.minOrderValue > 0 ? `Min cart ₹${c.minOrderValue}` : "No min order"}
                       >
                         <span className="font-mono font-black text-maroon group-hover:text-gold text-[11px] tracking-wider">{c.code}</span>
@@ -647,8 +658,8 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {/* Available Active Special Offers Banner */}
-              {availableOffers.length > 0 && (
+              {/* Available Active Special Offers Banner (only shown if no combo deal active) */}
+              {availableOffers.length > 0 && calculations.comboDiscount === 0 && (
                 <div className="bg-gold/10 border border-gold/30 p-2.5 space-y-1">
                   <p className="text-[9px] font-extrabold uppercase tracking-widest text-gold flex items-center gap-1">
                     <span>✨ Active Store Offer</span>

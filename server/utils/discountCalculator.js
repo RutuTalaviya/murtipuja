@@ -154,37 +154,45 @@ async function calculateCartDiscounts(cartItems, couponCode = "") {
   let couponError = "";
 
   if (couponCode) {
-    try {
-      const coupon = await Coupon.findOne({
-        code: couponCode.toUpperCase().trim(),
-        isActive: true,
-        expiryDate: { $gt: new Date() },
-      });
+    if (candidateComboDiscount > 0) {
+      couponError = "A Combo Offer is already applied to your cart. Coupons cannot be combined with Combo Deals (Only 1 offer allowed per order).";
+    } else {
+      try {
+        const coupon = await Coupon.findOne({
+          code: couponCode.toUpperCase().trim(),
+          isActive: true,
+          expiryDate: { $gt: new Date() },
+        });
 
-      if (!coupon) {
-        couponError = "Coupon code is invalid or expired";
-      } else if (originalSubtotal < (coupon.minOrderValue || 0)) {
-        couponError = `Minimum order value of ₹${coupon.minOrderValue} is required to apply this coupon`;
-      } else if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
-        couponError = "Coupon code usage limit has been reached";
-      } else {
-        if (coupon.discountType === "percentage") {
-          candidateCouponDiscount = Math.round(originalSubtotal * (coupon.discountValue / 100));
-        } else if (coupon.discountType === "flat") {
-          candidateCouponDiscount = coupon.discountValue;
+        if (!coupon) {
+          couponError = "Coupon code is invalid or expired";
+        } else if (originalSubtotal < (coupon.minOrderValue || 0)) {
+          couponError = `Minimum order value of ₹${coupon.minOrderValue} is required to apply this coupon`;
+        } else if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
+          couponError = "Coupon code usage limit has been reached";
+        } else {
+          if (coupon.discountType === "percentage") {
+            candidateCouponDiscount = Math.round(originalSubtotal * (coupon.discountValue / 100));
+          } else if (coupon.discountType === "flat") {
+            candidateCouponDiscount = coupon.discountValue;
+          }
+
+          candidateCouponDiscount = Math.min(candidateCouponDiscount, originalSubtotal);
+          candidateCoupon = coupon;
         }
-
-        candidateCouponDiscount = Math.min(candidateCouponDiscount, originalSubtotal);
-        candidateCoupon = coupon;
+      } catch (err) {
+        console.error("Failed to validate coupon:", err);
+        couponError = "Internal error validating coupon";
       }
-    } catch (err) {
-      console.error("Failed to validate coupon:", err);
-      couponError = "Internal error validating coupon";
     }
   }
 
   // -------------------------------------------------------------
-  // OPTION A: Single Best Offer Selection (Highest Discount Wins)
+  // STRICT SINGLE-OFFER ENFORCEMENT: ONLY 1 OFFER CAN APPLY
+  // Hierarchy & Conflict Resolution:
+  // 1. If Combo Offer is active -> Combo Offer takes exclusive precedence.
+  // 2. If Coupon Code is entered & valid (and no combo) -> Coupon applies exclusively.
+  // 3. Otherwise, if Auto Offer is eligible -> Auto Offer applies.
   // -------------------------------------------------------------
   let comboDiscount = 0;
   let autoOfferDiscount = 0;
@@ -192,48 +200,38 @@ async function calculateCartDiscounts(cartItems, couponCode = "") {
   let appliedCombos = [];
   let appliedOffers = [];
   let appliedCouponCode = "";
-  let appliedOfferType = "none"; // "coupon" | "combo" | "auto_offer" | "none"
+  let appliedOfferType = "none"; // "combo" | "coupon" | "auto_offer" | "none"
   let offerNotice = "";
 
-  // Compare candidates: Coupon vs Combo vs Auto Offer
-  const maxDiscount = Math.max(candidateCouponDiscount, candidateComboDiscount, candidateAutoOfferDiscount);
-
-  if (maxDiscount > 0) {
-    // 1. Coupon is highest
-    if (candidateCouponDiscount > 0 && candidateCouponDiscount >= candidateComboDiscount && candidateCouponDiscount >= candidateAutoOfferDiscount) {
-      couponDiscount = candidateCouponDiscount;
-      appliedCouponCode = candidateCoupon.code;
-      appliedOfferType = "coupon";
-
-      if (candidateAutoOfferDiscount > 0 || candidateComboDiscount > 0) {
-        offerNotice = `Coupon ${candidateCoupon.code} applied (Best saving: ₹${couponDiscount} OFF)`;
-      }
-    }
-    // 2. Combo is highest
-    else if (candidateComboDiscount > 0 && candidateComboDiscount >= candidateAutoOfferDiscount) {
-      comboDiscount = candidateComboDiscount;
-      appliedCombos = candidateCombos;
-      appliedOfferType = "combo";
-
-      if (candidateCoupon) {
-        offerNotice = `Combo deal provides higher savings (₹${comboDiscount} OFF) than coupon ${candidateCoupon.code}. Best offer applied!`;
-      }
-    }
-    // 3. Auto Offer is highest
-    else if (candidateAutoOfferDiscount > 0 && candidateBestOffer) {
-      autoOfferDiscount = candidateAutoOfferDiscount;
-      appliedOffers = [{
-        title: candidateBestOffer.title,
-        discount: autoOfferDiscount,
-      }];
-      appliedOfferType = "auto_offer";
-
-      if (candidateCoupon) {
-        offerNotice = `Store offer '${candidateBestOffer.title}' provides higher savings (₹${autoOfferDiscount} OFF) than coupon ${candidateCoupon.code}. Best offer applied!`;
-      }
+  // 1. Combo Offer takes exclusive priority if cart has combo pairs
+  if (candidateComboDiscount > 0) {
+    comboDiscount = candidateComboDiscount;
+    appliedCombos = candidateCombos;
+    appliedOfferType = "combo";
+    if (couponCode) {
+      offerNotice = "Combo Deal is active. Other coupons/offers cannot be combined with this order.";
     }
   }
+  // 2. If user applied a valid Coupon (and no combo exists)
+  else if (candidateCouponDiscount > 0 && candidateCoupon) {
+    couponDiscount = candidateCouponDiscount;
+    appliedCouponCode = candidateCoupon.code;
+    appliedOfferType = "coupon";
+    if (candidateAutoOfferDiscount > 0) {
+      offerNotice = `Coupon '${candidateCoupon.code}' applied (Auto offer overridden for single offer policy).`;
+    }
+  }
+  // 3. If no combo and no coupon, apply best automatic store offer
+  else if (candidateAutoOfferDiscount > 0 && candidateBestOffer) {
+    autoOfferDiscount = candidateAutoOfferDiscount;
+    appliedOffers = [{
+      title: candidateBestOffer.title,
+      discount: autoOfferDiscount,
+    }];
+    appliedOfferType = "auto_offer";
+  }
 
+  // Strictly only ONE discount is non-zero
   const totalDiscount = comboDiscount + autoOfferDiscount + couponDiscount;
   const taxableAmount = Math.max(0, originalSubtotal - totalDiscount);
   const gstRate = 0.18; // 18% GST

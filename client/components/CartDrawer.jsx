@@ -239,7 +239,7 @@ export default function CartDrawer() {
                 {calculations.couponDiscount > 0 && (
                   <div className="flex justify-between text-green-700 font-bold uppercase tracking-wider text-[10px]">
                     <span className="flex items-center gap-1">
-                      🎟️ Coupon ({couponCode})
+                      🎟️ Coupon ({calculations.appliedCouponCode || couponCode})
                     </span>
                     <span>-₹{calculations.couponDiscount}</span>
                   </div>
