@@ -1992,11 +1992,11 @@ export default function AdminPage() {
               }
             }
 
-            // If this variant has NO images or fewer images than the full product gallery,
-            // merge all product gallery images so all uploaded images appear in the editor
+            // Only for single-variant products without separate variant images, fallback to product gallery
             if (
-              (vImages.length === 0 && imageList.length > 0) ||
-              (vImages.length < imageList.length && (fullProduct.variants.length === 1 || vIdx === 0))
+              fullProduct.variants.length === 1 &&
+              vImages.length === 0 &&
+              imageList.length > 0
             ) {
               vImages = Array.from(new Set([...vImages, ...imageList])).filter(Boolean);
             }

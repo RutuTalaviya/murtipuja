@@ -94,7 +94,6 @@ export const verifyOtp = (phone, otp) => api.post("/api/auth/verify-otp", { phon
 export const getMe = () => api.get("/api/auth/me");
 export const updateProfile = (data) => api.put("/api/auth/profile", data);
 
-
 export const getCart = (couponCode) => api.get("/api/cart", { params: { couponCode } });
 export const addToCart = (productId, variantSku, quantity = 1, couponCode) =>
   api.post("/api/cart/add", { productId, variantSku, quantity }, { params: { couponCode } });
@@ -212,20 +211,21 @@ export const resetAllPagesToDefaults = () => api.post("/api/pages/reset-all-defa
 
 /**
  * Extracts showcase gallery images for a selected product variant / finish.
- * Automatically skips the first 2 images (Primary Cover and Hover Preview).
- * E.g., if a variant has 5 images (1, 2, 3, 4, 5) -> returns [3, 4, 5].
- * E.g., if a variant has 4 images (1, 2, 3, 4) -> returns [3, 4].
+ * Strictly isolates images to the selected color/finish only.
+ * Automatically skips the first 2 images (Primary Cover & Hover Preview) for that color.
+ * E.g., if Black has 5 images (B1, B2, B3, B4, B5) -> returns [B3, B4, B5].
+ * E.g., if Red has 4 images (R1, R2, R3, R4) -> returns [R3, R4].
  */
 export function getVariantGalleryMedia(variant, allVariants = [], productImages = [], productTitle = "") {
   const seen = new Set();
-  const collected = [];
+  const variantCollected = [];
 
   const addImg = (img, fallbackAlt) => {
     if (!img) return;
     const rawUrl = typeof img === "object" ? img?.url : img;
     if (rawUrl && typeof rawUrl === "string" && rawUrl.trim() && !seen.has(rawUrl.trim())) {
       seen.add(rawUrl.trim());
-      collected.push({
+      variantCollected.push({
         url: rawUrl.trim(),
         alt: (typeof img === "object" ? img?.alt : fallbackAlt) || fallbackAlt || productTitle,
       });
@@ -234,15 +234,15 @@ export function getVariantGalleryMedia(variant, allVariants = [], productImages 
 
   const finishName = (variant?.finish || "").toLowerCase().trim();
 
-  // 1. Check if the selected variant has multi-images in `images` array
+  // 1. Collect images belonging specifically to this variant
   if (Array.isArray(variant?.images) && variant.images.length > 0) {
     variant.images.forEach((img) => addImg(img, `${productTitle} - ${variant.finish || ""}`));
   }
 
-  // 2. If this exact variant didn't have multi-images, check other variants with the exact same finish/color
-  if (collected.length <= 1 && finishName && Array.isArray(allVariants)) {
+  // 2. Also check all other variants with the exact same finish/color (e.g., different size of same color)
+  if (finishName && Array.isArray(allVariants)) {
     const sameFinishVariants = allVariants.filter(
-      (v) => (v.finish || "").toLowerCase().trim() === finishName
+      (v) => (v.finish || "").toLowerCase().trim() === finishName && v !== variant
     );
     sameFinishVariants.forEach((v) => {
       if (Array.isArray(v.images) && v.images.length > 0) {
@@ -251,43 +251,52 @@ export function getVariantGalleryMedia(variant, allVariants = [], productImages 
     });
   }
 
-  // 3. Check if product.images has images tagged with this finish name
-  if (collected.length <= 1 && finishName && Array.isArray(productImages)) {
+  // 3. If variant has a single image field and it was not added yet, add it
+  if (variant?.image) {
+    addImg(variant.image, `${productTitle} - ${variant?.finish || ""}`);
+  }
+
+  // 4. Check if any image in product.images has alt text matching this specific finish name
+  if (finishName && Array.isArray(productImages)) {
     const finishMatchingImages = productImages.filter((img) => {
       const alt = (typeof img === "object" ? img?.alt : "") || "";
       return alt.toLowerCase().includes(finishName);
     });
-    if (finishMatchingImages.length > 0) {
-      finishMatchingImages.forEach((img) => addImg(img, `${productTitle} - ${variant?.finish || ""}`));
+    finishMatchingImages.forEach((img) => addImg(img, `${productTitle} - ${variant?.finish || ""}`));
+  }
+
+  // If this variant/color has its own images:
+  // Apply user's rule: Skip first 2 images (Cover and Hover) if total images >= 3
+  if (variantCollected.length >= 3) {
+    return variantCollected.slice(2);
+  }
+  if (variantCollected.length > 0) {
+    return variantCollected;
+  }
+
+  // 5. Fallback ONLY for legacy products that have no variant images at all:
+  const fallbackCollected = [];
+  const fallbackSeen = new Set();
+  const addFallback = (img) => {
+    if (!img) return;
+    const rawUrl = typeof img === "object" ? img?.url : img;
+    if (rawUrl && typeof rawUrl === "string" && rawUrl.trim() && !fallbackSeen.has(rawUrl.trim())) {
+      fallbackSeen.add(rawUrl.trim());
+      fallbackCollected.push({
+        url: rawUrl.trim(),
+        alt: (typeof img === "object" ? img?.alt : productTitle) || productTitle,
+      });
     }
+  };
+
+  if (Array.isArray(productImages) && productImages.length > 0) {
+    productImages.forEach((img) => addFallback(img));
   }
 
-  // 4. If we still have 0 images, check single variant.image
-  if (collected.length === 0 && variant?.image) {
-    addImg(variant.image, `${productTitle} - ${variant?.finish || ""}`);
+  if (fallbackCollected.length >= 3) {
+    return fallbackCollected.slice(2);
   }
-
-  // 5. Fallback: If this color/variant has NO multi-images at all, use general product.images
-  if (collected.length <= 1 && Array.isArray(productImages) && productImages.length > 0) {
-    productImages.forEach((img) => addImg(img, productTitle));
-  }
-
-  // 6. Final fallback: Collect images across all variants
-  if (collected.length === 0 && Array.isArray(allVariants)) {
-    allVariants.forEach((v) => {
-      if (Array.isArray(v.images)) v.images.forEach((img) => addImg(img, `${productTitle} - ${v.finish || ""}`));
-      if (v.image) addImg(v.image, `${productTitle} - ${v.finish || ""}`);
-    });
-  }
-
-  // Skip the first 2 images (Primary Cover and Hover Preview) if at least 3 images exist
-  if (collected.length >= 3) {
-    return collected.slice(2);
-  }
-  return collected;
+  return fallbackCollected;
 }
 
 export default api;
-
-
-
