@@ -215,7 +215,11 @@ export const resetAllPagesToDefaults = () => api.post("/api/pages/reset-all-defa
  * 1. For the selected variant/color, gather all images assigned to this variant and any matching finish variants.
  * 2. If >= 3 images exist for this color, skip the first 2 images (Image 1 = Primary Cover, Image 2 = Hover Preview) and return images 3 onwards (slice(2)).
  * 3. If 1 or 2 images exist for this color, return those images so the user sees the color (never leave gallery empty).
- * 4. If no variant images exist, check product.images (matching finish name or full list as fallback, applying slice(2) if >= 3 images).
+ * 4. If variant does not have separate variant.images, partition product.images using variant cover image markers:
+ *    - Find the slice of product.images between this variant's cover image and the next variant's cover image.
+ *    - If that slice has >= 3 images, skip the first 2 images (Cover & Hover) and return slice(2).
+ *    - If that slice has 1 or 2 images, return that slice.
+ * 5. General fallback: if no partition found, use product.images (applying slice(2) if >= 3).
  */
 export function getVariantGalleryMedia(variant, allVariants = [], productImages = [], productTitle = "") {
   const finishName = (variant?.finish || "").toLowerCase().trim();
@@ -234,7 +238,7 @@ export function getVariantGalleryMedia(variant, allVariants = [], productImages 
     }
   };
 
-  // 1. Collect from variant's own images array
+  // 1. Collect from variant's own `images` array (if uploaded specifically per variant in admin)
   if (Array.isArray(variant?.images) && variant.images.length > 0) {
     variant.images.forEach((img) => addImg(img, `${productTitle} - ${variant.finish || ""}`));
   }
@@ -251,69 +255,100 @@ export function getVariantGalleryMedia(variant, allVariants = [], productImages 
     });
   }
 
-  // 3. If variant has a single `image` property and variantCollected is empty or only has 1
-  if (variant?.image && !seen.has(typeof variant.image === "object" ? variant.image?.url : variant.image)) {
-    addImg(variant.image, `${productTitle} - ${variant.finish || ""}`);
-  }
-
-  // 4. Check if product.images has images with alt text matching this specific finish
-  if (finishName && Array.isArray(productImages)) {
-    const finishMatchingImages = productImages.filter((img) => {
-      const alt = (typeof img === "object" ? img?.alt : "") || "";
-      return alt.toLowerCase().includes(finishName);
-    });
-    finishMatchingImages.forEach((img) => addImg(img, `${productTitle} - ${variant?.finish || ""}`));
-  }
-
-  // If we collected images for this specific variant/color:
+  // If variant-specific multi-images were found (>= 2 images):
   if (variantCollected.length >= 3) {
     return variantCollected.slice(2);
   }
-  if (variantCollected.length > 0) {
+  if (variantCollected.length > 1) {
     return variantCollected;
   }
 
-  // 5. Fallback for products without variant-specific images (use product.images)
-  const fallbackCollected = [];
-  const fallbackSeen = new Set();
-  const addFallback = (img) => {
-    if (!img) return;
-    const rawUrl = typeof img === "object" ? img?.url : img;
-    if (rawUrl && typeof rawUrl === "string" && rawUrl.trim() && !fallbackSeen.has(rawUrl.trim())) {
-      fallbackSeen.add(rawUrl.trim());
-      fallbackCollected.push({
-        url: rawUrl.trim(),
-        alt: (typeof img === "object" ? img?.alt : productTitle) || productTitle,
-      });
-    }
-  };
-
+  // 3. Fallback to product.images partitioning by variant image markers (covers legacy & combined product.images)
   if (Array.isArray(productImages) && productImages.length > 0) {
-    productImages.forEach((img) => addFallback(img));
-  }
+    const prodImgUrls = productImages.map((img) => (typeof img === "object" ? img?.url : img)?.trim()).filter(Boolean);
 
-  if (fallbackCollected.length >= 3) {
-    return fallbackCollected.slice(2);
-  }
-  if (fallbackCollected.length > 0) {
-    return fallbackCollected;
-  }
-
-  // 6. Last resort: check all variants' images
-  if (Array.isArray(allVariants) && allVariants.length > 0) {
-    allVariants.forEach((v) => {
-      if (Array.isArray(v.images) && v.images.length > 0) {
-        v.images.forEach((img) => addFallback(img));
-      } else if (v.image) {
-        addFallback(v.image);
+    // Check if alt text explicitly matches this finish name
+    if (finishName) {
+      const finishMatching = productImages.filter((img) => {
+        const alt = (typeof img === "object" ? img?.alt : "") || "";
+        return alt.toLowerCase().includes(finishName);
+      });
+      if (finishMatching.length > 0) {
+        const matched = finishMatching.map((img) => ({
+          url: typeof img === "object" ? img.url : img,
+          alt: (typeof img === "object" ? img.alt : `${productTitle} - ${variant?.finish || ""}`) || productTitle,
+        }));
+        if (matched.length >= 3) return matched.slice(2);
+        return matched;
       }
-    });
+    }
+
+    // Get current variant's cover image url
+    const currentVarUrl = (typeof variant?.image === "object" ? variant?.image?.url : variant?.image)?.trim();
+
+    if (currentVarUrl && prodImgUrls.length > 0) {
+      const startIndex = prodImgUrls.findIndex(
+        (u) => u === currentVarUrl || u.endsWith(currentVarUrl) || currentVarUrl.endsWith(u)
+      );
+
+      if (startIndex !== -1) {
+        // Find the index of the next variant with a different image in product.images
+        let endIndex = prodImgUrls.length;
+        if (Array.isArray(allVariants)) {
+          for (const otherV of allVariants) {
+            if (otherV === variant) continue;
+            const otherUrl = (typeof otherV?.image === "object" ? otherV?.image?.url : otherV?.image)?.trim();
+            if (otherUrl && otherUrl !== currentVarUrl) {
+              const otherIdx = prodImgUrls.findIndex(
+                (u) => u === otherUrl || u.endsWith(otherUrl) || otherUrl.endsWith(u)
+              );
+              if (otherIdx > startIndex && otherIdx < endIndex) {
+                endIndex = otherIdx;
+              }
+            }
+          }
+        }
+
+        const partitionedSlice = productImages.slice(startIndex, endIndex).map((img) => ({
+          url: typeof img === "object" ? img.url : img,
+          alt: (typeof img === "object" ? img.alt : `${productTitle} - ${variant?.finish || ""}`) || productTitle,
+        }));
+
+        if (partitionedSlice.length >= 3) {
+          return partitionedSlice.slice(2);
+        }
+        if (partitionedSlice.length > 0) {
+          return partitionedSlice;
+        }
+      }
+    }
+
+    // 4. Single-variant or unpartitioned product.images fallback
+    const allProdImgs = productImages.map((img) => ({
+      url: typeof img === "object" ? img.url : img,
+      alt: (typeof img === "object" ? img.alt : productTitle) || productTitle,
+    }));
+
+    if (allProdImgs.length >= 3) {
+      return allProdImgs.slice(2);
+    }
+    if (allProdImgs.length > 0) {
+      return allProdImgs;
+    }
   }
 
-  if (fallbackCollected.length >= 3) {
-    return fallbackCollected.slice(2);
+  // 5. If variant had a single image
+  if (variantCollected.length > 0) {
+    return variantCollected;
   }
-  return fallbackCollected;
+  if (variant?.image) {
+    const rawUrl = typeof variant.image === "object" ? variant.image?.url : variant.image;
+    if (rawUrl) {
+      return [{ url: rawUrl, alt: `${productTitle} - ${variant?.finish || ""}` }];
+    }
+  }
+
+  return [];
 }
 
 export default api;
