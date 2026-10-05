@@ -324,12 +324,11 @@ export default function CheckoutPage() {
               Verification (OTP Login)
             </h2>
             {user ? (
-              <div className="bg-green-50 text-green-800 p-4 border border-green-600 rounded-none flex items-center justify-between text-xs font-bold uppercase tracking-wider">
-                <div>
-                  <p className="font-extrabold">✓ Verified Phone Number</p>
-                  <p className="text-[10px] opacity-80 mt-0.5">+91 {user.phone}</p>
-                </div>
-                <span className="text-[10px] bg-green-200 px-2 py-1 rounded-none font-extrabold uppercase tracking-widest text-green-900 border border-green-600">Active Session</span>
+              <div className="bg-green-50 text-green-800 p-4 border-2 border-green-600 rounded-none text-xs font-bold uppercase tracking-wider">
+                <p className="font-extrabold flex items-center gap-1.5 text-green-900">
+                  <span>✓</span> Verified Mobile Number
+                </p>
+                <p className="text-[11px] text-green-800 mt-1 font-mono font-bold">+91 {user.phone}</p>
               </div>
             ) : (
               <div className="space-y-4">

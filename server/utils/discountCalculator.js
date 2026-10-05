@@ -25,55 +25,69 @@ async function calculateCartDiscounts(cartItems, couponCode = "", offerId = "") 
   const originalSubtotal = cartItems.reduce((sum, item) => sum + item.priceAtAdd * item.quantity, 0);
 
   // -------------------------------------------------------------
-  // Step 1: Check Combo Offers (Priority 1)
+  // Step 1: Check Combo / BOGO Offers (Priority 1)
   // -------------------------------------------------------------
   let candidateComboDiscount = 0;
   const candidateCombos = [];
 
   try {
-    const activeCombos = await ComboOffer.find({ isActive: true });
+    const activeCombos = await ComboOffer.find({
+      isActive: true,
+      $or: [{ expiryDate: { $gt: new Date() } }, { expiryDate: null }],
+    });
 
-    // Track available quantities
+    // Track available quantities by Product ID string
     const itemQuantities = {};
     for (const item of cartItems) {
-      const pId = item.product?._id?.toString() || item.product?.toString();
+      const pId = item.product?._id ? item.product._id.toString() : (item.product?.toString() || "");
       if (pId) {
         itemQuantities[pId] = (itemQuantities[pId] || 0) + item.quantity;
       }
     }
 
     for (const combo of activeCombos) {
-      let matchCount = 0;
-      let minQuantity = Infinity;
-      let comboPriceSum = 0;
+      if (!combo.products || combo.products.length === 0) continue;
 
-      for (const pId of combo.products) {
-        const pIdStr = pId.toString();
-        const qtyAvailable = itemQuantities[pIdStr] || 0;
-        if (qtyAvailable > 0) {
-          matchCount++;
-          minQuantity = Math.min(minQuantity, qtyAvailable);
+      // Count how many of each product ID are required for 1 combo set
+      const requiredProductCounts = {};
+      for (const p of combo.products) {
+        const pIdStr = p?._id ? p._id.toString() : p.toString();
+        requiredProductCounts[pIdStr] = (requiredProductCounts[pIdStr] || 0) + 1;
+      }
 
-          const matchedItem = cartItems.find(
-            (item) => (item.product?._id?.toString() || item.product?.toString()) === pIdStr
-          );
-          if (matchedItem) {
-            comboPriceSum += matchedItem.priceAtAdd;
-          }
+      // Find max complete combo sets that can be formed from available quantities
+      let maxSets = Infinity;
+      let singleComboPriceSum = 0;
+
+      for (const [pIdStr, reqQty] of Object.entries(requiredProductCounts)) {
+        const availQty = itemQuantities[pIdStr] || 0;
+        if (availQty < reqQty) {
+          maxSets = 0;
+          break;
+        }
+        const possibleSets = Math.floor(availQty / reqQty);
+        maxSets = Math.min(maxSets, possibleSets);
+
+        const matchedItem = cartItems.find(
+          (item) => (item.product?._id?.toString() || item.product?.toString()) === pIdStr
+        );
+        if (matchedItem) {
+          singleComboPriceSum += matchedItem.priceAtAdd * reqQty;
         }
       }
 
-      // If all products in combo are present in cart
-      if (matchCount === combo.products.length && minQuantity > 0 && minQuantity !== Infinity) {
-        for (const pId of combo.products) {
-          itemQuantities[pId.toString()] -= minQuantity;
+      // If at least 1 full set of this combo is in the cart
+      if (maxSets > 0 && maxSets !== Infinity) {
+        // Deduct quantities consumed by this combo
+        for (const [pIdStr, reqQty] of Object.entries(requiredProductCounts)) {
+          itemQuantities[pIdStr] -= reqQty * maxSets;
         }
 
         let discount = 0;
         if (combo.discountType === "percentage") {
-          discount = Math.round(comboPriceSum * (combo.discountValue / 100) * minQuantity);
+          discount = Math.round(singleComboPriceSum * (combo.discountValue / 100) * maxSets);
         } else if (combo.discountType === "flat") {
-          discount = combo.discountValue * minQuantity;
+          discount = combo.discountValue * maxSets;
         }
 
         candidateComboDiscount += discount;
@@ -191,7 +205,7 @@ async function calculateCartDiscounts(cartItems, couponCode = "", offerId = "") 
     return { eligible: true, discount, reason: "" };
   }
 
-  // A. User selected/entered a Coupon Code
+  // A. User selected/entered a Coupon Code -> Apply ONLY Coupon
   if (cleanCoupon) {
     try {
       const coupon = await Coupon.findOne({
@@ -222,7 +236,7 @@ async function calculateCartDiscounts(cartItems, couponCode = "", offerId = "") 
       couponError = "Internal error validating coupon";
     }
   }
-  // B. User selected a Special Offer (and no coupon)
+  // B. User selected a Special Offer (and no coupon) -> Apply ONLY Special Offer
   else if (cleanOfferId && cleanOfferId !== "none") {
     try {
       if (mongoose.Types.ObjectId.isValid(cleanOfferId)) {
@@ -259,7 +273,7 @@ async function calculateCartDiscounts(cartItems, couponCode = "", offerId = "") 
     }
   }
 
-  // Exactly ONE discount applies
+  // Exactly ONE discount applies (or 0 if user hasn't chosen one)
   const totalDiscount = couponDiscount + autoOfferDiscount;
   const taxableAmount = Math.max(0, originalSubtotal - totalDiscount);
   const tax = Math.round(taxableAmount * 0.18); // 18% GST
@@ -286,6 +300,7 @@ async function calculateCartDiscounts(cartItems, couponCode = "", offerId = "") 
     offerNotice,
   };
 }
+
 
 module.exports = { calculateCartDiscounts };
 
