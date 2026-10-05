@@ -210,13 +210,15 @@ export const resetPageToDefault = (slug) => api.post(`/api/pages/${slug}/reset-d
 export const resetAllPagesToDefaults = () => api.post("/api/pages/reset-all-defaults");
 
 /**
- * Extracts showcase gallery images for a selected product variant / finish.
- * Strictly isolates images to the selected color/finish only.
- * Automatically skips the first 2 images (Primary Cover & Hover Preview) for that color.
- * E.g., if Black has 5 images (B1, B2, B3, B4, B5) -> returns [B3, B4, B5].
- * E.g., if Red has 4 images (R1, R2, R3, R4) -> returns [R3, R4].
+ * Helper to extract gallery media for a specific product variant / color.
+ * Rule:
+ * 1. For the selected variant/color, gather all images assigned to this variant and any matching finish variants.
+ * 2. If >= 3 images exist for this color, skip the first 2 images (Image 1 = Primary Cover, Image 2 = Hover Preview) and return images 3 onwards (slice(2)).
+ * 3. If 1 or 2 images exist for this color, return those images so the user sees the color (never leave gallery empty).
+ * 4. If no variant images exist, check product.images (matching finish name or full list as fallback, applying slice(2) if >= 3 images).
  */
 export function getVariantGalleryMedia(variant, allVariants = [], productImages = [], productTitle = "") {
+  const finishName = (variant?.finish || "").toLowerCase().trim();
   const seen = new Set();
   const variantCollected = [];
 
@@ -232,14 +234,12 @@ export function getVariantGalleryMedia(variant, allVariants = [], productImages 
     }
   };
 
-  const finishName = (variant?.finish || "").toLowerCase().trim();
-
-  // 1. Collect images belonging specifically to this variant
+  // 1. Collect from variant's own images array
   if (Array.isArray(variant?.images) && variant.images.length > 0) {
     variant.images.forEach((img) => addImg(img, `${productTitle} - ${variant.finish || ""}`));
   }
 
-  // 2. Also check all other variants with the exact same finish/color (e.g., different size of same color)
+  // 2. Collect from all other variants having the EXACT same finish/color (e.g. 6 inch vs 9 inch of same color)
   if (finishName && Array.isArray(allVariants)) {
     const sameFinishVariants = allVariants.filter(
       (v) => (v.finish || "").toLowerCase().trim() === finishName && v !== variant
@@ -251,12 +251,12 @@ export function getVariantGalleryMedia(variant, allVariants = [], productImages 
     });
   }
 
-  // 3. If variant has a single image field and it was not added yet, add it
-  if (variant?.image) {
-    addImg(variant.image, `${productTitle} - ${variant?.finish || ""}`);
+  // 3. If variant has a single `image` property and variantCollected is empty or only has 1
+  if (variant?.image && !seen.has(typeof variant.image === "object" ? variant.image?.url : variant.image)) {
+    addImg(variant.image, `${productTitle} - ${variant.finish || ""}`);
   }
 
-  // 4. Check if any image in product.images has alt text matching this specific finish name
+  // 4. Check if product.images has images with alt text matching this specific finish
   if (finishName && Array.isArray(productImages)) {
     const finishMatchingImages = productImages.filter((img) => {
       const alt = (typeof img === "object" ? img?.alt : "") || "";
@@ -265,8 +265,7 @@ export function getVariantGalleryMedia(variant, allVariants = [], productImages 
     finishMatchingImages.forEach((img) => addImg(img, `${productTitle} - ${variant?.finish || ""}`));
   }
 
-  // If this variant/color has its own images:
-  // Apply user's rule: Skip first 2 images (Cover and Hover) if total images >= 3
+  // If we collected images for this specific variant/color:
   if (variantCollected.length >= 3) {
     return variantCollected.slice(2);
   }
@@ -274,7 +273,7 @@ export function getVariantGalleryMedia(variant, allVariants = [], productImages 
     return variantCollected;
   }
 
-  // 5. Fallback ONLY for legacy products that have no variant images at all:
+  // 5. Fallback for products without variant-specific images (use product.images)
   const fallbackCollected = [];
   const fallbackSeen = new Set();
   const addFallback = (img) => {
@@ -291,6 +290,24 @@ export function getVariantGalleryMedia(variant, allVariants = [], productImages 
 
   if (Array.isArray(productImages) && productImages.length > 0) {
     productImages.forEach((img) => addFallback(img));
+  }
+
+  if (fallbackCollected.length >= 3) {
+    return fallbackCollected.slice(2);
+  }
+  if (fallbackCollected.length > 0) {
+    return fallbackCollected;
+  }
+
+  // 6. Last resort: check all variants' images
+  if (Array.isArray(allVariants) && allVariants.length > 0) {
+    allVariants.forEach((v) => {
+      if (Array.isArray(v.images) && v.images.length > 0) {
+        v.images.forEach((img) => addFallback(img));
+      } else if (v.image) {
+        addFallback(v.image);
+      }
+    });
   }
 
   if (fallbackCollected.length >= 3) {
