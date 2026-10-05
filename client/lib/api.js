@@ -211,15 +211,7 @@ export const resetAllPagesToDefaults = () => api.post("/api/pages/reset-all-defa
 
 /**
  * Helper to extract gallery media for a specific product variant / color.
- * Rule:
- * 1. For the selected variant/color, gather all images assigned to this variant and any matching finish variants.
- * 2. If >= 3 images exist for this color, skip the first 2 images (Image 1 = Primary Cover, Image 2 = Hover Preview) and return images 3 onwards (slice(2)).
- * 3. If 1 or 2 images exist for this color, return those images so the user sees the color (never leave gallery empty).
- * 4. If variant does not have separate variant.images, partition product.images using variant cover image markers:
- *    - Find the slice of product.images between this variant's cover image and the next variant's cover image.
- *    - If that slice has >= 3 images, skip the first 2 images (Cover & Hover) and return slice(2).
- *    - If that slice has 1 or 2 images, return that slice.
- * 5. General fallback: if no partition found, use product.images (applying slice(2) if >= 3).
+ * Displays ALL images associated with the selected color/variant (no skipping).
  */
 export function getVariantGalleryMedia(variant, allVariants = [], productImages = [], productTitle = "") {
   const finishName = (variant?.finish || "").toLowerCase().trim();
@@ -238,7 +230,7 @@ export function getVariantGalleryMedia(variant, allVariants = [], productImages 
     }
   };
 
-  // 1. Collect from variant's own `images` array (if uploaded specifically per variant in admin)
+  // 1. Collect all images from variant's own `images` array (if uploaded per variant in admin)
   if (Array.isArray(variant?.images) && variant.images.length > 0) {
     variant.images.forEach((img) => addImg(img, `${productTitle} - ${variant.finish || ""}`));
   }
@@ -255,15 +247,12 @@ export function getVariantGalleryMedia(variant, allVariants = [], productImages 
     });
   }
 
-  // If variant-specific multi-images were found (>= 2 images):
-  if (variantCollected.length >= 3) {
-    return variantCollected.slice(2);
-  }
-  if (variantCollected.length > 1) {
+  // If variant-specific multi-images exist (at least 1 image), return all of them
+  if (variantCollected.length > 0) {
     return variantCollected;
   }
 
-  // 3. Fallback to product.images partitioning by variant image markers (covers legacy & combined product.images)
+  // 3. Fallback to product.images partitioning by variant image markers
   if (Array.isArray(productImages) && productImages.length > 0) {
     const prodImgUrls = productImages.map((img) => (typeof img === "object" ? img?.url : img)?.trim()).filter(Boolean);
 
@@ -274,12 +263,10 @@ export function getVariantGalleryMedia(variant, allVariants = [], productImages 
         return alt.toLowerCase().includes(finishName);
       });
       if (finishMatching.length > 0) {
-        const matched = finishMatching.map((img) => ({
+        return finishMatching.map((img) => ({
           url: typeof img === "object" ? img.url : img,
           alt: (typeof img === "object" ? img.alt : `${productTitle} - ${variant?.finish || ""}`) || productTitle,
         }));
-        if (matched.length >= 3) return matched.slice(2);
-        return matched;
       }
     }
 
@@ -314,33 +301,20 @@ export function getVariantGalleryMedia(variant, allVariants = [], productImages 
           alt: (typeof img === "object" ? img.alt : `${productTitle} - ${variant?.finish || ""}`) || productTitle,
         }));
 
-        if (partitionedSlice.length >= 3) {
-          return partitionedSlice.slice(2);
-        }
         if (partitionedSlice.length > 0) {
           return partitionedSlice;
         }
       }
     }
 
-    // 4. Single-variant or unpartitioned product.images fallback
-    const allProdImgs = productImages.map((img) => ({
+    // 4. Single-variant or unpartitioned product.images fallback (show all product images)
+    return productImages.map((img) => ({
       url: typeof img === "object" ? img.url : img,
       alt: (typeof img === "object" ? img.alt : productTitle) || productTitle,
     }));
-
-    if (allProdImgs.length >= 3) {
-      return allProdImgs.slice(2);
-    }
-    if (allProdImgs.length > 0) {
-      return allProdImgs;
-    }
   }
 
-  // 5. If variant had a single image
-  if (variantCollected.length > 0) {
-    return variantCollected;
-  }
+  // 5. If variant had a single image field
   if (variant?.image) {
     const rawUrl = typeof variant.image === "object" ? variant.image?.url : variant.image;
     if (rawUrl) {
