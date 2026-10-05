@@ -13,15 +13,19 @@ async function findOrCreateCart(cartOwner) {
 }
 
 /** Helper to calculate discounts and return populated cart payload */
-async function sendCartResponse(cart, couponCode, res) {
+async function sendCartResponse(cart, couponCode, offerId, res) {
   const populated = await cart.populate(
     "items.product",
     "title slug images category deity variants basePrice"
   );
-  const calculations = await calculateCartDiscounts(populated.items, couponCode);
+  const calculations = await calculateCartDiscounts(populated.items, couponCode, offerId);
 
   if (couponCode && calculations.couponError) {
-    return res.status(400).json({ message: calculations.couponError });
+    return res.status(400).json({ message: calculations.couponError, calculations });
+  }
+
+  if (offerId && calculations.offerError) {
+    return res.status(400).json({ message: calculations.offerError, calculations });
   }
 
   const cartObj = populated.toObject();
@@ -32,9 +36,9 @@ async function sendCartResponse(cart, couponCode, res) {
 /** GET /api/cart */
 async function getCart(req, res, next) {
   try {
-    const { couponCode } = req.query;
+    const { couponCode, offerId } = req.query;
     const cart = await findOrCreateCart(req.cartOwner);
-    return await sendCartResponse(cart, couponCode, res);
+    return await sendCartResponse(cart, couponCode, offerId, res);
   } catch (error) {
     next(error);
   }
@@ -47,7 +51,7 @@ async function getCart(req, res, next) {
 async function addToCart(req, res, next) {
   try {
     const { productId, variantSku, quantity = 1 } = req.body;
-    const { couponCode } = req.query; // optional coupon propagation
+    const { couponCode, offerId } = req.query; // optional coupon/offer propagation
 
     if (!productId || !variantSku) {
       return res.status(400).json({ message: "productId and variantSku are required" });
@@ -101,7 +105,7 @@ async function addToCart(req, res, next) {
       });
     }
 
-    return await sendCartResponse(cart, couponCode, res);
+    return await sendCartResponse(cart, couponCode, offerId, res);
   } catch (error) {
     next(error);
   }
@@ -114,7 +118,7 @@ async function addToCart(req, res, next) {
 async function updateCartItem(req, res, next) {
   try {
     const { quantity } = req.body;
-    const { couponCode } = req.query; // optional coupon propagation
+    const { couponCode, offerId } = req.query; // optional coupon/offer propagation
     if (!quantity || quantity < 1) {
       return res.status(400).json({ message: "Quantity must be at least 1" });
     }
@@ -133,7 +137,7 @@ async function updateCartItem(req, res, next) {
 
     item.quantity = quantity;
     await cart.save();
-    return await sendCartResponse(cart, couponCode, res);
+    return await sendCartResponse(cart, couponCode, offerId, res);
   } catch (error) {
     next(error);
   }
@@ -142,14 +146,15 @@ async function updateCartItem(req, res, next) {
 /** DELETE /api/cart/item/:itemId */
 async function removeCartItem(req, res, next) {
   try {
-    const { couponCode } = req.query; // optional coupon propagation
+    const { couponCode, offerId } = req.query; // optional coupon/offer propagation
     const cart = await findOrCreateCart(req.cartOwner);
     cart.items = cart.items.filter((item) => item._id.toString() !== req.params.itemId);
     await cart.save();
-    return await sendCartResponse(cart, couponCode, res);
+    return await sendCartResponse(cart, couponCode, offerId, res);
   } catch (error) {
     next(error);
   }
 }
 
 module.exports = { getCart, addToCart, updateCartItem, removeCartItem };
+

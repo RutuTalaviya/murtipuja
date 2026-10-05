@@ -3,15 +3,21 @@ const mongoose = require("mongoose");
 /**
  * Calculates discounts, GST tax (18%), shipping, and totals for cart items.
  *
- * OPTION A IMPLEMENTATION (Industry Standard - Single Best Offer):
- * - Evaluates all applicable discounts: Combo Deals, Auto Offers (Store/Category/Deity), and Coupons.
- * - Applies ONLY the SINGLE HIGHEST discount to ensure store safety and provide the customer the best savings.
- * - No double-dipping/stacking of multiple promotions.
+ * POLICY RULES:
+ * 1. Priority 1 - Combo Deals:
+ *    - If cart contains items matching an active Combo Offer, Combo Offer takes exclusive 1st priority.
+ *    - Coupon codes and Special Offers cannot be applied to combo orders.
+ *
+ * 2. Normal Cart (No Combo Deal):
+ *    - Both Special Offers and Coupons are shown to the customer.
+ *    - The customer can choose to apply whichever 1 offer they want (Coupon OR Special Offer).
+ *    - Strictly at most ONE offer/discount can apply per order.
  *
  * @param {Array} cartItems - Populated cart items
- * @param {String} couponCode - Coupon code to validate & apply
+ * @param {String} couponCode - Optional coupon code chosen/entered by user
+ * @param {String} offerId - Optional special offer ID chosen by user
  */
-async function calculateCartDiscounts(cartItems, couponCode = "") {
+async function calculateCartDiscounts(cartItems, couponCode = "", offerId = "") {
   const ComboOffer = mongoose.model("ComboOffer");
   const Offer = mongoose.model("Offer");
   const Coupon = mongoose.model("Coupon");
@@ -19,7 +25,7 @@ async function calculateCartDiscounts(cartItems, couponCode = "") {
   const originalSubtotal = cartItems.reduce((sum, item) => sum + item.priceAtAdd * item.quantity, 0);
 
   // -------------------------------------------------------------
-  // Candidate 1: Calculate Potential Combo Offers Discount
+  // Step 1: Check Combo Offers (Priority 1)
   // -------------------------------------------------------------
   let candidateComboDiscount = 0;
   const candidateCombos = [];
@@ -27,7 +33,7 @@ async function calculateCartDiscounts(cartItems, couponCode = "") {
   try {
     const activeCombos = await ComboOffer.find({ isActive: true });
 
-    // Tracks quantities available for combo application
+    // Track available quantities
     const itemQuantities = {};
     for (const item of cartItems) {
       const pId = item.product?._id?.toString() || item.product?.toString();
@@ -57,7 +63,7 @@ async function calculateCartDiscounts(cartItems, couponCode = "") {
         }
       }
 
-      // If all products in the combo are in the cart
+      // If all products in combo are present in cart
       if (matchCount === combo.products.length && minQuantity > 0 && minQuantity !== Infinity) {
         for (const pId of combo.products) {
           itemQuantities[pId.toString()] -= minQuantity;
@@ -72,6 +78,7 @@ async function calculateCartDiscounts(cartItems, couponCode = "") {
 
         candidateComboDiscount += discount;
         candidateCombos.push({
+          _id: combo._id?.toString(),
           title: combo.title,
           discount,
         });
@@ -82,168 +89,186 @@ async function calculateCartDiscounts(cartItems, couponCode = "") {
   }
 
   // -------------------------------------------------------------
-  // Candidate 2: Calculate Potential Automatic Offers Discount (Best Auto Offer)
+  // If Combo Offer is found -> Combo gets EXCLUSIVE 1st Priority!
+  // Coupons & Special Offers are completely blocked.
   // -------------------------------------------------------------
-  let candidateAutoOfferDiscount = 0;
-  let candidateBestOffer = null;
+  if (candidateComboDiscount > 0) {
+    const comboDiscount = candidateComboDiscount;
+    const totalDiscount = comboDiscount;
+    const taxableAmount = Math.max(0, originalSubtotal - totalDiscount);
+    const tax = Math.round(taxableAmount * 0.18);
+    const shippingFee = 0;
+    const totalAmount = taxableAmount + tax + shippingFee;
 
-  try {
-    const activeOffers = await Offer.find({ isActive: true });
-    let maxAutoDiscount = 0;
-
-    for (const offer of activeOffers) {
-      let applicableSubtotal = 0;
-      let hasEligibleItems = false;
-
-      if (offer.applicableCategory && offer.applicableCategory.length > 0) {
-        const categoryIds = offer.applicableCategory.map((c) => c.toString());
-        const eligibleItems = cartItems.filter((item) => {
-          const productObj = item.product;
-          if (!productObj || !productObj.category) return false;
-
-          const pCats = Array.isArray(productObj.category) ? productObj.category : [productObj.category];
-          return pCats.some((cat) => {
-            const catId = cat?._id?.toString() || cat?.toString();
-            return categoryIds.includes(catId);
-          });
-        });
-
-        applicableSubtotal = eligibleItems.reduce((sum, item) => sum + item.priceAtAdd * item.quantity, 0);
-        hasEligibleItems = eligibleItems.length > 0;
-      } else if (offer.applicableDeity) {
-        const eligibleItems = cartItems.filter((item) => {
-          const productObj = item.product;
-          return productObj && productObj.deity?.toLowerCase() === offer.applicableDeity.toLowerCase();
-        });
-
-        applicableSubtotal = eligibleItems.reduce((sum, item) => sum + item.priceAtAdd * item.quantity, 0);
-        hasEligibleItems = eligibleItems.length > 0;
-      } else {
-        // Store-wide offer
-        applicableSubtotal = originalSubtotal;
-        hasEligibleItems = cartItems.length > 0;
-      }
-
-      if (hasEligibleItems && originalSubtotal >= (offer.minOrderValue || 0)) {
-        let discount = 0;
-        if (offer.discountType === "percentage") {
-          discount = Math.round(applicableSubtotal * (offer.discountValue / 100));
-        } else if (offer.discountType === "flat") {
-          discount = offer.discountValue;
-        }
-
-        discount = Math.min(discount, originalSubtotal);
-
-        if (discount > maxAutoDiscount) {
-          maxAutoDiscount = discount;
-          candidateBestOffer = offer;
-        }
-      }
-    }
-
-    candidateAutoOfferDiscount = maxAutoDiscount;
-  } catch (err) {
-    console.error("Failed to calculate automatic offers:", err);
+    return {
+      subtotal: originalSubtotal,
+      comboDiscount,
+      autoOfferDiscount: 0,
+      couponDiscount: 0,
+      totalDiscount,
+      taxableAmount,
+      tax,
+      shippingFee,
+      totalAmount,
+      appliedCombos: candidateCombos,
+      appliedOffers: [],
+      appliedOfferId: "",
+      appliedCouponCode: "",
+      appliedOfferType: "combo",
+      couponError: couponCode ? "Combo Offer is active on your cart. Coupons cannot be combined with combo deals." : "",
+      offerError: offerId ? "Combo Offer is active on your cart. Special offers cannot be combined with combo deals." : "",
+      offerNotice: "Combo Deal is active (1st Priority). Other offers & coupons are disabled.",
+    };
   }
 
   // -------------------------------------------------------------
-  // Candidate 3: Calculate Potential Coupon Discount
+  // Step 2: Normal Cart (No Combo Offer)
+  // Evaluate User's Choice: Coupon Code OR Special Offer
   // -------------------------------------------------------------
-  let candidateCouponDiscount = 0;
-  let candidateCoupon = null;
-  let couponError = "";
-
-  if (couponCode) {
-    if (candidateComboDiscount > 0) {
-      couponError = "A Combo Offer is already applied to your cart. Coupons cannot be combined with Combo Deals (Only 1 offer allowed per order).";
-    } else {
-      try {
-        const coupon = await Coupon.findOne({
-          code: couponCode.toUpperCase().trim(),
-          isActive: true,
-          expiryDate: { $gt: new Date() },
-        });
-
-        if (!coupon) {
-          couponError = "Coupon code is invalid or expired";
-        } else if (originalSubtotal < (coupon.minOrderValue || 0)) {
-          couponError = `Minimum order value of ₹${coupon.minOrderValue} is required to apply this coupon`;
-        } else if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
-          couponError = "Coupon code usage limit has been reached";
-        } else {
-          if (coupon.discountType === "percentage") {
-            candidateCouponDiscount = Math.round(originalSubtotal * (coupon.discountValue / 100));
-          } else if (coupon.discountType === "flat") {
-            candidateCouponDiscount = coupon.discountValue;
-          }
-
-          candidateCouponDiscount = Math.min(candidateCouponDiscount, originalSubtotal);
-          candidateCoupon = coupon;
-        }
-      } catch (err) {
-        console.error("Failed to validate coupon:", err);
-        couponError = "Internal error validating coupon";
-      }
-    }
-  }
-
-  // -------------------------------------------------------------
-  // STRICT SINGLE-OFFER ENFORCEMENT: ONLY 1 OFFER CAN APPLY
-  // Hierarchy & Conflict Resolution:
-  // 1. If Combo Offer is active -> Combo Offer takes exclusive precedence.
-  // 2. If Coupon Code is entered & valid (and no combo) -> Coupon applies exclusively.
-  // 3. Otherwise, if Auto Offer is eligible -> Auto Offer applies.
-  // -------------------------------------------------------------
-  let comboDiscount = 0;
-  let autoOfferDiscount = 0;
   let couponDiscount = 0;
-  let appliedCombos = [];
-  let appliedOffers = [];
+  let autoOfferDiscount = 0;
   let appliedCouponCode = "";
-  let appliedOfferType = "none"; // "combo" | "coupon" | "auto_offer" | "none"
+  let appliedOfferId = "";
+  let appliedOffers = [];
+  let appliedOfferType = "none";
+  let couponError = "";
+  let offerError = "";
   let offerNotice = "";
 
-  // 1. Combo Offer takes exclusive priority if cart has combo pairs
-  if (candidateComboDiscount > 0) {
-    comboDiscount = candidateComboDiscount;
-    appliedCombos = candidateCombos;
-    appliedOfferType = "combo";
-    if (couponCode) {
-      offerNotice = "Combo Deal is active. Other coupons/offers cannot be combined with this order.";
+  const cleanCoupon = (couponCode || "").trim().toUpperCase();
+  const cleanOfferId = (offerId || "").trim();
+
+  // Helper to validate & calculate a single offer's discount
+  function calculateOfferDiscount(offer) {
+    let applicableSubtotal = 0;
+    let hasEligibleItems = false;
+
+    if (offer.applicableCategory && offer.applicableCategory.length > 0) {
+      const categoryIds = offer.applicableCategory.map((c) => (c._id ? c._id.toString() : c.toString()));
+      const eligibleItems = cartItems.filter((item) => {
+        const productObj = item.product;
+        if (!productObj || !productObj.category) return false;
+        const pCats = Array.isArray(productObj.category) ? productObj.category : [productObj.category];
+        return pCats.some((cat) => {
+          const catId = cat?._id?.toString() || cat?.toString();
+          return categoryIds.includes(catId);
+        });
+      });
+      applicableSubtotal = eligibleItems.reduce((sum, item) => sum + item.priceAtAdd * item.quantity, 0);
+      hasEligibleItems = eligibleItems.length > 0;
+    } else if (offer.applicableDeity) {
+      const eligibleItems = cartItems.filter((item) => {
+        const productObj = item.product;
+        return productObj && productObj.deity?.toLowerCase() === offer.applicableDeity.toLowerCase();
+      });
+      applicableSubtotal = eligibleItems.reduce((sum, item) => sum + item.priceAtAdd * item.quantity, 0);
+      hasEligibleItems = eligibleItems.length > 0;
+    } else {
+      applicableSubtotal = originalSubtotal;
+      hasEligibleItems = cartItems.length > 0;
     }
-  }
-  // 2. If user applied a valid Coupon (and no combo exists)
-  else if (candidateCouponDiscount > 0 && candidateCoupon) {
-    couponDiscount = candidateCouponDiscount;
-    appliedCouponCode = candidateCoupon.code;
-    appliedOfferType = "coupon";
-    if (candidateAutoOfferDiscount > 0) {
-      offerNotice = `Coupon '${candidateCoupon.code}' applied (Auto offer overridden for single offer policy).`;
+
+    if (!hasEligibleItems) {
+      return { eligible: false, discount: 0, reason: "No eligible items in cart for this offer" };
     }
-  }
-  // 3. If no combo and no coupon, apply best automatic store offer
-  else if (candidateAutoOfferDiscount > 0 && candidateBestOffer) {
-    autoOfferDiscount = candidateAutoOfferDiscount;
-    appliedOffers = [{
-      title: candidateBestOffer.title,
-      discount: autoOfferDiscount,
-    }];
-    appliedOfferType = "auto_offer";
+
+    if (originalSubtotal < (offer.minOrderValue || 0)) {
+      return {
+        eligible: false,
+        discount: 0,
+        reason: `Minimum order value of ₹${offer.minOrderValue} is required for this offer`,
+      };
+    }
+
+    let discount = 0;
+    if (offer.discountType === "percentage") {
+      discount = Math.round(applicableSubtotal * (offer.discountValue / 100));
+    } else if (offer.discountType === "flat") {
+      discount = offer.discountValue;
+    }
+    discount = Math.min(discount, originalSubtotal);
+
+    return { eligible: true, discount, reason: "" };
   }
 
-  // Strictly only ONE discount is non-zero
-  const totalDiscount = comboDiscount + autoOfferDiscount + couponDiscount;
+  // A. User selected/entered a Coupon Code
+  if (cleanCoupon) {
+    try {
+      const coupon = await Coupon.findOne({
+        code: cleanCoupon,
+        isActive: true,
+        $or: [{ expiryDate: { $gt: new Date() } }, { expiryDate: null }],
+      });
+
+      if (!coupon) {
+        couponError = `Coupon code '${cleanCoupon}' is invalid or expired`;
+      } else if (originalSubtotal < (coupon.minOrderValue || 0)) {
+        couponError = `Minimum order value of ₹${coupon.minOrderValue} is required to apply coupon '${cleanCoupon}'`;
+      } else if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
+        couponError = `Coupon code '${cleanCoupon}' usage limit has been reached`;
+      } else {
+        if (coupon.discountType === "percentage") {
+          couponDiscount = Math.round(originalSubtotal * (coupon.discountValue / 100));
+        } else if (coupon.discountType === "flat") {
+          couponDiscount = coupon.discountValue;
+        }
+        couponDiscount = Math.min(couponDiscount, originalSubtotal);
+        appliedCouponCode = coupon.code;
+        appliedOfferType = "coupon";
+        offerNotice = `Coupon '${coupon.code}' applied.`;
+      }
+    } catch (err) {
+      console.error("Failed to validate coupon:", err);
+      couponError = "Internal error validating coupon";
+    }
+  }
+  // B. User selected a Special Offer (and no coupon)
+  else if (cleanOfferId && cleanOfferId !== "none") {
+    try {
+      if (mongoose.Types.ObjectId.isValid(cleanOfferId)) {
+        const offer = await Offer.findOne({
+          _id: cleanOfferId,
+          isActive: true,
+          $or: [{ expiryDate: { $gt: new Date() } }, { expiryDate: null }],
+        });
+
+        if (!offer) {
+          offerError = "Selected special offer is invalid or expired";
+        } else {
+          const check = calculateOfferDiscount(offer);
+          if (!check.eligible) {
+            offerError = check.reason;
+          } else {
+            autoOfferDiscount = check.discount;
+            appliedOfferId = offer._id.toString();
+            appliedOffers = [{
+              _id: offer._id.toString(),
+              title: offer.title,
+              discount: autoOfferDiscount,
+            }];
+            appliedOfferType = "special_offer";
+            offerNotice = `Special offer '${offer.title}' applied.`;
+          }
+        }
+      } else {
+        offerError = "Invalid offer ID format";
+      }
+    } catch (err) {
+      console.error("Failed to validate special offer:", err);
+      offerError = "Internal error validating special offer";
+    }
+  }
+
+  // Exactly ONE discount applies
+  const totalDiscount = couponDiscount + autoOfferDiscount;
   const taxableAmount = Math.max(0, originalSubtotal - totalDiscount);
-  const gstRate = 0.18; // 18% GST
-  const tax = Math.round(taxableAmount * gstRate);
-
-  // 100% Free Shipping for all orders across India
-  const shippingFee = 0;
+  const tax = Math.round(taxableAmount * 0.18); // 18% GST
+  const shippingFee = 0; // 100% Free Shipping
   const totalAmount = taxableAmount + tax + shippingFee;
 
   return {
     subtotal: originalSubtotal,
-    comboDiscount,
+    comboDiscount: 0,
     autoOfferDiscount,
     couponDiscount,
     totalDiscount,
@@ -251,13 +276,16 @@ async function calculateCartDiscounts(cartItems, couponCode = "") {
     tax,
     shippingFee,
     totalAmount,
-    appliedCombos,
+    appliedCombos: [],
     appliedOffers,
+    appliedOfferId,
     appliedCouponCode,
-    couponError,
     appliedOfferType,
+    couponError,
+    offerError,
     offerNotice,
   };
 }
 
 module.exports = { calculateCartDiscounts };
+

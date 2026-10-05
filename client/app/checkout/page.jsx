@@ -26,8 +26,11 @@ export default function CheckoutPage() {
     subtotal,
     calculations,
     couponCode: appliedCouponCode,
+    appliedOfferId,
     applyCoupon,
     removeCoupon,
+    applySpecialOffer,
+    removeSpecialOffer,
     clearCart,
   } = useCart();
   const { user, login } = useAuth();
@@ -58,10 +61,12 @@ export default function CheckoutPage() {
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
 
-  // Coupon State
+  // Coupon & Offer State
   const [couponCode, setCouponCode] = useState("");
   const [couponError, setCouponError] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
+  const [offerError, setOfferError] = useState("");
+  const [offerLoading, setOfferLoading] = useState(false);
   const [availableCoupons, setAvailableCoupons] = useState([]);
   const [availableOffers, setAvailableOffers] = useState([]);
 
@@ -118,8 +123,9 @@ export default function CheckoutPage() {
 
   // Apply Coupon
   async function handleApplyCoupon(e) {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setCouponError("");
+    setOfferError("");
     if (!couponCode) return;
 
     setCouponLoading(true);
@@ -127,6 +133,18 @@ export default function CheckoutPage() {
     setCouponLoading(false);
     if (!result.success) {
       setCouponError(result.message);
+    }
+  }
+
+  // Apply Special Offer directly
+  async function handleApplyOffer(offerId) {
+    setCouponError("");
+    setOfferError("");
+    setOfferLoading(true);
+    const result = await applySpecialOffer(offerId);
+    setOfferLoading(false);
+    if (!result.success) {
+      setOfferError(result.message);
     }
   }
 
@@ -213,11 +231,13 @@ export default function CheckoutPage() {
         shippingAddress,
         billingAddress: billing,
         couponCode: appliedCouponCode || null,
+        offerId: appliedOfferId || null,
         returnPolicyAcknowledged: true,
       };
 
       const res = await api.post("/api/orders/create", orderPayload);
       const { order, razorpayOrder } = res.data;
+
 
       // 2. Load Razorpay SDK Script
       const script = document.createElement("script");
@@ -577,102 +597,209 @@ export default function CheckoutPage() {
             {/* Coupon Code Form & Available Offers */}
             <div className="mb-6 space-y-3">
               {calculations.comboDiscount > 0 ? (
-                <div className="bg-amber-50 border-2 border-amber-400 p-3 text-xs space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
-                    <span>🎁</span> Combo Offer Active (-₹{calculations.comboDiscount})
-                  </p>
+                <div className="bg-amber-50 border-2 border-amber-400 p-4 text-xs space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-black uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                      <span>🎁</span> Combo Deal Active (Priority 1)
+                    </p>
+                    <span className="bg-amber-200 text-amber-950 font-extrabold text-[10px] px-2 py-0.5 uppercase tracking-wider border border-amber-300">
+                      -₹{calculations.comboDiscount} OFF
+                    </span>
+                  </div>
                   <p className="text-[10.5px] text-amber-800 font-medium leading-relaxed">
-                    A special Combo Deal is applied to your cart. As per store policy, coupons cannot be combined with combo deals (Only 1 offer applies per order).
+                    A special Combo Offer is active in your cart. Combo Deals take 1st priority, and additional coupons or special offers cannot be combined with combo orders.
                   </p>
                 </div>
               ) : (
-                <form onSubmit={handleApplyCoupon}>
-                  <label className="block text-[9.5px] font-extrabold text-neutral-400 uppercase tracking-widest mb-1.5">Apply Promo/Coupon Code</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="e.g. FESTIVE10"
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                      className="flex-1 px-3 py-2 border-2 border-neutral-200 rounded-none bg-transparent outline-none focus:border-black text-xs font-bold text-black font-mono"
-                    />
-                    <button
-                      type="submit"
-                      disabled={couponLoading}
-                      className="bg-black hover:bg-gold hover:text-black border-2 border-black text-white px-5 py-2.5 rounded-none text-xs font-extrabold uppercase tracking-widest disabled:opacity-50 transition-colors cursor-pointer"
-                    >
-                      {couponLoading ? "..." : "Apply"}
-                    </button>
+                <div className="space-y-3">
+                  {/* Single Offer Policy Notice */}
+                  <div className="bg-neutral-50 border border-neutral-200 p-2 text-[9.5px] text-neutral-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <span>💡</span>
+                    <span>1 Offer Policy: Apply a Coupon OR select a Special Offer below.</span>
                   </div>
+
+                  {/* Active Coupon Banner */}
                   {appliedCouponCode && (
-                    <p className="text-green-700 text-xs font-bold uppercase tracking-wider mt-1.5 flex items-center justify-between">
-                      <span>✓ Coupon <strong className="text-[9.5px] bg-green-50 border border-green-200 text-green-800 px-1.5 py-0.5 rounded-none font-extrabold">{appliedCouponCode}</strong> applied!</span>
+                    <div className="bg-green-50 border-2 border-green-600 p-3 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🎟️</span>
+                        <div>
+                          <p className="font-extrabold text-green-900 uppercase tracking-wider text-[11px]">
+                            Coupon Applied: <span className="bg-green-200 px-1.5 py-0.5 text-green-950 font-mono font-black border border-green-300">{appliedCouponCode}</span>
+                          </p>
+                          <p className="text-[10px] text-green-700 font-semibold mt-0.5">Discount: -₹{calculations.couponDiscount}</p>
+                        </div>
+                      </div>
                       <button
                         type="button"
                         onClick={() => {
                           removeCoupon();
                           setCouponCode("");
                         }}
-                        className="text-red-600 hover:underline font-extrabold text-[10px] uppercase tracking-widest ml-1 cursor-pointer"
+                        className="bg-white hover:bg-red-50 text-red-600 border border-red-300 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider transition-colors cursor-pointer"
                       >
                         Remove
                       </button>
-                    </p>
+                    </div>
                   )}
-                  {couponError && <p className="text-red-600 text-xs mt-1.5 font-semibold">{couponError}</p>}
-                </form>
-              )}
 
-              {/* Available Active Coupons Chips (only shown if no combo deal active and no coupon applied) */}
-              {availableCoupons.length > 0 && !appliedCouponCode && calculations.comboDiscount === 0 && (
-                <div className="bg-neutral-50 p-3 border border-neutral-200 space-y-2">
-                  <p className="text-[9px] font-extrabold uppercase tracking-widest text-neutral-400">Available Coupons</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {availableCoupons.map((c) => (
+                  {/* Active Special Offer Banner */}
+                  {calculations.autoOfferDiscount > 0 && calculations.appliedOffers?.length > 0 && (
+                    <div className="bg-green-50 border-2 border-green-600 p-3 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🎉</span>
+                        <div>
+                          <p className="font-extrabold text-green-900 uppercase tracking-wider text-[11px]">
+                            Special Offer Applied: <span className="text-green-950 font-black">{calculations.appliedOffers[0]?.title}</span>
+                          </p>
+                          <p className="text-[10px] text-green-700 font-semibold mt-0.5">Discount: -₹{calculations.autoOfferDiscount}</p>
+                        </div>
+                      </div>
                       <button
-                        key={c.code}
                         type="button"
-                        onClick={async () => {
-                          setCouponCode(c.code);
-                          setCouponLoading(true);
-                          setCouponError("");
-                          const result = await applyCoupon(c.code);
-                          setCouponLoading(false);
-                          if (!result.success) {
-                            setCouponError(result.message);
-                          }
+                        onClick={() => {
+                          removeSpecialOffer();
                         }}
-                        className="group text-left border border-black/20 hover:border-black bg-white px-2.5 py-1.5 transition-all text-xs flex items-center gap-2 shadow-2xs hover:bg-black hover:text-white cursor-pointer"
-                        title={c.minOrderValue > 0 ? `Min cart ₹${c.minOrderValue}` : "No min order"}
+                        className="bg-white hover:bg-red-50 text-red-600 border border-red-300 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider transition-colors cursor-pointer"
                       >
-                        <span className="font-mono font-black text-maroon group-hover:text-gold text-[11px] tracking-wider">{c.code}</span>
-                        <span className="text-[9.5px] text-neutral-500 group-hover:text-neutral-200 font-bold">
-                          {c.discountType === "percentage" ? `${c.discountValue}% OFF` : `₹${c.discountValue} OFF`}
-                        </span>
-                        <span className="text-[9px] font-extrabold uppercase text-neutral-400 group-hover:text-white underline ml-1">
-                          Apply
-                        </span>
+                        Remove
                       </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    </div>
+                  )}
 
-              {/* Available Active Special Offers Banner (only shown if no combo deal active) */}
-              {availableOffers.length > 0 && calculations.comboDiscount === 0 && (
-                <div className="bg-gold/10 border border-gold/30 p-2.5 space-y-1">
-                  <p className="text-[9px] font-extrabold uppercase tracking-widest text-gold flex items-center gap-1">
-                    <span>✨ Active Store Offer</span>
-                  </p>
-                  {availableOffers.map((o) => (
-                    <p key={o._id} className="text-[10.5px] font-bold text-neutral-700">
-                      <strong>{o.title}:</strong> {o.discountType === "percentage" ? `${o.discountValue}% Off` : `₹${o.discountValue} Off`}
-                      {o.minOrderValue > 0 ? ` on orders above ₹${o.minOrderValue}` : ""} (Auto applied)
-                    </p>
-                  ))}
+                  {/* Promo Code Form */}
+                  <form onSubmit={handleApplyCoupon} className="space-y-1">
+                    <label className="block text-[9.5px] font-extrabold text-neutral-400 uppercase tracking-widest">Apply Promo/Coupon Code</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="e.g. FESTIVE10"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                        className="flex-1 px-3 py-2 border-2 border-neutral-200 rounded-none bg-transparent outline-none focus:border-black text-xs font-bold text-black font-mono"
+                      />
+                      <button
+                        type="submit"
+                        disabled={couponLoading}
+                        className="bg-black hover:bg-gold hover:text-black border-2 border-black text-white px-5 py-2.5 rounded-none text-xs font-extrabold uppercase tracking-widest disabled:opacity-50 transition-colors cursor-pointer"
+                      >
+                        {couponLoading ? "..." : "Apply"}
+                      </button>
+                    </div>
+                    {couponError && <p className="text-red-600 text-xs mt-1 font-semibold">{couponError}</p>}
+                  </form>
+
+                  {/* Available Active Coupons Section */}
+                  {availableCoupons.length > 0 && (
+                    <div className="bg-neutral-50 p-3 border border-neutral-200 space-y-2">
+                      <p className="text-[9px] font-extrabold uppercase tracking-widest text-neutral-400">Available Coupons</p>
+                      <div className="flex flex-wrap gap-2">
+                        {availableCoupons.map((c) => {
+                          const isApplied = appliedCouponCode === c.code;
+                          return (
+                            <div
+                              key={c.code}
+                              className={`border p-2.5 text-xs flex items-center justify-between gap-2 flex-1 min-w-[200px] ${
+                                isApplied ? "border-green-600 bg-green-50/60" : "border-neutral-200 bg-white"
+                              }`}
+                            >
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono font-black text-maroon text-[11px] tracking-wider">{c.code}</span>
+                                  <span className="text-[9.5px] font-bold text-neutral-600">
+                                    ({c.discountType === "percentage" ? `${c.discountValue}% OFF` : `₹${c.discountValue} OFF`})
+                                  </span>
+                                </div>
+                                {c.minOrderValue > 0 && (
+                                  <p className="text-[8.5px] text-neutral-400 font-semibold">Min cart: ₹{c.minOrderValue}</p>
+                                )}
+                              </div>
+                              {isApplied ? (
+                                <button
+                                  type="button"
+                                  onClick={() => removeCoupon()}
+                                  className="text-[9px] font-extrabold uppercase text-red-600 hover:underline cursor-pointer"
+                                >
+                                  Remove
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    setCouponCode(c.code);
+                                    setCouponLoading(true);
+                                    setCouponError("");
+                                    setOfferError("");
+                                    const result = await applyCoupon(c.code);
+                                    setCouponLoading(false);
+                                    if (!result.success) {
+                                      setCouponError(result.message);
+                                    }
+                                  }}
+                                  className="bg-black hover:bg-gold hover:text-black text-white text-[9px] font-extrabold uppercase px-2.5 py-1 transition-colors cursor-pointer"
+                                >
+                                  Apply
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Available Active Special Offers Section */}
+                  {availableOffers.length > 0 && (
+                    <div className="bg-gold/10 border border-gold/40 p-3 space-y-2">
+                      <p className="text-[9px] font-extrabold uppercase tracking-widest text-gold-dark flex items-center gap-1">
+                        <span>✨ Available Special Offers</span>
+                      </p>
+                      <div className="space-y-1.5">
+                        {availableOffers.map((o) => {
+                          const isApplied = appliedOfferId === o._id?.toString() || (calculations.appliedOffers?.some(ao => ao._id === o._id?.toString()));
+                          return (
+                            <div
+                              key={o._id}
+                              className={`p-2.5 border text-xs flex items-center justify-between gap-2 ${
+                                isApplied ? "border-green-600 bg-green-50" : "border-gold/30 bg-white"
+                              }`}
+                            >
+                              <div>
+                                <p className="font-extrabold text-neutral-900 text-[11px]">{o.title}</p>
+                                <p className="text-[9.5px] text-neutral-500 font-semibold">
+                                  {o.discountType === "percentage" ? `${o.discountValue}% OFF` : `₹${o.discountValue} OFF`}
+                                  {o.minOrderValue > 0 ? ` on orders above ₹${o.minOrderValue}` : " store-wide"}
+                                </p>
+                              </div>
+                              {isApplied ? (
+                                <button
+                                  type="button"
+                                  onClick={() => removeSpecialOffer()}
+                                  className="text-[9px] font-extrabold uppercase text-red-600 hover:underline cursor-pointer"
+                                >
+                                  Remove
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={offerLoading}
+                                  onClick={() => handleApplyOffer(o._id)}
+                                  className="bg-black hover:bg-gold hover:text-black text-white text-[9px] font-extrabold uppercase px-2.5 py-1 transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                  Apply
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {offerError && <p className="text-red-600 text-xs font-semibold">{offerError}</p>}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+
 
             {/* Calculations */}
             <div className="border-t-2 border-neutral-100 pt-4 space-y-2.5 text-xs text-neutral-600 font-semibold">

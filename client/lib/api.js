@@ -94,12 +94,14 @@ export const verifyOtp = (phone, otp) => api.post("/api/auth/verify-otp", { phon
 export const getMe = () => api.get("/api/auth/me");
 export const updateProfile = (data) => api.put("/api/auth/profile", data);
 
-export const getCart = (couponCode) => api.get("/api/cart", { params: { couponCode } });
-export const addToCart = (productId, variantSku, quantity = 1, couponCode) =>
-  api.post("/api/cart/add", { productId, variantSku, quantity }, { params: { couponCode } });
-export const updateCartItem = (itemId, quantity, couponCode) =>
-  api.put(`/api/cart/item/${itemId}`, { quantity }, { params: { couponCode } });
-export const removeCartItem = (itemId, couponCode) => api.delete(`/api/cart/item/${itemId}`, { params: { couponCode } });
+export const getCart = (couponCode, offerId) => api.get("/api/cart", { params: { couponCode, offerId } });
+export const addToCart = (productId, variantSku, quantity = 1, couponCode, offerId) =>
+  api.post("/api/cart/add", { productId, variantSku, quantity }, { params: { couponCode, offerId } });
+export const updateCartItem = (itemId, quantity, couponCode, offerId) =>
+  api.put(`/api/cart/item/${itemId}`, { quantity }, { params: { couponCode, offerId } });
+export const removeCartItem = (itemId, couponCode, offerId) =>
+  api.delete(`/api/cart/item/${itemId}`, { params: { couponCode, offerId } });
+
 
 // Orders & Returns
 export const getMyOrders = () => api.get("/api/orders/my-orders");

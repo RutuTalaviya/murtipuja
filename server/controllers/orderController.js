@@ -46,11 +46,11 @@ async function validateCoupon(req, res, next) {
 
 /**
  * POST /api/orders/create
- * body: { shippingAddress, billingAddress, couponCode, returnPolicyAcknowledged }
+ * body: { shippingAddress, billingAddress, couponCode, offerId, returnPolicyAcknowledged }
  */
 async function createOrder(req, res, next) {
   try {
-    const { shippingAddress, billingAddress, couponCode, returnPolicyAcknowledged } = req.body;
+    const { shippingAddress, billingAddress, couponCode, offerId, returnPolicyAcknowledged } = req.body;
 
     if (!returnPolicyAcknowledged) {
       return res.status(400).json({
@@ -101,11 +101,16 @@ async function createOrder(req, res, next) {
     }
 
     // 3. Run discount calculation utility
-    const calculations = await calculateCartDiscounts(cart.items, couponCode);
+    const calculations = await calculateCartDiscounts(cart.items, couponCode, offerId);
 
     if (couponCode && calculations.couponError) {
       return res.status(400).json({ message: calculations.couponError });
     }
+
+    if (offerId && calculations.offerError) {
+      return res.status(400).json({ message: calculations.offerError });
+    }
+
 
     const {
       subtotal,
