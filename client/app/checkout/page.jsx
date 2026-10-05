@@ -688,113 +688,125 @@ export default function CheckoutPage() {
                     {couponError && <p className="text-red-600 text-xs mt-1 font-semibold">{couponError}</p>}
                   </form>
 
-                  {/* Available Active Coupons Section */}
-                  {availableCoupons.length > 0 && (
-                    <div className="bg-neutral-50 p-3 border border-neutral-200 space-y-2">
-                      <p className="text-[9px] font-extrabold uppercase tracking-widest text-neutral-400">Available Coupons</p>
-                      <div className="flex flex-wrap gap-2">
-                        {availableCoupons.map((c) => {
-                          const isApplied = appliedCouponCode === c.code;
-                          return (
-                            <div
-                              key={c.code}
-                              className={`border p-2.5 text-xs flex items-center justify-between gap-2 flex-1 min-w-[200px] ${
-                                isApplied ? "border-green-600 bg-green-50/60" : "border-neutral-200 bg-white"
-                              }`}
-                            >
-                              <div>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="font-mono font-black text-maroon text-[11px] tracking-wider">{c.code}</span>
-                                  <span className="text-[9.5px] font-bold text-neutral-600">
-                                    ({c.discountType === "percentage" ? `${c.discountValue}% OFF` : `₹${c.discountValue} OFF`})
-                                  </span>
-                                </div>
-                                {c.minOrderValue > 0 && (
-                                  <p className="text-[8.5px] text-neutral-400 font-semibold">Min cart: ₹{c.minOrderValue}</p>
-                                )}
-                              </div>
-                              {isApplied ? (
-                                <button
-                                  type="button"
-                                  onClick={() => removeCoupon()}
-                                  className="text-[9px] font-extrabold uppercase text-red-600 hover:underline cursor-pointer"
-                                >
-                                  Remove
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    setCouponCode(c.code);
-                                    setCouponLoading(true);
-                                    setCouponError("");
-                                    setOfferError("");
-                                    const result = await applyCoupon(c.code);
-                                    setCouponLoading(false);
-                                    if (!result.success) {
-                                      setCouponError(result.message);
-                                    }
-                                  }}
-                                  className="bg-black hover:bg-gold hover:text-black text-white text-[9px] font-extrabold uppercase px-2.5 py-1 transition-colors cursor-pointer"
-                                >
-                                  Apply
-                                </button>
-                              )}
+                  {/* Available Active Coupons & Special Offers in the Same Row */}
+                  {(availableCoupons.length > 0 || availableOffers.length > 0) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      {/* Column 1: Available Coupons */}
+                      {availableCoupons.length > 0 ? (
+                        <div className="bg-neutral-50 p-3 border border-neutral-200 flex flex-col justify-between space-y-2">
+                          <div>
+                            <p className="text-[9px] font-extrabold uppercase tracking-widest text-neutral-400 mb-2 flex items-center gap-1.5">
+                              <span>🎟️</span> Available Coupons
+                            </p>
+                            <div className="space-y-1.5">
+                              {availableCoupons.map((c) => {
+                                const isApplied = appliedCouponCode === c.code;
+                                return (
+                                  <div
+                                    key={c.code}
+                                    className={`border p-2 text-xs flex items-center justify-between gap-1.5 transition-all ${
+                                      isApplied ? "border-green-600 bg-green-50/70" : "border-neutral-200 bg-white hover:border-black/40"
+                                    }`}
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-1 flex-wrap">
+                                        <span className="font-mono font-black text-maroon text-[10.5px] tracking-wider truncate">{c.code}</span>
+                                        <span className="text-[9px] font-bold text-neutral-600 shrink-0">
+                                          ({c.discountType === "percentage" ? `${c.discountValue}% OFF` : `₹${c.discountValue} OFF`})
+                                        </span>
+                                      </div>
+                                      {c.minOrderValue > 0 && (
+                                        <p className="text-[8px] text-neutral-400 font-semibold truncate">Min cart: ₹{c.minOrderValue}</p>
+                                      )}
+                                    </div>
+                                    {isApplied ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => removeCoupon()}
+                                        className="text-[8.5px] font-extrabold uppercase text-red-600 hover:underline cursor-pointer shrink-0"
+                                      >
+                                        Remove
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          setCouponCode(c.code);
+                                          setCouponLoading(true);
+                                          setCouponError("");
+                                          setOfferError("");
+                                          const result = await applyCoupon(c.code);
+                                          setCouponLoading(false);
+                                          if (!result.success) {
+                                            setCouponError(result.message);
+                                          }
+                                        }}
+                                        className="bg-black hover:bg-gold hover:text-black text-white text-[8.5px] font-extrabold uppercase px-2.5 py-1 transition-colors cursor-pointer shrink-0"
+                                      >
+                                        Apply
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
-                          );
-                        })}
-                      </div>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {/* Column 2: Available Special Offers */}
+                      {availableOffers.length > 0 ? (
+                        <div className="bg-gold/10 border border-gold/40 p-3 flex flex-col justify-between space-y-2">
+                          <div>
+                            <p className="text-[9px] font-extrabold uppercase tracking-widest text-gold-dark mb-2 flex items-center gap-1.5">
+                              <span>✨</span> Available Special Offers
+                            </p>
+                            <div className="space-y-1.5">
+                              {availableOffers.map((o) => {
+                                const isApplied = appliedOfferId === o._id?.toString() || (calculations.appliedOffers?.some(ao => ao._id === o._id?.toString()));
+                                return (
+                                  <div
+                                    key={o._id}
+                                    className={`p-2 border text-xs flex items-center justify-between gap-1.5 transition-all ${
+                                      isApplied ? "border-green-600 bg-green-50" : "border-gold/30 bg-white hover:border-gold"
+                                    }`}
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <p className="font-extrabold text-neutral-900 text-[10.5px] truncate">{o.title}</p>
+                                      <p className="text-[9px] text-neutral-500 font-semibold truncate">
+                                        {o.discountType === "percentage" ? `${o.discountValue}% OFF` : `₹${o.discountValue} OFF`}
+                                        {o.minOrderValue > 0 ? ` on ₹${o.minOrderValue}+` : " store-wide"}
+                                      </p>
+                                    </div>
+                                    {isApplied ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => removeSpecialOffer()}
+                                        className="text-[8.5px] font-extrabold uppercase text-red-600 hover:underline cursor-pointer shrink-0"
+                                      >
+                                        Remove
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        disabled={offerLoading}
+                                        onClick={() => handleApplyOffer(o._id)}
+                                        className="bg-black hover:bg-gold hover:text-black text-white text-[8.5px] font-extrabold uppercase px-2.5 py-1 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                                      >
+                                        Apply
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          {offerError && <p className="text-red-600 text-[9px] font-semibold">{offerError}</p>}
+                        </div>
+                      ) : null}
                     </div>
                   )}
 
-                  {/* Available Active Special Offers Section */}
-                  {availableOffers.length > 0 && (
-                    <div className="bg-gold/10 border border-gold/40 p-3 space-y-2">
-                      <p className="text-[9px] font-extrabold uppercase tracking-widest text-gold-dark flex items-center gap-1">
-                        <span>✨ Available Special Offers</span>
-                      </p>
-                      <div className="space-y-1.5">
-                        {availableOffers.map((o) => {
-                          const isApplied = appliedOfferId === o._id?.toString() || (calculations.appliedOffers?.some(ao => ao._id === o._id?.toString()));
-                          return (
-                            <div
-                              key={o._id}
-                              className={`p-2.5 border text-xs flex items-center justify-between gap-2 ${
-                                isApplied ? "border-green-600 bg-green-50" : "border-gold/30 bg-white"
-                              }`}
-                            >
-                              <div>
-                                <p className="font-extrabold text-neutral-900 text-[11px]">{o.title}</p>
-                                <p className="text-[9.5px] text-neutral-500 font-semibold">
-                                  {o.discountType === "percentage" ? `${o.discountValue}% OFF` : `₹${o.discountValue} OFF`}
-                                  {o.minOrderValue > 0 ? ` on orders above ₹${o.minOrderValue}` : " store-wide"}
-                                </p>
-                              </div>
-                              {isApplied ? (
-                                <button
-                                  type="button"
-                                  onClick={() => removeSpecialOffer()}
-                                  className="text-[9px] font-extrabold uppercase text-red-600 hover:underline cursor-pointer"
-                                >
-                                  Remove
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  disabled={offerLoading}
-                                  onClick={() => handleApplyOffer(o._id)}
-                                  className="bg-black hover:bg-gold hover:text-black text-white text-[9px] font-extrabold uppercase px-2.5 py-1 transition-colors cursor-pointer disabled:opacity-50"
-                                >
-                                  Apply
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {offerError && <p className="text-red-600 text-xs font-semibold">{offerError}</p>}
-                    </div>
-                  )}
                 </div>
               )}
             </div>
