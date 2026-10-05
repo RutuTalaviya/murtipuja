@@ -236,64 +236,85 @@ export default function CheckoutPage() {
       };
 
       const res = await api.post("/api/orders/create", orderPayload);
-      const { order, razorpayOrder } = res.data;
+      const { order, razorpayOrder, razorpayKeyId } = res.data;
 
+      const rzpKey = razorpayKeyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_TcNNAglqRPpV08";
 
-      // 2. Load Razorpay SDK Script
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.async = true;
-      script.onload = () => {
-        // 3. Open Razorpay payment gateway
-        const options = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_placeholder",
-          amount: razorpayOrder.amount,
-          currency: razorpayOrder.currency,
-          name: "MurtiPuja",
-          description: "Premium Spiritual Murti Purchase",
-          order_id: razorpayOrder.id,
-          handler: async function (response) {
-            try {
-              // 4. Verify payment signature on backend
-              const verifyRes = await api.post("/api/payment/razorpay/verify", {
-                orderId: order._id,
-                razorpayOrderId: response.razorpay_order_id,
-                razorpayPaymentId: response.razorpay_payment_id,
-                razorpaySignature: response.razorpay_signature,
-              });
-
-              if (verifyRes.data.success) {
-                clearCart();
-                router.push(`/account/orders/${order._id}?success=true`);
-              } else {
-                setCheckoutError("Payment verification failed. Please contact support.");
-              }
-            } catch (err) {
-              setCheckoutError("Verification error: " + (err.response?.data?.message || err.message));
-            } finally {
-              setCheckoutLoading(false);
-            }
-          },
-          prefill: {
-            name: user.name || "",
-            email: user.email || "",
-            contact: user.phone || "",
-          },
-          theme: {
-            color: "#000000", // Black theme accent
-          },
-          modal: {
-            ondismiss: function () {
-              setCheckoutLoading(false);
-              setCheckoutError("Payment was cancelled by the user.");
-            },
-          },
-        };
-
-        const rzp = new window.Razorpay(options);
-        rzp.open();
+      // 2. Load Razorpay SDK Script safely
+      const loadRazorpay = () => {
+        return new Promise((resolve) => {
+          if (typeof window !== "undefined" && window.Razorpay) {
+            resolve(true);
+            return;
+          }
+          const script = document.createElement("script");
+          script.src = "https://checkout.razorpay.com/v1/checkout.js";
+          script.async = true;
+          script.onload = () => resolve(true);
+          script.onerror = () => resolve(false);
+          document.body.appendChild(script);
+        });
       };
-      document.body.appendChild(script);
+
+      const loaded = await loadRazorpay();
+      if (!loaded || !window.Razorpay) {
+        setCheckoutError("Payment gateway failed to load. Please check your internet connection.");
+        setCheckoutLoading(false);
+        return;
+      }
+
+      // 3. Open Razorpay payment gateway
+      const options = {
+        key: rzpKey,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency || "INR",
+        name: "MurtiPuja",
+        description: `Order #${order.orderNumber}`,
+        order_id: razorpayOrder.id,
+        handler: async function (response) {
+          try {
+            // 4. Verify payment signature on backend
+            const verifyRes = await api.post("/api/payment/razorpay/verify", {
+              orderId: order._id,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+
+            if (verifyRes.data.success) {
+              clearCart();
+              router.push(`/account/orders/${order._id}?success=true`);
+            } else {
+              setCheckoutError("Payment verification failed. Please contact support.");
+            }
+          } catch (err) {
+            setCheckoutError("Verification error: " + (err.response?.data?.message || err.message));
+          } finally {
+            setCheckoutLoading(false);
+          }
+        },
+        prefill: {
+          name: user.name || "Customer",
+          email: user.email || "",
+          contact: user.phone || "",
+        },
+        theme: {
+          color: "#000000",
+        },
+        modal: {
+          ondismiss: function () {
+            setCheckoutLoading(false);
+            setCheckoutError("Payment was cancelled by the user.");
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", function (response) {
+        setCheckoutError(response.error?.description || "Payment failed. Please try again.");
+        setCheckoutLoading(false);
+      });
+      rzp.open();
     } catch (err) {
       setCheckoutError(err.response?.data?.message || "Failed to create order. Please try again.");
       setCheckoutLoading(false);

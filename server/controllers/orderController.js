@@ -180,7 +180,8 @@ async function createOrder(req, res, next) {
     };
     await order.save();
 
-    return res.status(201).json({ order, razorpayOrder });
+    const razorpayKeyId = process.env.RAZORPAY_KEY_ID || "rzp_live_TcNNAglqRPpV08";
+    return res.status(201).json({ order, razorpayOrder, razorpayKeyId });
   } catch (error) {
     next(error);
   }
