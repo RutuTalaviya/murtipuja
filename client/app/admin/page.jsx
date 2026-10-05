@@ -1981,10 +1981,14 @@ export default function AdminPage() {
         setFormVariants(
           fullProduct.variants.map((v, vIdx) => {
             let vImages = [];
-            if (Array.isArray(v.images) && v.images.length > 0) {
+            // 1. If variant has multiple images array, load them
+            if (Array.isArray(v.images) && v.images.length > 1) {
               vImages = v.images
                 .map((img) => (typeof img === "object" ? img?.url : img))
                 .filter((url) => url && typeof url === "string");
+            } else if (Array.isArray(v.images) && v.images.length === 1) {
+              const single = typeof v.images[0] === "object" ? v.images[0]?.url : v.images[0];
+              if (single) vImages = [single];
             } else if (v.image) {
               const singleUrl = typeof v.image === "object" ? v.image?.url : v.image;
               if (singleUrl && typeof singleUrl === "string") {
@@ -1992,13 +1996,40 @@ export default function AdminPage() {
               }
             }
 
-            // Only for single-variant products without separate variant images, fallback to product gallery
-            if (
-              fullProduct.variants.length === 1 &&
-              vImages.length === 0 &&
-              imageList.length > 0
-            ) {
-              vImages = Array.from(new Set([...vImages, ...imageList])).filter(Boolean);
+            // 2. If variant only has <= 1 image, but fullProduct.images (imageList) has multiple photos:
+            // Partition imageList among variants so NO images are lost when editing!
+            if (vImages.length <= 1 && imageList.length > 0) {
+              if (fullProduct.variants.length === 1) {
+                // Single variant product gets all images
+                vImages = Array.from(new Set([...vImages, ...imageList])).filter(Boolean);
+              } else {
+                // Multi-variant partitioning by variant cover markers
+                const currentVarUrl = (vImages[0] || (typeof v.image === "object" ? v.image?.url : v.image) || "").trim();
+                const startIdx = imageList.findIndex(
+                  (u) => u === currentVarUrl || u.endsWith(currentVarUrl) || currentVarUrl.endsWith(u)
+                );
+
+                if (startIdx !== -1) {
+                  let endIdx = imageList.length;
+                  for (let oIdx = 0; oIdx < fullProduct.variants.length; oIdx++) {
+                    if (oIdx === vIdx) continue;
+                    const otherV = fullProduct.variants[oIdx];
+                    const otherUrl = (typeof otherV?.image === "object" ? otherV?.image?.url : otherV?.image || "").trim();
+                    if (otherUrl && otherUrl !== currentVarUrl) {
+                      const otherPos = imageList.findIndex(
+                        (u) => u === otherUrl || u.endsWith(otherUrl) || otherUrl.endsWith(u)
+                      );
+                      if (otherPos > startIdx && otherPos < endIdx) {
+                        endIdx = otherPos;
+                      }
+                    }
+                  }
+                  const partitioned = imageList.slice(startIdx, endIdx);
+                  if (partitioned.length > 0) {
+                    vImages = partitioned;
+                  }
+                }
+              }
             }
 
             return {
