@@ -39,7 +39,13 @@ const bannerRoutes = require("./routes/bannerRoutes");
 const videoRoutes = require("./routes/videoRoutes");
 const pageRoutes = require("./routes/pageRoutes");
 
-connectDB();
+const { syncExpiredPromotions } = require("./utils/promotionExpirySync");
+
+connectDB().then(() => {
+  syncExpiredPromotions();
+  // Auto-sync expired promotions every 60 seconds
+  setInterval(syncExpiredPromotions, 60 * 1000);
+});
 
 
 const app = express();

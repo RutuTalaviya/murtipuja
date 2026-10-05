@@ -6,6 +6,7 @@ const User = require("../models/User");
 const razorpay = require("../config/razorpay");
 const crypto = require("crypto");
 const { calculateCartDiscounts } = require("../utils/discountCalculator");
+const { syncExpiredPromotions } = require("../utils/promotionExpirySync");
 
 /**
  * POST /api/coupons/validate
@@ -18,14 +19,21 @@ async function validateCoupon(req, res, next) {
       return res.status(400).json({ message: "Coupon code is required" });
     }
 
+    await syncExpiredPromotions();
+
+    const cleanCode = code.toUpperCase().trim();
     const coupon = await Coupon.findOne({
-      code: code.toUpperCase().trim(),
+      code: cleanCode,
       isActive: true,
-      expiryDate: { $gt: new Date() },
+      $or: [{ expiryDate: { $gt: new Date() } }, { expiryDate: null }],
     });
 
     if (!coupon) {
-      return res.status(404).json({ message: "Coupon code is invalid or expired" });
+      const rawCoupon = await Coupon.findOne({ code: cleanCode });
+      if (!rawCoupon) {
+        return res.status(404).json({ message: `Coupon code '${cleanCode}' is invalid` });
+      }
+      return res.status(400).json({ message: `Coupon code '${cleanCode}' has expired or is paused` });
     }
 
     if (orderValue < coupon.minOrderValue) {
@@ -35,7 +43,7 @@ async function validateCoupon(req, res, next) {
     }
 
     if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
-      return res.status(400).json({ message: "Coupon code usage limit has been reached" });
+      return res.status(400).json({ message: `Coupon code '${cleanCode}' usage limit has been reached` });
     }
 
     return res.status(200).json(coupon);

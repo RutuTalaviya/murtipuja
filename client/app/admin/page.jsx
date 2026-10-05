@@ -932,11 +932,16 @@ export default function AdminPage() {
   // Handle combo toggle status
   async function handleToggleCombo(combo) {
     setActionError("");
+    const isExpired = combo.expiryDate && new Date(combo.expiryDate) < new Date();
+    if (isExpired && !combo.isActive) {
+      setActionError(`Combo offer '${combo.title}' has expired. Please edit and extend its expiry date first.`);
+      return;
+    }
     try {
       const res = await updateAdminCombo(combo._id, { isActive: !combo.isActive });
       setCombos(combos.map((c) => (c._id === combo._id ? { ...c, isActive: res.data.isActive } : c)));
     } catch (err) {
-      setActionError("Failed to update combo status.");
+      setActionError(err.response?.data?.message || "Failed to update combo status.");
     }
   }
 
@@ -1014,11 +1019,16 @@ export default function AdminPage() {
 
   async function handleToggleCoupon(coupon) {
     setActionError("");
+    const isExpired = coupon.expiryDate && new Date(coupon.expiryDate) < new Date();
+    if (isExpired && !coupon.isActive) {
+      setActionError(`Coupon code '${coupon.code}' has expired. Please edit and extend its expiry date first.`);
+      return;
+    }
     try {
       const res = await updateAdminCoupon(coupon._id, { isActive: !coupon.isActive });
       setCoupons(coupons.map((c) => (c._id === coupon._id ? res.data : c)));
     } catch (err) {
-      setActionError("Failed to update coupon status.");
+      setActionError(err.response?.data?.message || "Failed to update coupon status.");
     }
   }
 
@@ -1103,12 +1113,17 @@ export default function AdminPage() {
 
   async function handleToggleOffer(offer) {
     setActionError("");
+    const isExpired = offer.expiryDate && new Date(offer.expiryDate) < new Date();
+    if (isExpired && !offer.isActive) {
+      setActionError(`Special offer '${offer.title}' has expired. Please edit and extend its expiry date first.`);
+      return;
+    }
     try {
       const res = await updateAdminOffer(offer._id, { isActive: !offer.isActive });
       const offersRes = await getAdminOffers();
       setOffers(offersRes.data || []);
     } catch (err) {
-      setActionError("Failed to update offer status.");
+      setActionError(err.response?.data?.message || "Failed to update offer status.");
     }
   }
 
@@ -5811,12 +5826,14 @@ export default function AdminPage() {
                               </td>
                               <td className="p-4">
                                 <span
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${c.isActive && !isExpired
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${isExpired
+                                    ? "bg-red-100 text-red-800 border border-red-200"
+                                    : c.isActive
                                     ? "bg-green-100 text-green-800"
                                     : "bg-charcoal/10 text-charcoal/50"
                                     }`}
                                 >
-                                  {isExpired ? "Expired" : c.isActive ? "Active" : "Paused"}
+                                  {isExpired ? "Expired (Paused)" : c.isActive ? "Active" : "Paused"}
                                 </span>
                               </td>
                               <td className="p-4 text-right space-x-3">
@@ -5830,7 +5847,7 @@ export default function AdminPage() {
                                   onClick={() => handleToggleCoupon(c)}
                                   className="text-charcoal hover:text-charcoal/80 font-bold uppercase tracking-wider text-[10px]"
                                 >
-                                  {c.isActive ? "⏸ Pause" : "▶ Activate"}
+                                  {isExpired ? "⚠️ Expired" : c.isActive ? "⏸ Pause" : "▶ Activate"}
                                 </button>
                                 <button
                                   onClick={() => handleDeleteCoupon(c._id)}
@@ -6083,12 +6100,14 @@ export default function AdminPage() {
                               </td>
                               <td className="p-4">
                                 <span
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${o.isActive && !isExpired
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${isExpired
+                                    ? "bg-red-100 text-red-800 border border-red-200"
+                                    : o.isActive
                                     ? "bg-green-100 text-green-800"
                                     : "bg-charcoal/10 text-charcoal/50"
                                     }`}
                                 >
-                                  {isExpired ? "Expired" : o.isActive ? "Active" : "Paused"}
+                                  {isExpired ? "Expired (Paused)" : o.isActive ? "Active" : "Paused"}
                                 </span>
                               </td>
                               <td className="p-4 text-right space-x-3">
@@ -6102,7 +6121,7 @@ export default function AdminPage() {
                                   onClick={() => handleToggleOffer(o)}
                                   className="text-charcoal hover:text-charcoal/80 font-bold uppercase tracking-wider text-[10px]"
                                 >
-                                  {o.isActive ? "⏸ Pause" : "▶ Activate"}
+                                  {isExpired ? "⚠️ Expired" : o.isActive ? "⏸ Pause" : "▶ Activate"}
                                 </button>
                                 <button
                                   onClick={() => handleDeleteOffer(o._id)}

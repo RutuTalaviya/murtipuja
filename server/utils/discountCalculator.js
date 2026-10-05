@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { syncExpiredPromotions } = require("./promotionExpirySync");
 
 /**
  * Calculates discounts, GST tax (18%), shipping, and totals for cart items.
@@ -18,6 +19,9 @@ const mongoose = require("mongoose");
  * @param {String} offerId - Optional special offer ID chosen by user
  */
 async function calculateCartDiscounts(cartItems, couponCode = "", offerId = "") {
+  // Sync all expired coupons, offers, and combos before doing any calculations
+  await syncExpiredPromotions();
+
   const ComboOffer = mongoose.model("ComboOffer");
   const Offer = mongoose.model("Offer");
   const Coupon = mongoose.model("Coupon");
@@ -215,7 +219,14 @@ async function calculateCartDiscounts(cartItems, couponCode = "", offerId = "") 
       });
 
       if (!coupon) {
-        couponError = `Coupon code '${cleanCoupon}' is invalid or expired`;
+        const rawCoupon = await Coupon.findOne({ code: cleanCoupon });
+        if (!rawCoupon) {
+          couponError = `Coupon code '${cleanCoupon}' is invalid`;
+        } else if (!rawCoupon.isActive || (rawCoupon.expiryDate && rawCoupon.expiryDate <= new Date())) {
+          couponError = `Coupon code '${cleanCoupon}' has expired or is paused`;
+        } else {
+          couponError = `Coupon code '${cleanCoupon}' is currently unavailable`;
+        }
       } else if (originalSubtotal < (coupon.minOrderValue || 0)) {
         couponError = `Minimum order value of ₹${coupon.minOrderValue} is required to apply coupon '${cleanCoupon}'`;
       } else if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
@@ -247,7 +258,14 @@ async function calculateCartDiscounts(cartItems, couponCode = "", offerId = "") 
         });
 
         if (!offer) {
-          offerError = "Selected special offer is invalid or expired";
+          const rawOffer = await Offer.findById(cleanOfferId);
+          if (!rawOffer) {
+            offerError = "Selected special offer is invalid";
+          } else if (!rawOffer.isActive || (rawOffer.expiryDate && rawOffer.expiryDate <= new Date())) {
+            offerError = "Selected special offer has expired or is paused";
+          } else {
+            offerError = "Selected special offer is currently inactive";
+          }
         } else {
           const check = calculateOfferDiscount(offer);
           if (!check.eligible) {
@@ -301,6 +319,4 @@ async function calculateCartDiscounts(cartItems, couponCode = "", offerId = "") 
   };
 }
 
-
 module.exports = { calculateCartDiscounts };
-
