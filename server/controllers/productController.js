@@ -433,7 +433,7 @@ async function createProduct(req, res, next) {
     }
 
     if ((!req.body.images || req.body.images.length === 0) && allVariantImages.length > 0) {
-      req.body.images = allVariantImages;
+      req.body.images = allVariantImages.slice(0, 2);
     }
 
     if (req.body.category) {
@@ -450,10 +450,10 @@ async function createProduct(req, res, next) {
     }
 
     if (
-      (!req.body.images || !Array.isArray(req.body.images) || req.body.images.length === 0 || !req.body.images[0]?.url) &&
-      allVariantImages.length === 0
+      (!req.body.images || !Array.isArray(req.body.images) || req.body.images.length < 2 || !req.body.images[0]?.url || !req.body.images[1]?.url) &&
+      allVariantImages.length < 2
     ) {
-      return res.status(400).json({ message: "Product Variant Images are required! Please upload at least 1 image for your variants." });
+      return res.status(400).json({ message: "Product Cover & Hover Images are required! Please upload both Cover Image (#1) and Hover Image (#2)." });
     }
 
     if (req.body.slug) {
@@ -588,7 +588,7 @@ async function updateProduct(req, res, next) {
     }
 
     if ((!processedImages || processedImages.length === 0) && allVariantImages.length > 0) {
-      processedImages = allVariantImages;
+      processedImages = allVariantImages.slice(0, 2);
     }
 
     let categoryIds = existingProduct.category;

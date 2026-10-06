@@ -215,6 +215,7 @@ export default function AdminPage() {
   const [basePrice, setBasePrice] = useState("");
   const [selectedCatId, setSelectedCatId] = useState("");
   const [selectedSubCatIds, setSelectedSubCatIds] = useState([]);
+  const [coverImages, setCoverImages] = useState([]); // [coverUrl1, coverUrl2] compulsory 2 images
   const [galleryImages, setGalleryImages] = useState([]);
   const [galleryVideos, setGalleryVideos] = useState([]);
   const [purposes, setPurposes] = useState([]);
@@ -1784,6 +1785,7 @@ export default function AdminPage() {
     setBasePrice("");
     setSelectedCatId("");
     setSelectedSubCatIds([]);
+    setCoverImages([]);
     setGalleryImages([]);
     setGalleryVideos([]);
     setPurposes([]);
@@ -2001,11 +2003,22 @@ export default function AdminPage() {
       }
       setSelectedSubCatIds(subCatIds);
 
-      // Robust Gallery Images extraction (handles { url: "..." } and string URLs)
+      // Robust Cover & Hover Images extraction (Compulsory 2 Images)
       const rawImages = Array.isArray(fullProduct.images) ? fullProduct.images : [];
       const imageList = rawImages
         .map((img) => (typeof img === "object" ? img?.url : img))
         .filter((url) => url && typeof url === "string");
+      
+      let initialCovers = [...imageList];
+      if (initialCovers.length < 2 && fullProduct.variants && fullProduct.variants.length > 0) {
+        const fallbackFromVars = fullProduct.variants.flatMap((v) =>
+          Array.isArray(v.images)
+            ? v.images.map((img) => (typeof img === "object" ? img?.url : img))
+            : (v.image ? [typeof v.image === "object" ? v.image?.url : v.image] : [])
+        ).filter(Boolean);
+        initialCovers = Array.from(new Set([...initialCovers, ...fallbackFromVars]));
+      }
+      setCoverImages(initialCovers.slice(0, 2));
       setGalleryImages(imageList);
 
       // Robust Videos extraction
@@ -2123,7 +2136,13 @@ export default function AdminPage() {
       return;
     }
 
-    // Extract all images from variants
+    // 1. Validate Compulsory 2 Cover Images
+    if (!coverImages || !coverImages[0] || !coverImages[1]) {
+      setActionError("Product Cover & Hover Images are compulsory! Please upload both Cover Image (#1) and Hover Image (#2).");
+      return;
+    }
+
+    // 2. Extract all images from variants
     const allVariantImages = [];
     formVariants.forEach((v) => {
       const vImgs = Array.isArray(v.images) && v.images.length > 0 ? v.images : (v.image ? [v.image] : []);
@@ -2189,10 +2208,10 @@ export default function AdminPage() {
       purpose: purposes,
       tags: productTags,
       isOnSale,
-      images: allVariantImages.map((imgUrl) => ({
-        url: typeof imgUrl === "object" ? imgUrl.url : imgUrl,
-        alt: title.trim(),
-      })).filter((img) => img.url),
+      images: [
+        { url: typeof coverImages[0] === "object" ? coverImages[0].url : coverImages[0], alt: `${title.trim()} - Primary Cover` },
+        { url: typeof coverImages[1] === "object" ? coverImages[1].url : coverImages[1], alt: `${title.trim()} - Hover View` },
+      ],
       videos: (galleryVideos || []).map((v) => (typeof v === "object" ? v : { url: v })).filter((v) => v && v.url),
       productDetails: productDetails.trim(),
       materialsAndCare: materialsAndCare.trim(),
@@ -4517,6 +4536,308 @@ export default function AdminPage() {
                     />
                   </div>
 
+                  {/* 📸 Compulsory Product Cover & Hover Images (2 Images Required) */}
+                  <div className="space-y-3 bg-amber-50/60 p-4 rounded-xl border-2 border-amber-300 shadow-2xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                      <div>
+                        <label className="text-xs font-black uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
+                          <span>🖼️</span> Product Cover & Hover Images (Compulsory 2 Images) *
+                        </label>
+                        <p className="text-[10.5px] text-amber-900 font-medium">
+                          <strong>Image #1:</strong> Main Cover Image shown on Home, Shop & Category Cards. &nbsp;•&nbsp; 
+                          <strong>Image #2:</strong> Secondary Image shown when user hovers over the card.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 self-start sm:self-auto">
+                        {coverImages[0] && coverImages[1] ? (
+                          <span className="bg-green-100 text-green-800 border border-green-300 text-[9.5px] font-black px-2.5 py-1 rounded-full flex items-center gap-1">
+                            ✓ 2 of 2 Images Set
+                          </span>
+                        ) : (
+                          <span className="bg-red-100 text-red-700 border border-red-300 text-[9.5px] font-black px-2.5 py-1 rounded-full animate-pulse">
+                            ⚠️ {coverImages.filter(Boolean).length}/2 Uploaded (2 Required)
+                          </span>
+                        )}
+                        {coverImages[0] && coverImages[1] && (
+                          <button
+                            type="button"
+                            onClick={() => setCoverImages([coverImages[1], coverImages[0]])}
+                            className="text-[9.5px] font-black bg-amber-200 hover:bg-amber-300 text-amber-950 px-2.5 py-1 rounded-lg transition-all shadow-xs flex items-center gap-1 cursor-pointer"
+                            title="Swap Cover (#1) and Hover (#2) images"
+                          >
+                            <span>⇄</span> Swap #1 & #2
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 2 Dedicated Visual Slots Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                      {/* Slot 1: Primary Cover Image */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-black flex items-center gap-1">
+                            👑 1. Primary Cover Image *
+                          </span>
+                          <span className="text-[9px] text-neutral-500 font-semibold">(Home / Shop Cards)</span>
+                        </div>
+
+                        {coverImages[0] ? (
+                          <div className="relative aspect-4/3 rounded-xl border-2 border-black bg-neutral-900 overflow-hidden group shadow-sm flex items-center justify-center">
+                            <img
+                              src={formatImageUrl(coverImages[0])}
+                              alt="Primary Cover"
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute top-2 left-2 bg-black/90 text-gold text-[8px] font-black px-2 py-0.5 rounded shadow border border-gold uppercase tracking-wider">
+                              👑 1. Primary Cover
+                            </div>
+                            <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                              <label className="bg-white/90 hover:bg-white text-black text-[9px] font-black px-2 py-1 rounded shadow cursor-pointer uppercase transition-all">
+                                Replace
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      const url = await handleImageUpload(file);
+                                      if (url) {
+                                        const next = [...coverImages];
+                                        next[0] = url;
+                                        setCoverImages(next);
+                                      }
+                                    }
+                                    e.target.value = "";
+                                  }}
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = [...coverImages];
+                                  next[0] = "";
+                                  setCoverImages(next.filter(Boolean));
+                                }}
+                                className="bg-red-600 hover:bg-red-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shadow cursor-pointer"
+                                title="Remove Cover Image"
+                              >
+                                &times;
+                              </button>
+                            </div>
+                            {coverImages[1] && (
+                              <button
+                                type="button"
+                                onClick={() => setCoverImages([coverImages[1], coverImages[0]])}
+                                className="absolute bottom-2 inset-x-2 bg-black/85 hover:bg-black text-gold text-[9px] font-black py-1 rounded text-center opacity-0 group-hover:opacity-100 transition-opacity uppercase cursor-pointer"
+                              >
+                                ⇄ Swap with Hover (#2)
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <label
+                            onDragOver={(e) => { e.preventDefault(); }}
+                            onDrop={async (e) => {
+                              e.preventDefault();
+                              if (e.dataTransfer.files?.[0]) {
+                                const url = await handleImageUpload(e.dataTransfer.files[0]);
+                                if (url) {
+                                  const next = [...coverImages];
+                                  next[0] = url;
+                                  setCoverImages(next);
+                                }
+                              }
+                            }}
+                            className="aspect-4/3 rounded-xl border-2 border-dashed border-amber-400 hover:border-black bg-white/80 hover:bg-white flex flex-col items-center justify-center gap-2 p-4 text-center cursor-pointer transition-all group shadow-2xs"
+                          >
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const url = await handleImageUpload(file);
+                                  if (url) {
+                                    const next = [...coverImages];
+                                    next[0] = url;
+                                    setCoverImages(next);
+                                  }
+                                }
+                                e.target.value = "";
+                              }}
+                            />
+                            <div className="w-10 h-10 rounded-full bg-amber-100 group-hover:bg-amber-200 flex items-center justify-center text-xl text-amber-900 transition-transform group-hover:scale-110">
+                              👑
+                            </div>
+                            <div>
+                              <p className="text-xs font-black text-black">Upload Cover Image #1</p>
+                              <p className="text-[10px] text-neutral-500 font-medium">Click or Drag & Drop photo</p>
+                            </div>
+                            <span className="bg-amber-900 text-white text-[9.5px] font-black px-3 py-1 rounded-lg uppercase tracking-wider shadow-2xs">
+                              Browse Cover #1
+                            </span>
+                          </label>
+                        )}
+                      </div>
+
+                      {/* Slot 2: Hover Image */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-amber-950 flex items-center gap-1">
+                            🔄 2. Secondary Hover Image *
+                          </span>
+                          <span className="text-[9px] text-neutral-500 font-semibold">(Card Hover View)</span>
+                        </div>
+
+                        {coverImages[1] ? (
+                          <div className="relative aspect-4/3 rounded-xl border-2 border-amber-600 bg-neutral-900 overflow-hidden group shadow-sm flex items-center justify-center">
+                            <img
+                              src={formatImageUrl(coverImages[1])}
+                              alt="Secondary Hover View"
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute top-2 left-2 bg-amber-600 text-white text-[8px] font-black px-2 py-0.5 rounded shadow uppercase tracking-wider">
+                              🔄 2. Hover Image
+                            </div>
+                            <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                              <label className="bg-white/90 hover:bg-white text-black text-[9px] font-black px-2 py-1 rounded shadow cursor-pointer uppercase transition-all">
+                                Replace
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      const url = await handleImageUpload(file);
+                                      if (url) {
+                                        const next = [...coverImages];
+                                        next[1] = url;
+                                        setCoverImages(next);
+                                      }
+                                    }
+                                    e.target.value = "";
+                                  }}
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = [...coverImages];
+                                  next[1] = "";
+                                  setCoverImages(next.filter(Boolean));
+                                }}
+                                className="bg-red-600 hover:bg-red-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shadow cursor-pointer"
+                                title="Remove Hover Image"
+                              >
+                                &times;
+                              </button>
+                            </div>
+                            {coverImages[0] && (
+                              <button
+                                type="button"
+                                onClick={() => setCoverImages([coverImages[1], coverImages[0]])}
+                                className="absolute bottom-2 inset-x-2 bg-black/85 hover:bg-black text-gold text-[9px] font-black py-1 rounded text-center opacity-0 group-hover:opacity-100 transition-opacity uppercase cursor-pointer"
+                              >
+                                ⇄ Swap with Cover (#1)
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <label
+                            onDragOver={(e) => { e.preventDefault(); }}
+                            onDrop={async (e) => {
+                              e.preventDefault();
+                              if (e.dataTransfer.files?.[0]) {
+                                const url = await handleImageUpload(e.dataTransfer.files[0]);
+                                if (url) {
+                                  const next = [...coverImages];
+                                  if (!next[0]) next[0] = url;
+                                  else next[1] = url;
+                                  setCoverImages(next);
+                                }
+                              }
+                            }}
+                            className="aspect-4/3 rounded-xl border-2 border-dashed border-amber-400 hover:border-amber-600 bg-white/80 hover:bg-white flex flex-col items-center justify-center gap-2 p-4 text-center cursor-pointer transition-all group shadow-2xs"
+                          >
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const url = await handleImageUpload(file);
+                                  if (url) {
+                                    const next = [...coverImages];
+                                    if (!next[0]) next[0] = url;
+                                    else next[1] = url;
+                                    setCoverImages(next);
+                                  }
+                                }
+                                e.target.value = "";
+                              }}
+                            />
+                            <div className="w-10 h-10 rounded-full bg-amber-100 group-hover:bg-amber-200 flex items-center justify-center text-xl text-amber-900 transition-transform group-hover:scale-110">
+                              🔄
+                            </div>
+                            <div>
+                              <p className="text-xs font-black text-black">Upload Hover Image #2</p>
+                              <p className="text-[10px] text-neutral-500 font-medium">Click or Drag & Drop photo</p>
+                            </div>
+                            <span className="bg-amber-800 text-white text-[9.5px] font-black px-3 py-1 rounded-lg uppercase tracking-wider shadow-2xs">
+                              Browse Hover #2
+                            </span>
+                          </label>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Quick Multi-Upload 2 Files Together Box if both are empty */}
+                    {(!coverImages[0] || !coverImages[1]) && (
+                      <div className="pt-2 border-t border-amber-200/80 flex flex-col sm:flex-row items-center justify-between gap-2">
+                        <span className="text-[10px] text-amber-900 font-bold">
+                          💡 <strong>Quick Shortcut:</strong> Select 2 photos at once to set Cover #1 & Hover #2 automatically
+                        </span>
+                        <label className="bg-black hover:bg-neutral-800 text-gold text-[10px] font-black px-3 py-1.5 rounded-lg transition-all shadow-xs cursor-pointer uppercase tracking-wider shrink-0 flex items-center gap-1.5">
+                          <span>⚡</span> Select 2 Images Together
+                          <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const files = Array.from(e.target.files || []).slice(0, 2);
+                              if (files.length > 0) {
+                                setProdLoading(true);
+                                try {
+                                  const uploaded = [];
+                                  for (const f of files) {
+                                    const u = await handleImageUpload(f);
+                                    if (u) uploaded.push(u);
+                                  }
+                                  if (uploaded.length >= 2) {
+                                    setCoverImages(uploaded.slice(0, 2));
+                                  } else if (uploaded.length === 1) {
+                                    setCoverImages((prev) => [uploaded[0], prev[1] || ""]);
+                                  }
+                                } catch (err) {
+                                  setActionError("Failed to upload cover images.");
+                                } finally {
+                                  setProdLoading(false);
+                                  e.target.value = "";
+                                }
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Product Gallery Videos Manager (Optional) */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -5021,10 +5342,10 @@ export default function AdminPage() {
                             <div className="space-y-2 pt-1 border-t border-dashed border-charcoal/15">
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                                 <label className="text-[9.5px] uppercase font-black tracking-wider text-charcoal/80 flex items-center gap-1">
-                                  <span>📸</span> Variant Images ({vImages.length} uploaded) *
+                                  <span>📸</span> Variant Gallery Images ({vImages.length} uploaded) *
                                 </label>
                                 <span className="text-[9px] text-amber-800 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
-                                  Image #1 = Variant Primary Cover · Image #2 = Variant Hover
+                                  Gallery Photos (Shown on product details page when this variant is selected)
                                 </span>
                               </div>
 
