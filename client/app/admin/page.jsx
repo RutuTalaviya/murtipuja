@@ -227,6 +227,8 @@ export default function AdminPage() {
     { size: "6 inch", finish: "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", image: "", images: [] }
   ]);
   const [draggingVariantIndex, setDraggingVariantIndex] = useState(null);
+  const [draggedImageInfo, setDraggedImageInfo] = useState(null); // { variantIndex, imageIndex }
+  const [dragOverTarget, setDragOverTarget] = useState(null); // { variantIndex, imageIndex }
   // Product Details Accordion Tabs State
   const [productDetails, setProductDetails] = useState("");
   const [materialsAndCare, setMaterialsAndCare] = useState("");
@@ -1657,6 +1659,33 @@ export default function AdminPage() {
     setDraggingVariantIndex(null);
   }
 
+  // Helper to reorder image within a variant (used by drag-and-drop & direct position number selector)
+  function handleReorderVariantImage(variantIndex, fromIndex, toIndex) {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+    setFormVariants((prev) => {
+      const next = [...prev];
+      const currentImages = [...(next[variantIndex]?.images || (next[variantIndex]?.image ? [next[variantIndex].image] : []))]
+        .map((img) => (typeof img === "object" ? img?.url : img))
+        .filter((u) => u && typeof u === "string");
+
+      if (fromIndex >= currentImages.length || toIndex >= currentImages.length) return prev;
+
+      const [movedItem] = currentImages.splice(fromIndex, 1);
+      currentImages.splice(toIndex, 0, movedItem);
+
+      next[variantIndex] = {
+        ...next[variantIndex],
+        images: currentImages,
+        image: currentImages[0] || "",
+      };
+      return next;
+    });
+  }
+
+  function handleMakeCoverVariantImage(variantIndex, imageIndex) {
+    handleReorderVariantImage(variantIndex, imageIndex, 0);
+  }
+
   function handleMoveVariantImage(variantIndex, imageIndex, direction) {
     setFormVariants((prev) => {
       const next = [...prev];
@@ -1772,6 +1801,8 @@ export default function AdminPage() {
     setAccordionSections([]);
     setIsDraggingImages(false);
     setDraggingVariantIndex(null);
+    setDraggedImageInfo(null);
+    setDragOverTarget(null);
     setUploadProgressText("");
     setQuickCatOpen(false);
     setQuickSubOpen(false);
@@ -5064,78 +5095,192 @@ export default function AdminPage() {
 
                               {/* Thumbnails list for this variant */}
                               {vImages.length > 0 && (
-                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5 pt-1">
-                                  {vImages.map((imgUrl, imgIdx) => {
-                                    const src = typeof imgUrl === "object" ? imgUrl?.url : imgUrl;
-                                    return (
-                                      <div
-                                        key={imgIdx}
-                                        className={`relative aspect-square rounded-lg border-2 bg-white overflow-hidden group shadow-2xs flex flex-col justify-between ${
-                                          imgIdx === 0
-                                            ? "border-black ring-1 ring-gold"
-                                            : imgIdx === 1
-                                            ? "border-amber-600"
-                                            : "border-charcoal/20"
-                                        }`}
-                                      >
-                                        <img
-                                          src={formatImageUrl(src)}
-                                          alt={`Variant ${index + 1} Image ${imgIdx + 1}`}
-                                          className="object-cover w-full h-full"
-                                        />
+                                <div className="space-y-2 pt-1">
+                                  {/* Instructions banner */}
+                                  <div className="flex flex-wrap items-center justify-between gap-1.5 text-[9.5px] text-charcoal/70 bg-amber-50/80 border border-amber-200 rounded-lg p-2">
+                                    <span className="flex items-center gap-1 font-bold text-amber-950">
+                                      <span>⠿</span> <strong>Drag & Drop images</strong> to reorder, or use the <strong>Pos: #1 - #{vImages.length}</strong> dropdown on each photo to shift its position instantly.
+                                    </span>
+                                    <span className="text-[9px] text-amber-900 font-bold bg-amber-100/90 px-2 py-0.5 rounded">
+                                      {vImages.length} Photos Uploaded
+                                    </span>
+                                  </div>
 
-                                        {/* Status Badge */}
-                                        <div className="absolute top-1 left-1 z-10">
-                                          {imgIdx === 0 ? (
-                                            <span className="bg-black text-gold text-[7.5px] font-black px-1 py-0.5 shadow uppercase border border-gold tracking-wider">
-                                              🌟 1. Cover
-                                            </span>
-                                          ) : imgIdx === 1 ? (
-                                            <span className="bg-amber-600 text-white text-[7.5px] font-black px-1 py-0.5 shadow uppercase tracking-wider">
-                                              🔄 2. Hover
-                                            </span>
-                                          ) : (
-                                            <span className="bg-black/70 text-white text-[7.5px] font-bold px-1 py-0.5 shadow">
-                                              #{imgIdx + 1}
-                                            </span>
-                                          )}
-                                        </div>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                    {vImages.map((imgUrl, imgIdx) => {
+                                      const src = typeof imgUrl === "object" ? imgUrl?.url : imgUrl;
+                                      const isThisDragged = draggedImageInfo?.variantIndex === index && draggedImageInfo?.imageIndex === imgIdx;
+                                      const isThisDragOver = dragOverTarget?.variantIndex === index && dragOverTarget?.imageIndex === imgIdx;
 
-                                        {/* Delete Button */}
-                                        <button
-                                          type="button"
-                                          onClick={() => handleDeleteVariantImage(index, imgIdx)}
-                                          className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white w-4.5 h-4.5 rounded flex items-center justify-center text-[10px] shadow z-10 transition-transform active:scale-90"
-                                          title="Delete Image"
+                                      return (
+                                        <div
+                                          key={imgIdx}
+                                          draggable
+                                          onDragStart={(e) => {
+                                            e.dataTransfer.setData("text/plain", `${index}_${imgIdx}`);
+                                            e.dataTransfer.effectAllowed = "move";
+                                            setDraggedImageInfo({ variantIndex: index, imageIndex: imgIdx });
+                                          }}
+                                          onDragOver={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            e.dataTransfer.dropEffect = "move";
+                                            if (dragOverTarget?.variantIndex !== index || dragOverTarget?.imageIndex !== imgIdx) {
+                                              setDragOverTarget({ variantIndex: index, imageIndex: imgIdx });
+                                            }
+                                          }}
+                                          onDragLeave={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            if (dragOverTarget?.variantIndex === index && dragOverTarget?.imageIndex === imgIdx) {
+                                              setDragOverTarget(null);
+                                            }
+                                          }}
+                                          onDrop={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            if (draggedImageInfo && draggedImageInfo.variantIndex === index) {
+                                              handleReorderVariantImage(index, draggedImageInfo.imageIndex, imgIdx);
+                                            }
+                                            setDraggedImageInfo(null);
+                                            setDragOverTarget(null);
+                                          }}
+                                          onDragEnd={() => {
+                                            setDraggedImageInfo(null);
+                                            setDragOverTarget(null);
+                                          }}
+                                          className={`relative aspect-square rounded-xl border-2 bg-neutral-900 overflow-hidden group shadow-xs flex flex-col justify-between cursor-grab active:cursor-grabbing transition-all select-none ${
+                                            isThisDragOver
+                                              ? "border-amber-600 ring-4 ring-gold bg-amber-100 scale-105 shadow-lg z-20"
+                                              : isThisDragged
+                                              ? "opacity-30 scale-95 border-dashed border-amber-600"
+                                              : imgIdx === 0
+                                              ? "border-black ring-2 ring-gold shadow-sm"
+                                              : imgIdx === 1
+                                              ? "border-amber-600 shadow-2xs"
+                                              : "border-charcoal/20 hover:border-black/50"
+                                          }`}
                                         >
-                                          &times;
-                                        </button>
+                                          <img
+                                            src={formatImageUrl(src)}
+                                            alt={`Variant ${index + 1} Image ${imgIdx + 1}`}
+                                            className="object-cover w-full h-full pointer-events-none"
+                                          />
 
-                                        {/* Re-order Arrows */}
-                                        <div className="absolute bottom-0.5 inset-x-0.5 flex items-center justify-between bg-black/80 backdrop-blur-xs px-1 py-0.5 z-10 text-white text-[8px] font-bold rounded">
-                                          <button
-                                            type="button"
-                                            onClick={() => handleMoveVariantImage(index, imgIdx, "left")}
-                                            disabled={imgIdx === 0}
-                                            className="hover:text-gold disabled:opacity-20 px-0.5 cursor-pointer"
-                                            title="Move Left (Make Cover / Hover)"
-                                          >
-                                            ◀
-                                          </button>
-                                          <span className="font-mono text-[8px]">#{imgIdx + 1}</span>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleMoveVariantImage(index, imgIdx, "right")}
-                                            disabled={imgIdx === vImages.length - 1}
-                                            className="hover:text-gold disabled:opacity-20 px-0.5 cursor-pointer"
-                                            title="Move Right"
-                                          >
-                                            ▶
-                                          </button>
+                                          {/* Top Floating Badges & Action Buttons */}
+                                          <div className="absolute top-1 inset-x-1 flex items-center justify-between gap-1 z-10 pointer-events-auto">
+                                            {/* Status Badge */}
+                                            <div>
+                                              {imgIdx === 0 ? (
+                                                <span className="bg-black/90 text-gold text-[7.5px] font-black px-1.5 py-0.5 shadow uppercase border border-gold tracking-wider flex items-center gap-0.5 rounded">
+                                                  🌟 1. Cover
+                                                </span>
+                                              ) : imgIdx === 1 ? (
+                                                <span className="bg-amber-600 text-white text-[7.5px] font-black px-1.5 py-0.5 shadow uppercase tracking-wider rounded">
+                                                  🔄 2. Hover
+                                                </span>
+                                              ) : (
+                                                <span className="bg-black/80 text-white text-[8px] font-extrabold px-1.5 py-0.5 shadow rounded font-mono">
+                                                  #{imgIdx + 1}
+                                                </span>
+                                              )}
+                                            </div>
+
+                                            <div className="flex items-center gap-1">
+                                              {/* Quick Make Cover Button */}
+                                              {imgIdx !== 0 && (
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleMakeCoverVariantImage(index, imgIdx);
+                                                  }}
+                                                  className="bg-black/80 hover:bg-gold hover:text-black text-gold text-[7.5px] font-black px-1.5 py-0.5 rounded shadow opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer uppercase"
+                                                  title="Make this the primary cover image"
+                                                >
+                                                  ★ Cover
+                                                </button>
+                                              )}
+
+                                              {/* Delete Button */}
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleDeleteVariantImage(index, imgIdx);
+                                                }}
+                                                className="bg-red-600 hover:bg-red-700 text-white w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold shadow transition-transform active:scale-90 cursor-pointer"
+                                                title="Delete Image"
+                                              >
+                                                &times;
+                                              </button>
+                                            </div>
+                                          </div>
+
+                                          {/* Drag Drop Target Overlay Badge */}
+                                          {isThisDragOver && (
+                                            <div className="absolute inset-0 bg-amber-500/30 flex items-center justify-center z-15 pointer-events-none">
+                                              <span className="bg-black text-gold text-[9.5px] font-black px-2 py-1 rounded-lg uppercase tracking-wider shadow-lg border border-gold animate-bounce">
+                                                📥 Drop Here (#{imgIdx + 1})
+                                              </span>
+                                            </div>
+                                          )}
+
+                                          {/* Bottom Position Number Changer & Arrows */}
+                                          <div className="absolute bottom-0 inset-x-0 bg-black/90 backdrop-blur-xs px-1.5 py-1 z-10 text-white flex items-center justify-between gap-1 pointer-events-auto">
+                                            {/* Move Left */}
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleMoveVariantImage(index, imgIdx, "left");
+                                              }}
+                                              disabled={imgIdx === 0}
+                                              className="hover:text-gold disabled:opacity-20 text-[9px] font-black px-1 py-0.5 cursor-pointer"
+                                              title="Move Left (Shift Position Earlier)"
+                                            >
+                                              ◀
+                                            </button>
+
+                                            {/* Position Selector Dropdown */}
+                                            <div className="flex items-center gap-1">
+                                              <span className="text-[7.5px] font-bold text-neutral-400 uppercase tracking-widest">Pos:</span>
+                                              <select
+                                                value={imgIdx + 1}
+                                                onChange={(e) => {
+                                                  const targetPos = parseInt(e.target.value, 10) - 1;
+                                                  handleReorderVariantImage(index, imgIdx, targetPos);
+                                                }}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="bg-white text-black text-[9px] font-black px-1 py-0.5 rounded border border-gold outline-none cursor-pointer"
+                                                title="Change Position Number (e.g. make #1 into #3, or drag to last)"
+                                              >
+                                                {vImages.map((_, pIdx) => (
+                                                  <option key={pIdx} value={pIdx + 1}>
+                                                    #{pIdx + 1} {pIdx === 0 ? "(Cover)" : pIdx === 1 ? "(Hover)" : ""}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            </div>
+
+                                            {/* Move Right */}
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleMoveVariantImage(index, imgIdx, "right");
+                                              }}
+                                              disabled={imgIdx === vImages.length - 1}
+                                              className="hover:text-gold disabled:opacity-20 text-[9px] font-black px-1 py-0.5 cursor-pointer"
+                                              title="Move Right (Shift Position Later)"
+                                            >
+                                              ▶
+                                            </button>
+                                          </div>
                                         </div>
-                                      </div>
-                                    );
-                                  })}
+                                      );
+                                    })}
+                                  </div>
                                 </div>
                               )}
                             </div>
