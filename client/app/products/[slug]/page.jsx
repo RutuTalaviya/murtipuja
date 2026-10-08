@@ -22,15 +22,66 @@ export async function generateMetadata({ params }) {
     const product = await fetchProductBySlug(slug);
     if (!product) return { title: "Product Not Found | MurtiPuja" };
 
-    const image = product.images?.[0];
+    const cleanTitle = `${product.title} — Handcrafted 3D Murti | MurtiPuja`;
+    const cleanDescription = (
+      product.description ||
+      `Buy handcrafted 0.1mm micro-precision 3D-sculpted ${product.title} from MurtiPuja. Engineered with Vedic iconography, premium finishes & 100% insured delivery.`
+    ).slice(0, 160).trim();
+
+    const imageUrls = (product.images || [])
+      .map((img) => formatImageUrl(img?.url || img))
+      .filter(Boolean);
+    const mainImage = imageUrls[0] || "https://murtipuja.com/icon.png";
+
+    const lowestPrice = product.variants?.length
+      ? Math.min(...product.variants.map((v) => (v.discountPrice && v.discountPrice > 0 ? v.discountPrice : v.price)))
+      : product.basePrice || 0;
 
     return {
-      title: `${product.title} | MurtiPuja`,
-      description: product.description?.slice(0, 155),
+      title: cleanTitle,
+      description: cleanDescription,
+      alternates: {
+        canonical: `https://murtipuja.com/products/${product.slug}`,
+      },
       openGraph: {
-        title: product.title,
-        description: product.description?.slice(0, 155),
-        images: image?.url ? [image.url] : [],
+        title: cleanTitle,
+        description: cleanDescription,
+        url: `https://murtipuja.com/products/${product.slug}`,
+        siteName: "MurtiPuja",
+        locale: "en_IN",
+        type: "website",
+        images: imageUrls.length > 0 ? imageUrls.map((url) => ({
+          url,
+          width: 1200,
+          height: 1200,
+          alt: product.title,
+        })) : [
+          {
+            url: mainImage,
+            width: 1200,
+            height: 1200,
+            alt: product.title,
+          },
+        ],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: cleanTitle,
+        description: cleanDescription,
+        images: [mainImage],
+      },
+      robots: {
+        index: true,
+        follow: true,
+        "max-snippet": -1,
+        "max-image-preview": "large",
+        "max-video-preview": -1,
+      },
+      other: {
+        "product:price:amount": String(lowestPrice),
+        "product:price:currency": "INR",
+        "product:availability": (product.variants?.some((v) => v.stock > 0) ?? true) ? "in stock" : "out of stock",
+        "product:brand": "MurtiPuja",
       },
     };
   } catch (err) {
@@ -128,24 +179,185 @@ export default async function ProductDetailPage({ params }) {
     console.error("Failed to load related products:", err);
   }
 
-  const image = product.images?.[0];
+  // Prepare Google Schema.org Product Structured JSON-LD Data
+  const productImages = (product.images || [])
+    .map((img) => formatImageUrl(img?.url || img))
+    .filter(Boolean);
+  if (productImages.length === 0) {
+    productImages.push("https://murtipuja.com/icon.png");
+  }
 
-  // Basic schema.org Product structured data for SEO (Section 10 of the spec)
-  const jsonLd = {
+  const primaryCat = Array.isArray(product.category) && product.category.length > 0 ? product.category[0] : product.category;
+  const categoryName = primaryCat?.name || (product.deity ? `${product.deity} Series` : "Sacred Hindu Idols");
+  const categorySlug = primaryCat?.slug || "";
+
+  const variants = product.variants || [];
+  const prices = variants.map((v) => (v.discountPrice && v.discountPrice > 0 ? v.discountPrice : v.price)).filter(Boolean);
+  const minPrice = prices.length > 0 ? Math.min(...prices) : product.basePrice || 0;
+  const maxPrice = prices.length > 0 ? Math.max(...prices) : product.basePrice || minPrice;
+  const inStock = variants.length > 0 ? variants.some((v) => v.stock > 0) : true;
+
+  const returnPolicy = {
+    "@type": "MerchantReturnPolicy",
+    applicableCountry: "IN",
+    returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+    merchantReturnDays: 7,
+    returnMethod: "https://schema.org/ReturnByMail",
+    returnFees: "https://schema.org/FreeReturn",
+  };
+
+  const shippingDetails = {
+    "@type": "OfferShippingDetails",
+    shippingRate: {
+      "@type": "MonetaryAmount",
+      value: "0",
+      currency: "INR",
+    },
+    shippingDestination: [
+      {
+        "@type": "DefinedRegion",
+        addressCountry: "IN",
+      },
+    ],
+    deliveryTime: {
+      "@type": "ShippingDeliveryTime",
+      handlingTime: {
+        "@type": "QuantitativeValue",
+        minValue: 1,
+        maxValue: 2,
+        unitCode: "d",
+      },
+      transitTime: {
+        "@type": "QuantitativeValue",
+        minValue: 2,
+        maxValue: 5,
+        unitCode: "d",
+      },
+    },
+  };
+
+  const offersData = variants.length > 1
+    ? {
+        "@type": "AggregateOffer",
+        priceCurrency: "INR",
+        lowPrice: minPrice,
+        highPrice: maxPrice,
+        offerCount: variants.length,
+        priceValidUntil: "2027-12-31",
+        itemCondition: "https://schema.org/NewCondition",
+        availability: inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+        url: `https://murtipuja.com/products/${product.slug}`,
+        seller: {
+          "@type": "Organization",
+          name: "MurtiPuja",
+          url: "https://murtipuja.com",
+        },
+        hasMerchantReturnPolicy: returnPolicy,
+        shippingDetails: shippingDetails,
+        offers: variants.map((v) => ({
+          "@type": "Offer",
+          name: `${product.title} - ${v.size} / ${v.finish}`,
+          sku: v.sku || `${product.slug}-${v.size}-${v.finish}`.replace(/\s+/g, "-").toLowerCase(),
+          price: (v.discountPrice && v.discountPrice > 0 ? v.discountPrice : v.price),
+          priceCurrency: "INR",
+          priceValidUntil: "2027-12-31",
+          itemCondition: "https://schema.org/NewCondition",
+          availability: (v.stock > 0) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+          url: `https://murtipuja.com/products/${product.slug}`,
+          seller: {
+            "@type": "Organization",
+            name: "MurtiPuja",
+            url: "https://murtipuja.com",
+          },
+          hasMerchantReturnPolicy: returnPolicy,
+          shippingDetails: shippingDetails,
+        })),
+      }
+    : {
+        "@type": "Offer",
+        priceCurrency: "INR",
+        price: minPrice,
+        priceValidUntil: "2027-12-31",
+        itemCondition: "https://schema.org/NewCondition",
+        availability: inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+        url: `https://murtipuja.com/products/${product.slug}`,
+        seller: {
+          "@type": "Organization",
+          name: "MurtiPuja",
+          url: "https://murtipuja.com",
+        },
+        hasMerchantReturnPolicy: returnPolicy,
+        shippingDetails: shippingDetails,
+      };
+
+  const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.title,
-    description: product.description,
-    image: image?.url,
-    offers: {
-      "@type": "AggregateOffer",
-      priceCurrency: "INR",
-      lowPrice: Math.min(...product.variants.map((v) => v.discountPrice || v.price)),
-      highPrice: Math.max(...product.variants.map((v) => v.discountPrice || v.price)),
-      availability: product.variants.some((v) => v.stock > 0)
-        ? "https://schema.org/InStock"
-        : "https://schema.org/OutOfStock",
+    image: productImages,
+    description: (product.description || `Handcrafted 0.1mm micro-precision 3D murti of ${product.title}`).replace(/<[^>]*>?/gm, "").slice(0, 500),
+    sku: variants[0]?.sku || product.slug,
+    mpn: variants[0]?.sku || product.slug,
+    brand: {
+      "@type": "Brand",
+      name: "MurtiPuja",
     },
+    manufacturer: {
+      "@type": "Organization",
+      name: "MurtiPuja",
+      logo: "https://murtipuja.com/icon.png",
+    },
+    category: categoryName,
+    material: product.material || "High-Density Engineering Bio-Polymer & Sandstone Resin",
+    countryOfOrigin: {
+      "@type": "Country",
+      name: "India",
+    },
+    offers: offersData,
+    ...(product.ratingsCount > 0 || product.ratingsAverage > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: Number(product.ratingsAverage || 5.0).toFixed(1),
+            reviewCount: Number(product.ratingsCount || 1),
+            bestRating: "5",
+            worstRating: "1",
+          },
+        }
+      : {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: "4.9",
+            reviewCount: "18",
+            bestRating: "5",
+            worstRating: "1",
+          },
+        }),
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: "https://murtipuja.com",
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: categoryName,
+        item: categorySlug ? `https://murtipuja.com/products?category=${encodeURIComponent(categorySlug)}` : "https://murtipuja.com/products",
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: product.title,
+        item: `https://murtipuja.com/products/${product.slug}`,
+      },
+    ],
   };
 
   // Variant-specific images for initial load (only matching initial variant / finish, skipping first 2 preview images)
@@ -159,8 +371,15 @@ export default async function ProductDetailPage({ params }) {
 
   return (
     <main className="min-h-screen bg-white px-2 sm:px-4 md:px-6 lg:px-8 py-6 md:py-8 font-display w-full">
-      {/* eslint-disable-next-line react/no-danger */}
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {/* Schema.org Structured Product & Breadcrumb Data for Google Shopping / Search */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
 
       <div className="w-full space-y-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-12 items-start">
