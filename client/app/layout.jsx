@@ -12,6 +12,16 @@ export const metadata = {
   title: "MurtiPuja — Handcrafted 3D-Printed Divine Idols",
   description:
     "Premium 3D-printed murtis of Shiva, Ganesh, Krishna and more — crafted with detail, delivered with care.",
+  icons: {
+    icon: [
+      { url: "/favicon.png", sizes: "any" },
+      { url: "/icon.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/favicon.png",
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
 };
 
 export default function RootLayout({ children }) {
