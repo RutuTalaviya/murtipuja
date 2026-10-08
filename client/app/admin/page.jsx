@@ -2038,56 +2038,16 @@ export default function AdminPage() {
 
       if (fullProduct.variants && fullProduct.variants.length > 0) {
         setFormVariants(
-          fullProduct.variants.map((v, vIdx) => {
+          fullProduct.variants.map((v) => {
             let vImages = [];
-            // 1. If variant has multiple images array, load them
-            if (Array.isArray(v.images) && v.images.length > 1) {
+            if (Array.isArray(v.images) && v.images.length > 0) {
               vImages = v.images
                 .map((img) => (typeof img === "object" ? img?.url : img))
                 .filter((url) => url && typeof url === "string");
-            } else if (Array.isArray(v.images) && v.images.length === 1) {
-              const single = typeof v.images[0] === "object" ? v.images[0]?.url : v.images[0];
-              if (single) vImages = [single];
             } else if (v.image) {
               const singleUrl = typeof v.image === "object" ? v.image?.url : v.image;
               if (singleUrl && typeof singleUrl === "string") {
                 vImages = [singleUrl];
-              }
-            }
-
-            // 2. If variant only has <= 1 image, but fullProduct.images (imageList) has multiple photos:
-            // Partition imageList among variants so NO images are lost when editing!
-            if (vImages.length <= 1 && imageList.length > 0) {
-              if (fullProduct.variants.length === 1) {
-                // Single variant product gets all images
-                vImages = Array.from(new Set([...vImages, ...imageList])).filter(Boolean);
-              } else {
-                // Multi-variant partitioning by variant cover markers
-                const currentVarUrl = (vImages[0] || (typeof v.image === "object" ? v.image?.url : v.image) || "").trim();
-                const startIdx = imageList.findIndex(
-                  (u) => u === currentVarUrl || u.endsWith(currentVarUrl) || currentVarUrl.endsWith(u)
-                );
-
-                if (startIdx !== -1) {
-                  let endIdx = imageList.length;
-                  for (let oIdx = 0; oIdx < fullProduct.variants.length; oIdx++) {
-                    if (oIdx === vIdx) continue;
-                    const otherV = fullProduct.variants[oIdx];
-                    const otherUrl = (typeof otherV?.image === "object" ? otherV?.image?.url : otherV?.image || "").trim();
-                    if (otherUrl && otherUrl !== currentVarUrl) {
-                      const otherPos = imageList.findIndex(
-                        (u) => u === otherUrl || u.endsWith(otherUrl) || otherUrl.endsWith(u)
-                      );
-                      if (otherPos > startIdx && otherPos < endIdx) {
-                        endIdx = otherPos;
-                      }
-                    }
-                  }
-                  const partitioned = imageList.slice(startIdx, endIdx);
-                  if (partitioned.length > 0) {
-                    vImages = partitioned;
-                  }
-                }
               }
             }
 
@@ -2111,8 +2071,7 @@ export default function AdminPage() {
         setVariantStock(totalStock.toString());
         setVariantSku(fullProduct.variants[0].sku || "");
       } else {
-        const initialImgs = imageList.length > 0 ? [...imageList] : [];
-        setFormVariants([{ size: "6 inch", finish: finishes[0]?.name || "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", isCustomSku: false, image: initialImgs[0] || "", images: initialImgs }]);
+        setFormVariants([{ size: "6 inch", finish: finishes[0]?.name || "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", isCustomSku: false, image: "", images: [] }]);
         setVariantSize("6 inch");
         setVariantFinish(finishes[0]?.name || "Matte Black");
         setVariantStock("10");
