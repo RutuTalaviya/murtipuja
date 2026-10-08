@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import ImageWithSkeleton from "@/components/ImageWithSkeleton";
 import { fetchProducts, fetchCategories, fetchBanners, fetchVideos, fetchDeities } from "@/lib/serverApi";
+import { formatImageUrl } from "@/lib/api";
 import HomeCategoryShowcase from "@/components/HomeCategoryShowcase";
 import HomeDeitySeriesShowcase from "@/components/HomeDeitySeriesShowcase";
 import ScrollReveal from "@/components/ScrollReveal";
@@ -22,7 +23,7 @@ export default async function HomePage() {
     const [productsData, categoriesData, bannersData, videosData, deitiesData] = await Promise.allSettled([
       fetchProducts({ limit: 100 }),
       fetchCategories(),
-      fetchBanners({ position: "hero" }),
+      fetchBanners(),
       fetchVideos(),
       fetchDeities(),
     ]);
@@ -46,11 +47,15 @@ export default async function HomePage() {
     console.error("Failed to load homepage data:", err);
   }
 
+  const heroBanners = banners.filter((b) => !b.position || b.position === "hero");
+  const middleBanners = banners.filter((b) => b.position === "middle");
+  const footerBanners = banners.filter((b) => b.position === "footer");
+
   return (
     <main className="min-h-screen bg-white overflow-x-hidden font-display w-full">
       
       {/* 1. Dynamic Full-Screen Hero Campaign Section */}
-      <HeroBanner banners={banners} />
+      <HeroBanner banners={heroBanners} />
 
 
       {/* 2. Full-Width Animated Marquee Ticker Tape */}
@@ -183,11 +188,137 @@ export default async function HomePage() {
         );
       })()}
 
+      {/* Dynamic Middle Promotional Campaign Banners */}
+      {middleBanners.length > 0 && (
+        <section className="w-full space-y-6">
+          {middleBanners.map((mb, idx) => (
+            <div
+              key={mb._id || idx}
+              className="relative w-full bg-neutral-950 overflow-hidden text-white border-y border-stone-800"
+            >
+              {mb.imageUrl && (
+                <div className="absolute inset-0 z-0">
+                  <img
+                    src={formatImageUrl(mb.imageUrl)}
+                    alt={mb.title}
+                    className="w-full h-full object-cover object-center opacity-40"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black via-black/85 to-black/40" />
+                </div>
+              )}
+              <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 py-14 sm:py-18 lg:py-20 flex flex-col md:flex-row md:items-center justify-between gap-8">
+                <div className="max-w-2xl space-y-3 sm:space-y-4">
+                  {mb.badge && (
+                    <span className="inline-block bg-gold text-black text-[10px] font-black uppercase px-3 py-1 tracking-widest shadow">
+                      {mb.badge}
+                    </span>
+                  )}
+                  {mb.tagline && (
+                    <p className="text-xs text-gold font-extrabold uppercase tracking-widest">
+                      {mb.tagline}
+                    </p>
+                  )}
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black uppercase tracking-tight font-display text-white">
+                    {mb.title}
+                  </h2>
+                  {mb.subtitle && (
+                    <p className="text-neutral-300 text-xs sm:text-sm md:text-base font-normal max-w-xl leading-relaxed">
+                      {mb.subtitle}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-3 shrink-0">
+                  {mb.ctaText && (
+                    <Link
+                      href={mb.ctaLink || "/products"}
+                      className="inline-flex items-center gap-2 bg-gold hover:bg-amber-400 text-black px-7 py-3.5 font-black text-xs uppercase tracking-widest transition-all shadow-lg hover:scale-105"
+                    >
+                      <span>{mb.ctaText}</span>
+                      <span>→</span>
+                    </Link>
+                  )}
+                  {mb.secondaryCtaText && (
+                    <Link
+                      href={mb.secondaryCtaLink || "/products"}
+                      className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/30 px-6 py-3.5 font-bold text-xs uppercase tracking-widest transition-all"
+                    >
+                      <span>{mb.secondaryCtaText}</span>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
       {/* 5. Full-Width 3-Column Dynamic Deity Series Grid */}
       <HomeDeitySeriesShowcase products={allProducts} deities={deities} categories={categories} />
 
       {/* 6. Dynamic Video Reels Carousel with Left / Right Scroll */}
       <VideoReelsCarousel videos={videos} />
+
+      {/* Dynamic Pre-Footer Campaign Banners */}
+      {footerBanners.length > 0 && (
+        <section className="w-full space-y-6">
+          {footerBanners.map((fb, idx) => (
+            <div
+              key={fb._id || idx}
+              className="relative w-full bg-gradient-to-r from-amber-950 via-stone-900 to-amber-900 overflow-hidden text-white border-y border-stone-800"
+            >
+              {fb.imageUrl && (
+                <div className="absolute inset-0 z-0">
+                  <img
+                    src={formatImageUrl(fb.imageUrl)}
+                    alt={fb.title}
+                    className="w-full h-full object-cover object-center opacity-30"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent" />
+                </div>
+              )}
+              <div className="relative z-10 max-w-5xl mx-auto px-6 sm:px-10 py-16 sm:py-20 text-center space-y-4">
+                {fb.badge && (
+                  <span className="inline-block bg-white text-black text-[10px] font-black uppercase px-3 py-1 tracking-widest shadow">
+                    {fb.badge}
+                  </span>
+                )}
+                {fb.tagline && (
+                  <p className="text-xs text-gold font-extrabold uppercase tracking-widest">
+                    {fb.tagline}
+                  </p>
+                )}
+                <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight font-display text-white max-w-3xl mx-auto">
+                  {fb.title}
+                </h2>
+                {fb.subtitle && (
+                  <p className="text-neutral-200 text-xs sm:text-sm md:text-base font-normal max-w-2xl mx-auto leading-relaxed">
+                    {fb.subtitle}
+                  </p>
+                )}
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+                  {fb.ctaText && (
+                    <Link
+                      href={fb.ctaLink || "/products"}
+                      className="inline-flex items-center gap-2 bg-gold hover:bg-amber-400 text-black px-8 py-3.5 font-black text-xs uppercase tracking-widest transition-all shadow-xl hover:scale-105"
+                    >
+                      <span>{fb.ctaText}</span>
+                      <span>→</span>
+                    </Link>
+                  )}
+                  {fb.secondaryCtaText && (
+                    <Link
+                      href={fb.secondaryCtaLink || "/products"}
+                      className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/30 px-6 py-3.5 font-bold text-xs uppercase tracking-widest transition-all"
+                    >
+                      <span>{fb.secondaryCtaText}</span>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
 
       {/* 7. Full-Width "THE DESIGN LAB" Specifications Section */}
       <section id="design-lab" className="w-full bg-[#fdfcfb] py-20 md:py-28 px-6 md:px-16 lg:px-24 text-center border-b border-stone-200">
