@@ -67,7 +67,7 @@ async function createDelhiveryShipment(order, user = {}) {
         return_country: "India",
         return_add: process.env.DELHIVERY_RETURN_ADDRESS || "MurtiPuja Headquarters, Ring Road, Surat",
         return_name: process.env.DELHIVERY_RETURN_NAME || "MurtiPuja Studio",
-        return_phone: process.env.DELHIVERY_RETURN_PHONE || "+919664737035",
+        return_phone: process.env.DELHIVERY_RETURN_PHONE || "+917990138678",
         products_desc: productsDesc,
         order_date: new Date(order.createdAt).toISOString().slice(0, 19).replace("T", " "),
         total_amount: Number(order.totalAmount || 0),
