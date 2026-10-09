@@ -10,10 +10,6 @@ import api, {
   confirmAllOrders,
   updateOrderStatus,
   reviewReturnRequest,
-  syncOrderShipping,
-  pushOrderToShiprocket,
-  generateShiprocketAwb,
-  generateShiprocketLabel,
   pushOrderToDelhivery,
   syncDelhiveryTracking,
   getDelhiveryLabel,
@@ -361,16 +357,9 @@ export default function AdminPage() {
   function openTrackingModal(order, defaultStatus) {
     setShippingModalOrder(order);
     setShippingStatus(defaultStatus || order.orderStatus || "shipped");
-    setShippingAwb(order.trackingId || order.awbNumber || "");
-    const existingCourier = order.courierPartner || "Delhivery";
-    const COMMON_COURIERS = ["Delhivery", "BlueDart", "DTDC", "India Post (Speed Post)", "Maruti Courier", "Shadowfax", "Ekart", "Shiprocket"];
-    if (COMMON_COURIERS.includes(existingCourier)) {
-      setShippingCourier(existingCourier);
-      setShippingCustomCourier("");
-    } else {
-      setShippingCourier("Other");
-      setShippingCustomCourier(existingCourier);
-    }
+    setShippingAwb(order.delhiveryWaybill || order.awbNumber || order.trackingId || "");
+    setShippingCourier("Delhivery");
+    setShippingCustomCourier("");
   }
 
   async function handleSaveTracking(e) {
@@ -379,12 +368,12 @@ export default function AdminPage() {
     setActionError("");
     setShippingSaving(true);
     try {
-      const finalCourier = shippingCourier === "Other" ? shippingCustomCourier.trim() : shippingCourier;
       const payload = {
-        status: shippingStatus,
+        status: shippingStatus || "shipped",
         trackingId: shippingAwb.trim(),
         awbNumber: shippingAwb.trim(),
-        courierPartner: finalCourier,
+        delhiveryWaybill: shippingAwb.trim(),
+        courierPartner: "Delhivery",
       };
       const res = await updateOrderStatus(shippingModalOrder._id, payload);
       const updatedOrder = res.data;
@@ -393,6 +382,7 @@ export default function AdminPage() {
       // Refresh dashboard analytics
       const statsRes = await getAdminDashboard();
       setStats(statsRes.data);
+      setActionSuccess("Delhivery tracking details saved successfully!");
     } catch (err) {
       setActionError(err.response?.data?.message || "Failed to update tracking details.");
     } finally {
@@ -400,92 +390,7 @@ export default function AdminPage() {
     }
   }
 
-  const [srLoadingId, setSrLoadingId] = useState(null);
   const [delhiveryLoadingId, setDelhiveryLoadingId] = useState(null);
-
-  async function handlePushToShiprocket(orderId) {
-    setActionError("");
-    setActionSuccess("");
-    setSrLoadingId(`push_${orderId}`);
-    try {
-      const res = await pushOrderToShiprocket(orderId);
-      const updatedOrder = res.data.order;
-      setOrders((prev) => prev.map((o) => (o._id === orderId ? updatedOrder : o)));
-      if (shippingModalOrder && shippingModalOrder._id === orderId) {
-        setShippingModalOrder(updatedOrder);
-      }
-      setActionSuccess(res.data.message || "Order successfully synced to Shiprocket!");
-      const statsRes = await getAdminDashboard();
-      setStats(statsRes.data);
-    } catch (err) {
-      setActionError(err.response?.data?.message || "Failed to push order to Shiprocket.");
-    } finally {
-      setSrLoadingId(null);
-    }
-  }
-
-  async function handleSyncShiprocket(orderId) {
-    setActionError("");
-    setActionSuccess("");
-    setSrLoadingId(`sync_${orderId}`);
-    try {
-      const res = await syncOrderShipping(orderId);
-      const updatedOrder = res.data.order;
-      setOrders((prev) => prev.map((o) => (o._id === orderId ? updatedOrder : o)));
-      if (shippingModalOrder && shippingModalOrder._id === orderId) {
-        setShippingModalOrder(updatedOrder);
-        setShippingAwb(updatedOrder.awbNumber || updatedOrder.trackingId || "");
-        setShippingStatus(updatedOrder.orderStatus || "shipped");
-        if (updatedOrder.courierPartner) setShippingCourier(updatedOrder.courierPartner);
-      }
-      setActionSuccess(res.data.message || "Shipment tracking synced from Shiprocket!");
-    } catch (err) {
-      setActionError(err.response?.data?.message || "Failed to sync shipment from Shiprocket.");
-    } finally {
-      setSrLoadingId(null);
-    }
-  }
-
-  async function handleGenerateAwb(orderId) {
-    setActionError("");
-    setActionSuccess("");
-    setSrLoadingId(`awb_${orderId}`);
-    try {
-      const res = await generateShiprocketAwb(orderId);
-      const updatedOrder = res.data.order;
-      setOrders((prev) => prev.map((o) => (o._id === orderId ? updatedOrder : o)));
-      if (shippingModalOrder && shippingModalOrder._id === orderId) {
-        setShippingModalOrder(updatedOrder);
-        setShippingAwb(updatedOrder.awbNumber || "");
-        setShippingStatus("shipped");
-        if (updatedOrder.courierPartner) setShippingCourier(updatedOrder.courierPartner);
-      }
-      setActionSuccess(res.data.message || "AWB generated successfully!");
-    } catch (err) {
-      setActionError(err.response?.data?.message || "Failed to generate AWB via Shiprocket.");
-    } finally {
-      setSrLoadingId(null);
-    }
-  }
-
-  async function handlePrintShiprocketLabel(orderId) {
-    setActionError("");
-    setActionSuccess("");
-    setSrLoadingId(`label_${orderId}`);
-    try {
-      const res = await generateShiprocketLabel(orderId);
-      if (res.data.labelUrl) {
-        window.open(res.data.labelUrl, "_blank");
-        setActionSuccess("Shiprocket Shipping Label opened in new tab!");
-      } else {
-        setActionError("Label URL not returned. Please check Shiprocket account.");
-      }
-    } catch (err) {
-      setActionError(err.response?.data?.message || "Failed to generate Shiprocket label.");
-    } finally {
-      setSrLoadingId(null);
-    }
-  }
 
   async function handlePushToDelhivery(orderId) {
     setActionError("");
@@ -3155,50 +3060,33 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* Optional Offline / Manual Courier Fallback Accordion */}
-              <details className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50">
-                <summary className="text-xs font-bold text-neutral-600 cursor-pointer hover:text-black select-none">
-                  ⚙️ Offline / Manual Courier Entry (Only for other couriers)
-                </summary>
-                <form onSubmit={handleSaveTracking} className="space-y-3 pt-3 mt-2 border-t border-neutral-200 font-sans">
-                  <div>
-                    <label className="block text-[11px] font-bold text-neutral-600 mb-1">
-                      Courier Partner
-                    </label>
-                    <select
-                      value={shippingCourier}
-                      onChange={(e) => setShippingCourier(e.target.value)}
-                      className="w-full bg-white border border-neutral-300 rounded-lg p-2 text-xs font-semibold text-neutral-800 outline-none"
-                    >
-                      <option value="Delhivery">Delhivery</option>
-                      <option value="BlueDart">Blue Dart Express</option>
-                      <option value="DTDC">DTDC Courier</option>
-                      <option value="India Post">India Post</option>
-                      <option value="Maruti Courier">Shree Maruti Courier</option>
-                      <option value="Other">Other...</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-neutral-600 mb-1">
-                      Manual AWB Tracking Number
-                    </label>
+              {/* Enter / Edit Delhivery Waybill Manually */}
+              <div className="border-t border-neutral-200 pt-3">
+                <form onSubmit={handleSaveTracking} className="space-y-2">
+                  <label className="block text-xs font-bold text-neutral-700">
+                    Enter / Edit Delhivery Waybill (AWB) Manually
+                  </label>
+                  <p className="text-[11px] text-neutral-500">
+                    If you booked on one.delhivery.com directly, enter the AWB number here to sync with website.
+                  </p>
+                  <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="e.g. 12984719284"
+                      placeholder="e.g. 1298471928471"
                       value={shippingAwb}
                       onChange={(e) => setShippingAwb(e.target.value)}
-                      className="w-full bg-white border border-neutral-300 rounded-lg p-2 text-xs font-mono font-bold text-neutral-900 outline-none"
+                      className="flex-1 bg-white border border-neutral-300 rounded-lg p-2 text-xs font-mono font-bold text-neutral-900 outline-none focus:border-black"
                     />
+                    <button
+                      type="submit"
+                      disabled={shippingSaving}
+                      className="px-4 py-2 bg-neutral-900 hover:bg-black text-white rounded-lg text-xs font-bold whitespace-nowrap disabled:opacity-50 transition-all shadow-sm"
+                    >
+                      {shippingSaving ? "Saving..." : "Save Waybill"}
+                    </button>
                   </div>
-                  <button
-                    type="submit"
-                    disabled={shippingSaving}
-                    className="px-4 py-2 bg-neutral-900 hover:bg-black text-white rounded-lg text-xs font-bold uppercase transition-all shadow-sm"
-                  >
-                    {shippingSaving ? "Saving..." : "Save Manual Tracking"}
-                  </button>
                 </form>
-              </details>
+              </div>
 
               {/* Modal Footer */}
               <div className="flex justify-end pt-2 border-t border-neutral-200">
