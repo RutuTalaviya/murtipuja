@@ -304,9 +304,66 @@ async function checkDelhiveryPincode(pincode) {
   }
 }
 
+/**
+ * Automatically sync all in-transit Delhivery shipments in background
+ */
+async function autoSyncActiveDelhiveryOrders() {
+  try {
+    const mongoose = require("mongoose");
+    const Order = mongoose.models.Order || require("../models/Order");
+    const activeOrders = await Order.find({
+      orderStatus: { $in: ["shipped", "out_for_delivery"] },
+      delhiveryWaybill: { $exists: true, $ne: "" },
+    }).limit(50);
+
+    if (!activeOrders || activeOrders.length === 0) return;
+
+    for (const order of activeOrders) {
+      try {
+        const waybill = order.delhiveryWaybill;
+        const trackData = await trackDelhiveryShipment(waybill);
+        if (trackData && trackData.success) {
+          order.delhiveryStatus = trackData.status || order.delhiveryStatus;
+          order.delhiveryLastLocation = trackData.location || order.delhiveryLastLocation;
+          if (trackData.expectedDelivery) {
+            order.delhiveryExpectedDelivery = new Date(trackData.expectedDelivery);
+          }
+          if (Array.isArray(trackData.scans) && trackData.scans.length > 0) {
+            order.delhiveryScans = trackData.scans.map((s) => ({
+              scanDateTime: s.scanDateTime ? new Date(s.scanDateTime) : new Date(),
+              location: s.location || "",
+              status: s.status || "",
+              activity: s.activity || "",
+              instructions: s.instructions || "",
+            }));
+          }
+
+          const statusLower = (trackData.status || "").toLowerCase();
+          let newStatus = null;
+          if (statusLower.includes("delivered")) newStatus = "delivered";
+          else if (statusLower.includes("out for delivery")) newStatus = "out_for_delivery";
+          else if (statusLower.includes("in transit") || statusLower.includes("dispatched") || statusLower.includes("manifested")) newStatus = "shipped";
+          else if (statusLower.includes("rto") || statusLower.includes("returned")) newStatus = "returned";
+
+          if (newStatus && order.orderStatus !== newStatus) {
+            order.orderStatus = newStatus;
+            order.statusHistory.push({ status: newStatus, updatedAt: new Date() });
+          }
+          await order.save();
+        }
+      } catch (singleErr) {
+        console.warn(`Auto-sync error for Order ${order.orderNumber}:`, singleErr.message);
+      }
+    }
+  } catch (err) {
+    console.error("autoSyncActiveDelhiveryOrders error:", err.message);
+  }
+}
+
 module.exports = {
   createDelhiveryShipment,
   trackDelhiveryShipment,
   generateDelhiveryLabel,
   checkDelhiveryPincode,
+  autoSyncActiveDelhiveryOrders,
 };

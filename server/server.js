@@ -40,11 +40,16 @@ const videoRoutes = require("./routes/videoRoutes");
 const pageRoutes = require("./routes/pageRoutes");
 
 const { syncExpiredPromotions } = require("./utils/promotionExpirySync");
+const { autoSyncActiveDelhiveryOrders } = require("./utils/delhivery");
 
 connectDB().then(() => {
   syncExpiredPromotions();
   // Auto-sync expired promotions every 60 seconds
   setInterval(syncExpiredPromotions, 60 * 1000);
+
+  // Auto-sync live Delhivery in-transit shipments in background every 30 minutes
+  autoSyncActiveDelhiveryOrders();
+  setInterval(autoSyncActiveDelhiveryOrders, 30 * 60 * 1000);
 });
 
 
