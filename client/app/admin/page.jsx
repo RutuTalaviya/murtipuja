@@ -14,6 +14,9 @@ import api, {
   pushOrderToShiprocket,
   generateShiprocketAwb,
   generateShiprocketLabel,
+  pushOrderToDelhivery,
+  syncDelhiveryTracking,
+  getDelhiveryLabel,
   getCategories,
   createCategory,
   updateCategory,
@@ -398,6 +401,7 @@ export default function AdminPage() {
   }
 
   const [srLoadingId, setSrLoadingId] = useState(null);
+  const [delhiveryLoadingId, setDelhiveryLoadingId] = useState(null);
 
   async function handlePushToShiprocket(orderId) {
     setActionError("");
@@ -480,6 +484,69 @@ export default function AdminPage() {
       setActionError(err.response?.data?.message || "Failed to generate Shiprocket label.");
     } finally {
       setSrLoadingId(null);
+    }
+  }
+
+  async function handlePushToDelhivery(orderId) {
+    setActionError("");
+    setActionSuccess("");
+    setDelhiveryLoadingId(`ship_${orderId}`);
+    try {
+      const res = await pushOrderToDelhivery(orderId);
+      const updatedOrder = res.data.order;
+      setOrders((prev) => prev.map((o) => (o._id === orderId ? updatedOrder : o)));
+      if (shippingModalOrder && shippingModalOrder._id === orderId) {
+        setShippingModalOrder(updatedOrder);
+        setShippingAwb(updatedOrder.delhiveryWaybill || updatedOrder.awbNumber || "");
+        setShippingCourier("Delhivery");
+        setShippingStatus(updatedOrder.orderStatus || "shipped");
+      }
+      setActionSuccess(res.data.message || "Shipment booked with Delhivery One!");
+      const statsRes = await getAdminDashboard();
+      setStats(statsRes.data);
+    } catch (err) {
+      setActionError(err.response?.data?.message || "Failed to book shipment with Delhivery.");
+    } finally {
+      setDelhiveryLoadingId(null);
+    }
+  }
+
+  async function handleSyncDelhivery(orderId) {
+    setActionError("");
+    setActionSuccess("");
+    setDelhiveryLoadingId(`sync_${orderId}`);
+    try {
+      const res = await syncDelhiveryTracking(orderId);
+      const updatedOrder = res.data.order;
+      setOrders((prev) => prev.map((o) => (o._id === orderId ? updatedOrder : o)));
+      if (shippingModalOrder && shippingModalOrder._id === orderId) {
+        setShippingModalOrder(updatedOrder);
+        setShippingAwb(updatedOrder.delhiveryWaybill || updatedOrder.awbNumber || "");
+        setShippingStatus(updatedOrder.orderStatus || "shipped");
+      }
+      setActionSuccess(res.data.message || "Live tracking synced from Delhivery!");
+    } catch (err) {
+      setActionError(err.response?.data?.message || "Failed to sync tracking from Delhivery.");
+    } finally {
+      setDelhiveryLoadingId(null);
+    }
+  }
+
+  async function handlePrintDelhiveryLabel(orderId) {
+    setActionError("");
+    setDelhiveryLoadingId(`label_${orderId}`);
+    try {
+      const res = await getDelhiveryLabel(orderId);
+      if (res.data.labelUrl) {
+        window.open(res.data.labelUrl, "_blank");
+        setActionSuccess("Delhivery Shipping Label opened in new tab!");
+      } else {
+        setActionError("Delhivery label URL not returned.");
+      }
+    } catch (err) {
+      setActionError(err.response?.data?.message || "Failed to generate Delhivery label.");
+    } finally {
+      setDelhiveryLoadingId(null);
     }
   }
 
@@ -2851,21 +2918,26 @@ export default function AdminPage() {
                                 }`}>
                                 {o.orderStatus?.replace(/_/g, " ")}
                               </span>
+                              {o.delhiveryWaybill && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-amber-100 text-amber-900 border border-amber-300" title={`Delhivery Waybill: ${o.delhiveryWaybill}`}>
+                                  🚚 DELHIVERY #{o.delhiveryWaybill}
+                                </span>
+                              )}
                               {o.shiprocketOrderId && (
                                 <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-purple-100 text-purple-800 border border-purple-200" title={`Shiprocket Shipment ID: ${o.shiprocketShipmentId || "N/A"}`}>
                                   SR #{o.shiprocketOrderId}
                                 </span>
                               )}
                             </div>
-                            {(o.trackingId || o.awbNumber) ? (
+                            {(o.delhiveryWaybill || o.trackingId || o.awbNumber) ? (
                               <button
                                 onClick={() => openTrackingModal(o, o.orderStatus)}
                                 className="text-[10px] text-neutral-800 font-mono flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 px-2 py-1 rounded border border-neutral-300 transition-colors text-left w-full group"
                                 title="Click to edit Courier or AWB Number"
                               >
                                 <span>📦</span>
-                                <span className="font-semibold text-neutral-600">{o.courierPartner || "Courier"}:</span>
-                                <span className="font-bold text-black">{o.trackingId || o.awbNumber}</span>
+                                <span className="font-semibold text-neutral-600">{o.courierPartner || "Delhivery"}:</span>
+                                <span className="font-bold text-black">{o.delhiveryWaybill || o.trackingId || o.awbNumber}</span>
                                 <span className="text-[9px] text-neutral-400 group-hover:text-black font-sans ml-auto">✏️</span>
                               </button>
                             ) : (
@@ -2875,7 +2947,7 @@ export default function AdminPage() {
                                   className="text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold px-2 py-1 rounded flex items-center gap-1 transition-all shadow-sm w-full"
                                   title="Add AWB number so customer can track on website"
                                 >
-                                  <span>🚚 + Add AWB Number</span>
+                                  <span>🚚 + Ship / Add AWB</span>
                                 </button>
                               )
                             )}
@@ -2903,6 +2975,25 @@ export default function AdminPage() {
                             >
                               🚚 AWB / Logistics
                             </button>
+                            {o.delhiveryWaybill ? (
+                              <button
+                                onClick={() => handleSyncDelhivery(o._id)}
+                                disabled={delhiveryLoadingId === `sync_${o._id}`}
+                                className="px-2 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 font-bold rounded text-[10px] transition-all flex items-center gap-1 shadow-sm disabled:opacity-50"
+                                title="Sync live status and location from Delhivery API"
+                              >
+                                {delhiveryLoadingId === `sync_${o._id}` ? "..." : "🔄 Sync Delhivery"}
+                              </button>
+                            ) : o.orderStatus === "confirmed" || o.orderStatus === "placed" ? (
+                              <button
+                                onClick={() => handlePushToDelhivery(o._id)}
+                                disabled={delhiveryLoadingId === `ship_${o._id}`}
+                                className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded text-[10px] transition-all flex items-center gap-1 shadow-sm disabled:opacity-50"
+                                title="1-Click Book Shipment with Delhivery"
+                              >
+                                {delhiveryLoadingId === `ship_${o._id}` ? "..." : "🚚 Ship Delhivery"}
+                              </button>
+                            ) : null}
                             {o.shiprocketOrderId && (
                               <button
                                 onClick={() => handleSyncShiprocket(o._id)}
@@ -2953,6 +3044,90 @@ export default function AdminPage() {
                 >
                   ✕
                 </button>
+              </div>
+
+              {/* Delhivery One 1-Click Dispatch Section */}
+              <div className="border border-amber-300 bg-amber-50/60 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
+                    <span>🚚</span> Delhivery One Automated Integration
+                  </span>
+                  {shippingModalOrder.delhiveryWaybill ? (
+                    <span className="text-[11px] font-mono font-bold bg-amber-200 text-amber-950 px-2 py-0.5 rounded border border-amber-300">
+                      Waybill: {shippingModalOrder.delhiveryWaybill}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold bg-neutral-200 text-neutral-700 px-2 py-0.5 rounded">
+                      Not Booked Yet
+                    </span>
+                  )}
+                </div>
+
+                {shippingModalOrder.delhiveryWaybill ? (
+                  <div className="space-y-3">
+                    <p className="text-xs text-amber-900 leading-relaxed">
+                      Courier: <strong className="font-bold">Delhivery Express</strong> · Status: <strong className="font-bold uppercase text-amber-950">{shippingModalOrder.delhiveryStatus || shippingModalOrder.orderStatus}</strong>
+                      {shippingModalOrder.delhiveryLastLocation && (
+                        <span> · Location: <strong className="font-semibold">{shippingModalOrder.delhiveryLastLocation}</strong></span>
+                      )}
+                    </p>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleSyncDelhivery(shippingModalOrder._id)}
+                        disabled={delhiveryLoadingId === `sync_${shippingModalOrder._id}`}
+                        className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {delhiveryLoadingId === `sync_${shippingModalOrder._id}` ? (
+                          <>
+                            <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            Syncing...
+                          </>
+                        ) : (
+                          "🔄 Sync Live Delhivery Tracking"
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handlePrintDelhiveryLabel(shippingModalOrder._id)}
+                        disabled={delhiveryLoadingId === `label_${shippingModalOrder._id}`}
+                        className="px-3.5 py-1.5 bg-white border border-amber-400 hover:bg-amber-100 text-amber-950 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {delhiveryLoadingId === `label_${shippingModalOrder._id}` ? "Fetching..." : "📄 Official Delhivery PDF Label"}
+                      </button>
+                      <a
+                        href={`https://www.delhivery.com/track/package/${shippingModalOrder.delhiveryWaybill}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 bg-white border border-stone-300 hover:border-black text-neutral-800 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1"
+                      >
+                        <span>Public Track</span>
+                        <span>↗</span>
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                    <p className="text-xs text-amber-900">
+                      Book express shipment with Delhivery One directly. Automatically generates Waybill & marks order as Shipped.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handlePushToDelhivery(shippingModalOrder._id)}
+                      disabled={delhiveryLoadingId === `ship_${shippingModalOrder._id}`}
+                      className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-extrabold uppercase tracking-wide transition-all shadow-md whitespace-nowrap disabled:opacity-50 flex items-center gap-1.5"
+                    >
+                      {delhiveryLoadingId === `ship_${shippingModalOrder._id}` ? (
+                        <>
+                          <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                          Booking...
+                        </>
+                      ) : (
+                        "🚚 1-Click Ship with Delhivery"
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Shiprocket 1-Click Dispatch Section */}

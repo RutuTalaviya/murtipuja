@@ -19,6 +19,10 @@ const {
   generateShiprocketLabelHandler,
   confirmAllPlacedOrders,
   trackOrderPublic,
+  pushOrderToDelhivery,
+  syncDelhiveryTracking,
+  getDelhiveryLabel,
+  handleDelhiveryWebhook,
 } = require("../controllers/orderController");
 const { protect, adminOnly, optionalAuth } = require("../middleware/auth");
 
@@ -44,12 +48,21 @@ router.put("/orders/:id/status", protect, adminOnly, updateOrderStatus);
 router.put("/orders/:id/return-request/review", protect, adminOnly, reviewReturnRequest);
 router.put("/orders/:id/return-request/receive", protect, adminOnly, markReturnReceived);
 router.get("/admin/dashboard", protect, adminOnly, getAdminDashboard);
+
+// Shiprocket Shipping
 router.post("/admin/orders/:id/sync-shipping", protect, adminOnly, syncOrderShipping);
 router.post("/admin/orders/:id/push-shiprocket", protect, adminOnly, pushOrderToShiprocket);
 router.post("/admin/orders/:id/generate-awb", protect, adminOnly, generateShiprocketAwbHandler);
 router.post("/admin/orders/:id/generate-label", protect, adminOnly, generateShiprocketLabelHandler);
 
-// Shiprocket Webhook (Public)
+// Delhivery One Logistics Endpoints
+router.post("/admin/orders/:id/delhivery/ship", protect, adminOnly, pushOrderToDelhivery);
+router.post("/admin/orders/:id/delhivery/track", protect, adminOnly, syncDelhiveryTracking);
+router.get("/admin/orders/:id/delhivery/label", protect, adminOnly, getDelhiveryLabel);
+
+// Logistics Webhooks (Public)
 router.post("/shipping/shiprocket/webhook", handleShiprocketWebhook);
+router.post("/shipping/delhivery/webhook", handleDelhiveryWebhook);
 
 module.exports = router;
+

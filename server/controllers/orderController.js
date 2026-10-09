@@ -952,28 +952,225 @@ async function trackOrderPublic(req, res, next) {
       return res.status(403).json({ message: "Mobile number does not match this order." });
     }
 
+    const trackingUrl = (order.delhiveryWaybill || order.awbNumber)
+      ? `https://www.delhivery.com/track/package/${order.delhiveryWaybill || order.awbNumber}`
+      : order.trackingId
+      ? `https://shiprocket.co/tracking/${order.trackingId}`
+      : null;
+
     return res.status(200).json({
       success: true,
       orderNumber: order.orderNumber,
       orderStatus: order.orderStatus,
-      courierPartner: order.courierPartner,
-      awbNumber: order.awbNumber,
+      courierPartner: order.courierPartner || "Delhivery Express",
+      awbNumber: order.delhiveryWaybill || order.awbNumber || order.trackingId,
+      delhiveryWaybill: order.delhiveryWaybill || order.awbNumber,
+      delhiveryStatus: order.delhiveryStatus,
+      delhiveryLastLocation: order.delhiveryLastLocation,
+      delhiveryExpectedDelivery: order.delhiveryExpectedDelivery,
+      delhiveryScans: order.delhiveryScans || [],
+      trackingUrl,
       createdAt: order.createdAt,
       statusHistory: order.statusHistory,
-      items: order.items.map(item => ({
+      items: order.items.map((item) => ({
         title: item.title,
         quantity: item.quantity,
         size: item.size,
         finish: item.finish,
-        image: item.image
+        image: item.image,
       })),
       shippingAddress: {
         city: order.shippingAddress.city,
         state: order.shippingAddress.state,
-      }
+      },
     });
   } catch (error) {
     next(error);
+  }
+}
+
+/**
+ * POST /api/admin/orders/:id/delhivery/ship
+ * Book B2C express shipment with Delhivery One and generate Waybill (AWB)
+ */
+async function pushOrderToDelhivery(req, res, next) {
+  try {
+    const order = await Order.findById(req.params.id).populate("user");
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const delhivery = require("../utils/delhivery");
+    const shipmentRes = await delhivery.createDelhiveryShipment(order, order.user);
+
+    if (shipmentRes.waybill) {
+      order.delhiveryWaybill = shipmentRes.waybill;
+      order.awbNumber = shipmentRes.waybill;
+      order.trackingId = shipmentRes.waybill;
+      order.courierPartner = shipmentRes.courierPartner || "Delhivery Express";
+      order.delhiveryStatus = shipmentRes.status || "Manifested";
+
+      if (order.orderStatus === "placed" || order.orderStatus === "confirmed") {
+        order.orderStatus = "shipped";
+        order.statusHistory.push({ status: "shipped", updatedAt: new Date() });
+      }
+      await order.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Shipment booked with Delhivery One! Waybill AWB: ${order.delhiveryWaybill}`,
+      order,
+      shipmentRes,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /api/admin/orders/:id/delhivery/track
+ * Fetch real-time scan journey and current status from Delhivery Tracking API
+ */
+async function syncDelhiveryTracking(req, res, next) {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const waybill = order.delhiveryWaybill || order.awbNumber || order.trackingId;
+    if (!waybill) {
+      return res.status(400).json({ message: "This order does not have a Delhivery Waybill / AWB Number" });
+    }
+
+    const delhivery = require("../utils/delhivery");
+    const trackData = await delhivery.trackDelhiveryShipment(waybill);
+
+    if (trackData && trackData.success) {
+      order.delhiveryStatus = trackData.status;
+      order.delhiveryLastLocation = trackData.location || order.delhiveryLastLocation;
+      if (trackData.expectedDelivery) {
+        order.delhiveryExpectedDelivery = new Date(trackData.expectedDelivery);
+      }
+      if (Array.isArray(trackData.scans) && trackData.scans.length > 0) {
+        order.delhiveryScans = trackData.scans.map((s) => ({
+          scanDateTime: s.scanDateTime ? new Date(s.scanDateTime) : new Date(),
+          location: s.location || "",
+          status: s.status || "",
+          activity: s.activity || "",
+          instructions: s.instructions || "",
+        }));
+      }
+
+      // Auto-update order status based on Delhivery current status
+      const statusLower = (trackData.status || "").toLowerCase();
+      let newStatus = null;
+      if (statusLower.includes("delivered")) {
+        newStatus = "delivered";
+      } else if (statusLower.includes("out for delivery") || statusLower.includes("out_for_delivery")) {
+        newStatus = "out_for_delivery";
+      } else if (statusLower.includes("in transit") || statusLower.includes("dispatched") || statusLower.includes("shipped") || statusLower.includes("manifested")) {
+        newStatus = "shipped";
+      } else if (statusLower.includes("rto") || statusLower.includes("returned")) {
+        newStatus = "returned";
+      } else if (statusLower.includes("cancelled")) {
+        newStatus = "cancelled";
+      }
+
+      if (newStatus && order.orderStatus !== newStatus) {
+        order.orderStatus = newStatus;
+        order.statusHistory.push({ status: newStatus, updatedAt: new Date() });
+      }
+
+      await order.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Delhivery tracking synced: ${order.delhiveryStatus || order.orderStatus}`,
+      order,
+      trackData,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /api/admin/orders/:id/delhivery/label
+ * Generate printable thermal/PDF shipping label for Delhivery parcel
+ */
+async function getDelhiveryLabel(req, res, next) {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const waybill = order.delhiveryWaybill || order.awbNumber || order.trackingId;
+    if (!waybill) {
+      return res.status(400).json({ message: "Please book shipment with Delhivery first to generate label." });
+    }
+
+    const delhivery = require("../utils/delhivery");
+    const labelData = await delhivery.generateDelhiveryLabel(waybill);
+
+    order.delhiveryLabelUrl = labelData.labelUrl;
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      labelUrl: labelData.labelUrl,
+      waybill,
+      orderNumber: order.orderNumber,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /api/shipping/delhivery/webhook
+ * Public webhook endpoint for automated real-time status updates from Delhivery
+ */
+async function handleDelhiveryWebhook(req, res, next) {
+  try {
+    const payload = req.body;
+    console.log("Delhivery Webhook Received:", JSON.stringify(payload));
+
+    const waybill = payload.waybill || payload.Shipment?.AWB || payload.wbn;
+    if (waybill) {
+      const order = await Order.findOne({
+        $or: [{ delhiveryWaybill: waybill }, { awbNumber: waybill }, { trackingId: waybill }],
+      });
+
+      if (order) {
+        const status = payload.status || payload.Shipment?.Status?.Status || "";
+        const location = payload.location || payload.Shipment?.Status?.StatusLocation || "";
+
+        order.delhiveryStatus = status;
+        if (location) order.delhiveryLastLocation = location;
+
+        const statusLower = status.toLowerCase();
+        let newStatus = null;
+        if (statusLower.includes("delivered")) newStatus = "delivered";
+        else if (statusLower.includes("out for delivery")) newStatus = "out_for_delivery";
+        else if (statusLower.includes("in transit") || statusLower.includes("dispatched") || statusLower.includes("manifested")) newStatus = "shipped";
+        else if (statusLower.includes("rto") || statusLower.includes("returned")) newStatus = "returned";
+
+        if (newStatus && order.orderStatus !== newStatus) {
+          order.orderStatus = newStatus;
+          order.statusHistory.push({ status: newStatus, updatedAt: new Date() });
+        }
+        await order.save();
+      }
+    }
+
+    return res.status(200).json({ success: true, message: "Webhook processed successfully" });
+  } catch (error) {
+    console.error("Delhivery Webhook Error:", error);
+    return res.status(200).json({ success: false, message: error.message });
   }
 }
 
@@ -996,4 +1193,9 @@ module.exports = {
   generateShiprocketLabelHandler,
   confirmAllPlacedOrders,
   trackOrderPublic,
+  pushOrderToDelhivery,
+  syncDelhiveryTracking,
+  getDelhiveryLabel,
+  handleDelhiveryWebhook,
 };
+

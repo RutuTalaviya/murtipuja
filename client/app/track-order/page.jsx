@@ -290,6 +290,99 @@ export default function TrackOrderPage() {
                   </div>
                 </div>
 
+                {/* Live Delhivery Details Strip */}
+                {(orderData.delhiveryWaybill || orderData.awbNumber || orderData.delhiveryStatus || orderData.delhiveryLastLocation) && (
+                  <div className="bg-gradient-to-r from-amber-50 via-stone-50 to-amber-50/40 border border-amber-200 p-4 sm:p-5 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500 text-white text-xs font-bold">
+                          🚚
+                        </span>
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-wider text-amber-950">
+                            Courier: {orderData.courierPartner || "Delhivery Express"}
+                          </p>
+                          <p className="text-[10.5px] font-mono font-bold text-amber-800">
+                            Waybill / AWB: {orderData.delhiveryWaybill || orderData.awbNumber}
+                          </p>
+                        </div>
+                      </div>
+
+                      {orderData.trackingUrl && (
+                        <a
+                          href={orderData.trackingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 bg-neutral-900 hover:bg-gold hover:text-black text-white px-3.5 py-1.5 text-[10.5px] font-extrabold uppercase tracking-wider transition-colors shadow-xs"
+                        >
+                          <span>Track on Delhivery</span>
+                          <span>↗</span>
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-amber-200/60 text-xs">
+                      {orderData.delhiveryLastLocation && (
+                        <div>
+                          <span className="text-[9.5px] uppercase font-bold text-neutral-500 tracking-wider block">Current Location:</span>
+                          <span className="font-extrabold text-neutral-900">{orderData.delhiveryLastLocation}</span>
+                        </div>
+                      )}
+                      {orderData.delhiveryExpectedDelivery && (
+                        <div>
+                          <span className="text-[9.5px] uppercase font-bold text-neutral-500 tracking-wider block">Estimated Delivery:</span>
+                          <span className="font-extrabold text-neutral-900">
+                            {new Date(orderData.delhiveryExpectedDelivery).toLocaleDateString("en-IN", {
+                              weekday: "short",
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Real-time Transit Scan Log History */}
+                {Array.isArray(orderData.delhiveryScans) && orderData.delhiveryScans.length > 0 && (
+                  <div className="space-y-3 text-left">
+                    <h4 className="text-[10px] sm:text-[11px] uppercase font-extrabold tracking-widest text-neutral-400">
+                      Live Courier Activity & Scan Trail
+                    </h4>
+                    <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                      {orderData.delhiveryScans.map((scan, sIdx) => (
+                        <div
+                          key={sIdx}
+                          className="bg-stone-50 border border-stone-200 p-3 text-xs flex flex-col sm:flex-row justify-between sm:items-center gap-1"
+                        >
+                          <div>
+                            <p className="font-extrabold text-neutral-900 uppercase tracking-wider text-[11px]">
+                              {scan.activity || scan.status}
+                            </p>
+                            {scan.location && (
+                              <p className="text-[10.5px] text-neutral-500 font-semibold">
+                                📍 {scan.location}
+                              </p>
+                            )}
+                          </div>
+                          {scan.scanDateTime && (
+                            <span className="text-[10px] text-neutral-400 font-mono">
+                              {new Date(scan.scanDateTime).toLocaleString("en-IN", {
+                                day: "2-digit",
+                                month: "short",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Stepper Logic */}
                 {orderData.orderStatus === "cancelled" ? (
                   <div className="bg-red-50 border border-red-200 p-5 text-center text-red-800 text-xs font-bold uppercase tracking-wider">

@@ -55,10 +55,24 @@ const orderSchema = new mongoose.Schema(
     appliedComboOffers: [{ type: String }],
     appliedAutoOffers: [{ type: String }],
     trackingId: { type: String },
-    courierPartner: { type: String },
+    courierPartner: { type: String, default: "Delhivery Express" },
     shiprocketOrderId: { type: String },
     shiprocketShipmentId: { type: String },
     awbNumber: { type: String },
+    delhiveryWaybill: { type: String },
+    delhiveryStatus: { type: String },
+    delhiveryLastLocation: { type: String },
+    delhiveryExpectedDelivery: { type: Date },
+    delhiveryLabelUrl: { type: String },
+    delhiveryScans: [
+      {
+        scanDateTime: { type: Date },
+        location: { type: String },
+        status: { type: String },
+        activity: { type: String },
+        instructions: { type: String },
+      },
+    ],
     statusHistory: [
       {
         status: { type: String, required: true },
