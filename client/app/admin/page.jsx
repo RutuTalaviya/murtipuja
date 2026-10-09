@@ -2906,111 +2906,130 @@ export default function AdminPage() {
                           </span>
                         </td>
                         <td className="p-4">
-                          <div className="space-y-1.5">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase inline-block ${o.orderStatus === "delivered"
-                                ? "bg-blue-100 text-blue-800"
+                          <div className="space-y-1">
+                            <span className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold uppercase inline-flex items-center gap-1 shadow-xs ${
+                              o.orderStatus === "delivered"
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
                                 : o.orderStatus === "shipped"
-                                  ? "bg-purple-100 text-purple-800"
+                                  ? "bg-amber-100 text-amber-900 border border-amber-300"
                                   : o.orderStatus === "out_for_delivery"
-                                    ? "bg-indigo-100 text-indigo-800"
-                                    : "bg-orange-100 text-orange-800"
-                                }`}>
-                                {o.orderStatus?.replace(/_/g, " ")}
-                              </span>
-                              {o.delhiveryWaybill && (
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-amber-100 text-amber-900 border border-amber-300" title={`Delhivery Waybill: ${o.delhiveryWaybill}`}>
-                                  🚚 DELHIVERY #{o.delhiveryWaybill}
+                                    ? "bg-blue-100 text-blue-900 border border-blue-300"
+                                    : o.orderStatus === "confirmed"
+                                      ? "bg-purple-100 text-purple-900 border border-purple-300"
+                                      : "bg-stone-100 text-stone-800 border border-stone-300"
+                            }`}>
+                              {o.orderStatus === "placed" ? "⏳ Placed" : o.orderStatus === "confirmed" ? "✓ Confirmed" : o.orderStatus?.replace(/_/g, " ")}
+                            </span>
+                            {o.delhiveryWaybill && (
+                              <div className="flex items-center gap-1 pt-0.5">
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-950 border border-amber-300" title={`Delhivery AWB: ${o.delhiveryWaybill}`}>
+                                  🚚 #{o.delhiveryWaybill}
                                 </span>
-                              )}
-                              {o.shiprocketOrderId && (
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-purple-100 text-purple-800 border border-purple-200" title={`Shiprocket Shipment ID: ${o.shiprocketShipmentId || "N/A"}`}>
-                                  SR #{o.shiprocketOrderId}
-                                </span>
-                              )}
-                            </div>
-                            {(o.delhiveryWaybill || o.trackingId || o.awbNumber) ? (
-                              <button
-                                onClick={() => openTrackingModal(o, o.orderStatus)}
-                                className="text-[10px] text-neutral-800 font-mono flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 px-2 py-1 rounded border border-neutral-300 transition-colors text-left w-full group"
-                                title="Click to edit Courier or AWB Number"
-                              >
-                                <span>📦</span>
-                                <span className="font-semibold text-neutral-600">{o.courierPartner || "Delhivery"}:</span>
-                                <span className="font-bold text-black">{o.delhiveryWaybill || o.trackingId || o.awbNumber}</span>
-                                <span className="text-[9px] text-neutral-400 group-hover:text-black font-sans ml-auto">✏️</span>
-                              </button>
-                            ) : (
-                              (o.orderStatus === "shipped" || o.orderStatus === "out_for_delivery" || o.orderStatus === "confirmed" || o.orderStatus === "delivered") && (
-                                <button
-                                  onClick={() => openTrackingModal(o, o.orderStatus === "confirmed" ? "shipped" : o.orderStatus)}
-                                  className="text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold px-2 py-1 rounded flex items-center gap-1 transition-all shadow-sm w-full"
-                                  title="Add AWB number so customer can track on website"
-                                >
-                                  <span>🚚 + Ship / Add AWB</span>
-                                </button>
-                              )
+                              </div>
                             )}
                           </div>
                         </td>
                         <td className="p-4">
                           <div className="flex flex-wrap items-center gap-2">
-                            {o.orderStatus !== "delivered" && o.orderStatus !== "cancelled" && o.orderStatus !== "returned" && (
-                              <select
-                                value={o.orderStatus}
-                                onChange={(e) => handleStatusChange(o._id, e.target.value)}
-                                className="bg-white border border-charcoal/20 px-2 py-1 rounded text-[10px] outline-none font-semibold cursor-pointer"
-                              >
-                                <option value="placed">Placed</option>
-                                <option value="confirmed">Confirm Order</option>
-                                <option value="shipped">Mark Shipped 🚚 (Add AWB)</option>
-                                <option value="out_for_delivery">Out for Delivery</option>
-                                <option value="delivered">Deliver Order</option>
-                              </select>
-                            )}
-                            <button
-                              onClick={() => openTrackingModal(o, o.orderStatus === "confirmed" ? "shipped" : o.orderStatus)}
-                              className="px-2.5 py-1 bg-black hover:bg-gold hover:text-black text-white font-bold rounded text-[10px] transition-all flex items-center gap-1 shadow-sm"
-                              title="Enter / Edit Courier & AWB Tracking Number"
-                            >
-                              🚚 AWB / Logistics
-                            </button>
-                            {o.delhiveryWaybill ? (
+                            {/* State 1: Placed -> Show 1-Click Accept Button */}
+                            {o.orderStatus === "placed" && (
                               <button
-                                onClick={() => handleSyncDelhivery(o._id)}
-                                disabled={delhiveryLoadingId === `sync_${o._id}`}
-                                className="px-2 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 font-bold rounded text-[10px] transition-all flex items-center gap-1 shadow-sm disabled:opacity-50"
-                                title="Sync live status and location from Delhivery API"
+                                onClick={() => handleStatusChange(o._id, "confirmed")}
+                                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-sm transition-all flex items-center gap-1.5"
+                                title="Approve and confirm this order"
                               >
-                                {delhiveryLoadingId === `sync_${o._id}` ? "..." : "🔄 Sync Delhivery"}
-                              </button>
-                            ) : o.orderStatus === "confirmed" || o.orderStatus === "placed" ? (
-                              <button
-                                onClick={() => handlePushToDelhivery(o._id)}
-                                disabled={delhiveryLoadingId === `ship_${o._id}`}
-                                className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded text-[10px] transition-all flex items-center gap-1 shadow-sm disabled:opacity-50"
-                                title="1-Click Book Shipment with Delhivery"
-                              >
-                                {delhiveryLoadingId === `ship_${o._id}` ? "..." : "🚚 Ship Delhivery"}
-                              </button>
-                            ) : null}
-                            {o.shiprocketOrderId && (
-                              <button
-                                onClick={() => handleSyncShiprocket(o._id)}
-                                disabled={srLoadingId === `sync_${o._id}`}
-                                className="px-2 py-1 bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-900 font-bold rounded text-[10px] transition-all flex items-center gap-1 shadow-sm disabled:opacity-50"
-                                title="Sync live status and AWB from Shiprocket API"
-                              >
-                                {srLoadingId === `sync_${o._id}` ? "..." : "🔄 Sync SR"}
+                                <span>✓</span> Accept Order
                               </button>
                             )}
-                            <button
-                              onClick={() => window.open(`/admin/print-label/${o._id}`, "_blank")}
-                              className="px-2.5 py-1 bg-maroon text-white font-semibold rounded text-[10px] hover:bg-maroon/90 transition-all flex items-center gap-1 shadow-sm"
-                              title="Print Shipping Label"
-                            >
-                              🖨️ Label
-                            </button>
+
+                            {/* State 2: Confirmed -> Show 1-Click Delhivery Ship Button */}
+                            {o.orderStatus === "confirmed" && (
+                              <>
+                                <button
+                                  onClick={() => handlePushToDelhivery(o._id)}
+                                  disabled={delhiveryLoadingId === `ship_${o._id}`}
+                                  className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
+                                  title="Book courier pickup directly with Delhivery One"
+                                >
+                                  {delhiveryLoadingId === `ship_${o._id}` ? (
+                                    <>
+                                      <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                      Booking...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span>🚚</span> Ship with Delhivery
+                                    </>
+                                  )}
+                                </button>
+                                <button
+                                  onClick={() => openTrackingModal(o, "shipped")}
+                                  className="px-2.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 border border-neutral-300 text-neutral-700 font-bold rounded-lg text-xs transition-all"
+                                  title="Open Logistics & Dispatch details"
+                                >
+                                  ⚙️
+                                </button>
+                              </>
+                            )}
+
+                            {/* State 3: Shipped / Out for Delivery -> Show Label, Sync & Status */}
+                            {(o.orderStatus === "shipped" || o.orderStatus === "out_for_delivery") && (
+                              <>
+                                {o.delhiveryWaybill ? (
+                                  <>
+                                    <button
+                                      onClick={() => handlePrintDelhiveryLabel(o._id)}
+                                      disabled={delhiveryLoadingId === `label_${o._id}`}
+                                      className="px-3 py-1.5 bg-neutral-900 hover:bg-black text-white font-bold rounded-lg text-xs shadow-sm transition-all flex items-center gap-1 disabled:opacity-50"
+                                      title="Print Official Delhivery Barcode Packing Slip"
+                                    >
+                                      📄 Label
+                                    </button>
+                                    <button
+                                      onClick={() => handleSyncDelhivery(o._id)}
+                                      disabled={delhiveryLoadingId === `sync_${o._id}`}
+                                      className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 font-bold rounded-lg text-xs shadow-sm transition-all flex items-center gap-1 disabled:opacity-50"
+                                      title="Sync live status and location from Delhivery"
+                                    >
+                                      {delhiveryLoadingId === `sync_${o._id}` ? "..." : "🔄 Sync"}
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={() => window.open(`/admin/print-label/${o._id}`, "_blank")}
+                                    className="px-3 py-1.5 bg-neutral-900 text-white font-bold rounded-lg text-xs shadow-sm"
+                                  >
+                                    📄 Label
+                                  </button>
+                                )}
+
+                                <select
+                                  value={o.orderStatus}
+                                  onChange={(e) => handleStatusChange(o._id, e.target.value)}
+                                  className="bg-white border border-neutral-300 px-2 py-1 rounded-lg text-[11px] font-bold text-neutral-800 outline-none cursor-pointer"
+                                >
+                                  <option value="shipped">Shipped</option>
+                                  <option value="out_for_delivery">Out for Delivery</option>
+                                  <option value="delivered">Delivered ✓</option>
+                                </select>
+                              </>
+                            )}
+
+                            {/* State 4: Delivered -> Show Invoice */}
+                            {o.orderStatus === "delivered" && (
+                              <button
+                                onClick={() => window.open(`/admin/print-label/${o._id}`, "_blank")}
+                                className="px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 border border-neutral-300 text-neutral-800 font-bold rounded-lg text-xs transition-all"
+                                title="Print Packing Slip / Invoice"
+                              >
+                                📄 Invoice
+                              </button>
+                            )}
+
+                            {/* Cancelled / Returned */}
+                            {(o.orderStatus === "cancelled" || o.orderStatus === "returned") && (
+                              <span className="text-xs font-bold text-neutral-400 capitalize">{o.orderStatus}</span>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -3025,14 +3044,15 @@ export default function AdminPage() {
         {/* Tracking & AWB Shipment Modal */}
         {shippingModalOrder && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl border-2 border-black max-w-xl w-full p-6 space-y-5 animate-fadeIn shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-2xl border border-neutral-300 max-w-xl w-full p-6 space-y-5 animate-fadeIn shadow-2xl max-h-[90vh] overflow-y-auto">
+              {/* Header */}
               <div className="flex justify-between items-start border-b border-neutral-200 pb-3">
                 <div>
-                  <span className="text-[10px] uppercase tracking-wider font-extrabold bg-gold text-black px-2 py-0.5 rounded">
-                    Logistics & Dispatch
+                  <span className="text-[10px] uppercase tracking-wider font-extrabold bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded">
+                    Delhivery Express Logistics
                   </span>
                   <h3 className="font-display text-lg font-extrabold uppercase tracking-wide text-neutral-900 mt-1">
-                    Shipment & AWB Tracking
+                    Shipment Dispatch & Tracking
                   </h3>
                   <p className="text-xs text-neutral-500 font-mono mt-0.5">
                     Order #{shippingModalOrder.orderNumber} · Customer: {shippingModalOrder.user?.name || "Customer"} ({shippingModalOrder.shippingAddress?.city || "India"})
@@ -3040,87 +3060,92 @@ export default function AdminPage() {
                 </div>
                 <button
                   onClick={() => setShippingModalOrder(null)}
-                  className="text-neutral-400 hover:text-black text-lg font-bold p-1"
+                  className="text-neutral-400 hover:text-black text-xl font-bold p-1 leading-none"
                 >
                   ✕
                 </button>
               </div>
 
-              {/* Delhivery One 1-Click Dispatch Section */}
-              <div className="border border-amber-300 bg-amber-50/60 rounded-xl p-4 space-y-3">
+              {/* Delhivery Express Dispatch Card */}
+              <div className="border border-amber-300 bg-amber-50/70 rounded-xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
-                    <span>🚚</span> Delhivery One Automated Integration
+                    <span>🚚</span> Delhivery One Integration
                   </span>
                   {shippingModalOrder.delhiveryWaybill ? (
-                    <span className="text-[11px] font-mono font-bold bg-amber-200 text-amber-950 px-2 py-0.5 rounded border border-amber-300">
-                      Waybill: {shippingModalOrder.delhiveryWaybill}
+                    <span className="text-xs font-mono font-bold bg-amber-200 text-amber-950 px-2.5 py-0.5 rounded border border-amber-300">
+                      AWB: {shippingModalOrder.delhiveryWaybill}
                     </span>
                   ) : (
                     <span className="text-[10px] font-bold bg-neutral-200 text-neutral-700 px-2 py-0.5 rounded">
-                      Not Booked Yet
+                      Ready to Ship
                     </span>
                   )}
                 </div>
 
+                <div className="text-xs text-neutral-700 bg-white/80 border border-amber-200 rounded-lg p-3 space-y-1">
+                  <p><strong>Pickup Warehouse:</strong> Surat Studio (Mota Varachha, Surat)</p>
+                  <p><strong>Deliver To:</strong> {shippingModalOrder.shippingAddress?.name || "Customer"} · {shippingModalOrder.shippingAddress?.city}, {shippingModalOrder.shippingAddress?.state} ({shippingModalOrder.shippingAddress?.pincode})</p>
+                  <p><strong>Customer Phone:</strong> {shippingModalOrder.shippingAddress?.phone || "N/A"}</p>
+                </div>
+
                 {shippingModalOrder.delhiveryWaybill ? (
-                  <div className="space-y-3">
-                    <p className="text-xs text-amber-900 leading-relaxed">
-                      Courier: <strong className="font-bold">Delhivery Express</strong> · Status: <strong className="font-bold uppercase text-amber-950">{shippingModalOrder.delhiveryStatus || shippingModalOrder.orderStatus}</strong>
+                  <div className="space-y-3 pt-1">
+                    <p className="text-xs text-amber-950">
+                      Status: <strong className="font-bold uppercase">{shippingModalOrder.delhiveryStatus || shippingModalOrder.orderStatus}</strong>
                       {shippingModalOrder.delhiveryLastLocation && (
-                        <span> · Location: <strong className="font-semibold">{shippingModalOrder.delhiveryLastLocation}</strong></span>
+                        <span> · Current Hub: <strong className="font-semibold">{shippingModalOrder.delhiveryLastLocation}</strong></span>
                       )}
                     </p>
                     <div className="flex flex-wrap gap-2 pt-1">
                       <button
                         type="button"
-                        onClick={() => handleSyncDelhivery(shippingModalOrder._id)}
-                        disabled={delhiveryLoadingId === `sync_${shippingModalOrder._id}`}
-                        className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                        onClick={() => handlePrintDelhiveryLabel(shippingModalOrder._id)}
+                        disabled={delhiveryLoadingId === `label_${shippingModalOrder._id}`}
+                        className="px-4 py-2 bg-neutral-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
                       >
-                        {delhiveryLoadingId === `sync_${shippingModalOrder._id}` ? (
-                          <>
-                            <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                            Syncing...
-                          </>
-                        ) : (
-                          "🔄 Sync Live Delhivery Tracking"
-                        )}
+                        {delhiveryLoadingId === `label_${shippingModalOrder._id}` ? "Fetching..." : "📄 Print Delhivery Label (PDF)"}
                       </button>
                       <button
                         type="button"
-                        onClick={() => handlePrintDelhiveryLabel(shippingModalOrder._id)}
-                        disabled={delhiveryLoadingId === `label_${shippingModalOrder._id}`}
-                        className="px-3.5 py-1.5 bg-white border border-amber-400 hover:bg-amber-100 text-amber-950 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                        onClick={() => handleSyncDelhivery(shippingModalOrder._id)}
+                        disabled={delhiveryLoadingId === `sync_${shippingModalOrder._id}`}
+                        className="px-3.5 py-2 bg-white border border-amber-400 hover:bg-amber-100 text-amber-950 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
                       >
-                        {delhiveryLoadingId === `label_${shippingModalOrder._id}` ? "Fetching..." : "📄 Official Delhivery PDF Label"}
+                        {delhiveryLoadingId === `sync_${shippingModalOrder._id}` ? (
+                          <>
+                            <span className="w-3 h-3 border-2 border-amber-950 border-t-transparent rounded-full animate-spin"></span>
+                            Syncing...
+                          </>
+                        ) : (
+                          "🔄 Sync Live Tracking"
+                        )}
                       </button>
                       <a
                         href={`https://www.delhivery.com/track/package/${shippingModalOrder.delhiveryWaybill}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="px-3 py-1.5 bg-white border border-stone-300 hover:border-black text-neutral-800 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1"
+                        className="px-3.5 py-2 bg-white border border-neutral-300 hover:border-black text-neutral-800 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1"
                       >
-                        <span>Public Track</span>
-                        <span>↗</span>
+                        <span>Tracking Portal ↗</span>
                       </a>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-                    <p className="text-xs text-amber-900">
-                      Book express shipment with Delhivery One directly. Automatically generates Waybill & marks order as Shipped.
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                    <p className="text-xs text-amber-950">
+                      Click below to generate Delhivery AWB and book courier pickup automatically.
                     </p>
                     <button
                       type="button"
                       onClick={() => handlePushToDelhivery(shippingModalOrder._id)}
                       disabled={delhiveryLoadingId === `ship_${shippingModalOrder._id}`}
-                      className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-extrabold uppercase tracking-wide transition-all shadow-md whitespace-nowrap disabled:opacity-50 flex items-center gap-1.5"
+                      className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-extrabold uppercase tracking-wide transition-all shadow-md whitespace-nowrap disabled:opacity-50 flex items-center gap-2"
                     >
                       {delhiveryLoadingId === `ship_${shippingModalOrder._id}` ? (
                         <>
                           <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                          Booking...
+                          Booking Pickup...
                         </>
                       ) : (
                         "🚚 1-Click Ship with Delhivery"
@@ -3130,190 +3155,60 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* Shiprocket 1-Click Dispatch Section */}
-              <div className="border border-purple-200 bg-purple-50/50 rounded-xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
-                    <span>🚀</span> Shiprocket Automated Integration
-                  </span>
-                  {shippingModalOrder.shiprocketOrderId ? (
-                    <span className="text-[11px] font-mono font-bold bg-purple-200 text-purple-900 px-2 py-0.5 rounded">
-                      SR #{shippingModalOrder.shiprocketOrderId}
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-bold bg-neutral-200 text-neutral-700 px-2 py-0.5 rounded">
-                      Not Synced Yet
-                    </span>
-                  )}
-                </div>
-
-                {shippingModalOrder.shiprocketOrderId ? (
-                  <div className="space-y-3">
-                    <p className="text-xs text-purple-800">
-                      Shipment ID: <strong className="font-mono">{shippingModalOrder.shiprocketShipmentId || "N/A"}</strong> · Courier: <strong className="font-semibold">{shippingModalOrder.courierPartner || "Auto-assigned by Shiprocket"}</strong> · AWB: <strong className="font-mono">{shippingModalOrder.awbNumber || "Pending"}</strong>
-                    </p>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => handleSyncShiprocket(shippingModalOrder._id)}
-                        disabled={srLoadingId === `sync_${shippingModalOrder._id}`}
-                        className="px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {srLoadingId === `sync_${shippingModalOrder._id}` ? (
-                          <>
-                            <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                            Syncing...
-                          </>
-                        ) : (
-                          "🔄 Sync Live Status & AWB"
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleGenerateAwb(shippingModalOrder._id)}
-                        disabled={srLoadingId === `awb_${shippingModalOrder._id}`}
-                        className="px-3 py-1.5 bg-white border border-purple-300 hover:bg-purple-100 text-purple-900 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {srLoadingId === `awb_${shippingModalOrder._id}` ? "Generating..." : "🏷️ Auto Assign AWB"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handlePrintShiprocketLabel(shippingModalOrder._id)}
-                        disabled={srLoadingId === `label_${shippingModalOrder._id}`}
-                        className="px-3 py-1.5 bg-white border border-purple-300 hover:bg-purple-100 text-purple-900 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {srLoadingId === `label_${shippingModalOrder._id}` ? "Fetching..." : "📄 Official Shiprocket Label"}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-                    <p className="text-xs text-purple-800">
-                      Push this order to Shiprocket with 1-click for automated courier pickup, label printing, and live tracking.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => handlePushToShiprocket(shippingModalOrder._id)}
-                      disabled={srLoadingId === `push_${shippingModalOrder._id}`}
-                      className="px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-lg text-xs font-extrabold uppercase tracking-wide transition-all shadow-md whitespace-nowrap disabled:opacity-50 flex items-center gap-1.5"
-                    >
-                      {srLoadingId === `push_${shippingModalOrder._id}` ? (
-                        <>
-                          <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                          Pushing...
-                        </>
-                      ) : (
-                        "🚀 Push to Shiprocket"
-                      )}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Manual Courier / Offline Dispatch Entry Form */}
-              <div className="pt-2">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="h-px bg-neutral-200 flex-1"></div>
-                  <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-                    Or Enter Courier / AWB Manually
-                  </span>
-                  <div className="h-px bg-neutral-200 flex-1"></div>
-                </div>
-
-                <form onSubmit={handleSaveTracking} className="space-y-4 font-sans">
-                  {/* Status selection */}
+              {/* Optional Offline / Manual Courier Fallback Accordion */}
+              <details className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50">
+                <summary className="text-xs font-bold text-neutral-600 cursor-pointer hover:text-black select-none">
+                  ⚙️ Offline / Manual Courier Entry (Only for other couriers)
+                </summary>
+                <form onSubmit={handleSaveTracking} className="space-y-3 pt-3 mt-2 border-t border-neutral-200 font-sans">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 mb-1">
-                      Shipment Milestone Status*
-                    </label>
-                    <select
-                      value={shippingStatus}
-                      onChange={(e) => setShippingStatus(e.target.value)}
-                      className="w-full bg-white border border-neutral-300 rounded-lg p-2.5 text-xs font-bold text-neutral-800 outline-none focus:border-black"
-                    >
-                      <option value="confirmed">Confirmed (Packed in Studio)</option>
-                      <option value="shipped">Shipped (Handed to Courier)</option>
-                      <option value="out_for_delivery">Out for Delivery (Reaching Customer Today)</option>
-                      <option value="delivered">Delivered (Completed)</option>
-                    </select>
-                  </div>
-
-                  {/* Courier Partner */}
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 mb-1">
-                      Courier Partner*
+                    <label className="block text-[11px] font-bold text-neutral-600 mb-1">
+                      Courier Partner
                     </label>
                     <select
                       value={shippingCourier}
                       onChange={(e) => setShippingCourier(e.target.value)}
-                      className="w-full bg-white border border-neutral-300 rounded-lg p-2.5 text-xs font-semibold text-neutral-800 outline-none focus:border-black"
+                      className="w-full bg-white border border-neutral-300 rounded-lg p-2 text-xs font-semibold text-neutral-800 outline-none"
                     >
                       <option value="Delhivery">Delhivery</option>
                       <option value="BlueDart">Blue Dart Express</option>
                       <option value="DTDC">DTDC Courier</option>
-                      <option value="India Post (Speed Post)">India Post (Speed Post)</option>
+                      <option value="India Post">India Post</option>
                       <option value="Maruti Courier">Shree Maruti Courier</option>
-                      <option value="Shadowfax">Shadowfax</option>
-                      <option value="Ekart">Ekart Logistics</option>
-                      <option value="Shiprocket">Shiprocket (Integrated)</option>
-                      <option value="Other">Other Courier...</option>
+                      <option value="Other">Other...</option>
                     </select>
-
-                    {shippingCourier === "Other" && (
-                      <input
-                        type="text"
-                        placeholder="Enter Courier Name (e.g. Professional Courier)"
-                        value={shippingCustomCourier}
-                        onChange={(e) => setShippingCustomCourier(e.target.value)}
-                        className="mt-2 w-full bg-white border border-neutral-300 rounded-lg p-2.5 text-xs font-medium text-neutral-800 outline-none focus:border-black"
-                        required
-                      />
-                    )}
                   </div>
-
-                  {/* AWB / Tracking ID */}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 mb-1">
-                      AWB Tracking Number / Barcode Number*
+                    <label className="block text-[11px] font-bold text-neutral-600 mb-1">
+                      Manual AWB Tracking Number
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. 142389102837 or BLU9827103"
+                      placeholder="e.g. 12984719284"
                       value={shippingAwb}
                       onChange={(e) => setShippingAwb(e.target.value)}
-                      className="w-full bg-white border border-neutral-300 rounded-lg p-2.5 text-xs font-mono font-bold text-neutral-900 outline-none focus:border-black"
-                      required
+                      className="w-full bg-white border border-neutral-300 rounded-lg p-2 text-xs font-mono font-bold text-neutral-900 outline-none"
                     />
-                    <p className="text-[11px] text-neutral-500 mt-1">
-                      Customer can track this live on the MurtiPuja Track Order page using their phone number or Order ID.
-                    </p>
                   </div>
-
-                  {/* Buttons */}
-                  <div className="flex justify-end gap-3 pt-3 border-t border-neutral-200">
-                    <button
-                      type="button"
-                      onClick={() => setShippingModalOrder(null)}
-                      className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold uppercase tracking-wider text-neutral-700 hover:bg-neutral-50 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={shippingSaving}
-                      className="px-5 py-2 bg-black hover:bg-gold hover:text-black text-white rounded-lg text-xs font-extrabold uppercase tracking-wider transition-all disabled:opacity-50 shadow-md flex items-center gap-1.5"
-                    >
-                      {shippingSaving ? (
-                        <>
-                          <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                          Saving...
-                        </>
-                      ) : (
-                        "✓ Save & Update Tracking"
-                      )}
-                    </button>
-                  </div>
+                  <button
+                    type="submit"
+                    disabled={shippingSaving}
+                    className="px-4 py-2 bg-neutral-900 hover:bg-black text-white rounded-lg text-xs font-bold uppercase transition-all shadow-sm"
+                  >
+                    {shippingSaving ? "Saving..." : "Save Manual Tracking"}
+                  </button>
                 </form>
+              </details>
+
+              {/* Modal Footer */}
+              <div className="flex justify-end pt-2 border-t border-neutral-200">
+                <button
+                  type="button"
+                  onClick={() => setShippingModalOrder(null)}
+                  className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition-colors"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>
