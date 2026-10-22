@@ -2708,8 +2708,8 @@ export default function AdminPage() {
                 </p>
               </div>
               <div className="bg-white/70 backdrop-blur-md p-6 rounded-2xl border border-charcoal/10 shadow-sm">
-                <p className="text-xs text-charcoal/50 uppercase font-semibold">Low Stock Items</p>
-                <p className={`text-2xl font-bold mt-2 ${stats.lowStockProducts.length > 0 ? "text-yellow-600" : "text-charcoal"}`}>
+                <p className="text-xs text-charcoal/50 uppercase font-semibold">Low Stock Items (≤ 10)</p>
+                <p className={`text-2xl font-bold mt-2 ${stats.lowStockProducts.length > 0 ? "text-amber-600" : "text-charcoal"}`}>
                   {stats.lowStockProducts.length}
                 </p>
               </div>
@@ -2719,21 +2719,30 @@ export default function AdminPage() {
             <div className="grid md:grid-cols-2 gap-8">
               {/* Low Stock Panel */}
               <div className="bg-white/70 backdrop-blur-md p-6 rounded-2xl border border-charcoal/10 shadow-sm space-y-4">
-                <h3 className="font-display text-lg text-maroon font-bold flex items-center gap-2">
-                  ⚠️ Inventory Stock Alerts
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-display text-lg text-maroon font-bold flex items-center gap-2">
+                    ⚠️ Inventory Stock Alerts
+                  </h3>
+                  <span className="text-[10px] uppercase tracking-wider font-extrabold bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded">
+                    ≤ 10 Left
+                  </span>
+                </div>
                 {stats.lowStockProducts.length === 0 ? (
-                  <p className="text-xs text-green-700">✓ All product stocks are in healthy levels.</p>
+                  <p className="text-xs text-green-700">✓ All product stocks are in healthy levels (&gt; 10 units).</p>
                 ) : (
                   <div className="max-h-60 overflow-y-auto divide-y divide-charcoal/5 pr-2">
                     {stats.lowStockProducts.map((p) => (
-                      <div key={p.sku} className="py-2 text-xs flex justify-between">
+                      <div key={p.sku} className="py-2.5 text-xs flex justify-between items-center">
                         <div>
-                          <p className="font-semibold">{p.title}</p>
-                          <p className="text-[10px] text-charcoal/50">SKU: {p.sku} ({p.size} / {p.finish})</p>
+                          <p className="font-semibold text-charcoal">{p.title}</p>
+                          <p className="text-[10px] text-charcoal/50 font-mono">SKU: {p.sku} ({p.size} / {p.finish})</p>
                         </div>
-                        <span className="font-bold text-red-600 bg-red-50 px-2 py-1 rounded">
-                          {p.stock} left
+                        <span className={`font-bold px-2.5 py-1 rounded text-xs ${
+                          p.stock === 0
+                            ? "bg-red-100 text-red-800 border border-red-300"
+                            : "bg-amber-100 text-amber-900 border border-amber-300"
+                        }`}>
+                          {p.stock === 0 ? "Out of Stock (0)" : `${p.stock} left`}
                         </span>
                       </div>
                     ))}

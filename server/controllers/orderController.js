@@ -608,12 +608,12 @@ async function getAdminDashboard(req, res, next) {
     // 2. Total orders count
     const totalOrders = await Order.countDocuments({ paymentStatus: "paid" });
 
-    // 3. Low stock alerts (variant stock < 5)
+    // 3. Low stock alerts (variant stock <= 10)
     const products = await Product.find({});
     const lowStockProducts = [];
     products.forEach((p) => {
       p.variants.forEach((v) => {
-        if (v.stock < 5) {
+        if (v.stock <= 10) {
           lowStockProducts.push({
             productId: p._id,
             title: p.title,

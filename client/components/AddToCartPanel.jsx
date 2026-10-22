@@ -233,6 +233,14 @@ export default function AddToCartPanel({ product, finishes }) {
         </div>
       </div>
  
+      {/* Low Stock Urgency Alert (≤ 10 units left) */}
+      {selectedVariant && selectedVariant.stock > 0 && selectedVariant.stock <= 10 && (
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 text-amber-950 px-3.5 py-2 text-xs font-bold">
+          <span className="text-sm">⚡</span>
+          <span>Only <strong className="font-extrabold text-amber-900">{selectedVariant.stock} left</strong> in stock — order soon!</span>
+        </div>
+      )}
+
       {message && <p className="text-red-600 text-sm">{message}</p>}
  
       <div className="flex flex-col sm:flex-row gap-3 pt-2">
