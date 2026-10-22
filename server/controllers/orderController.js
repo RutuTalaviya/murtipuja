@@ -560,40 +560,12 @@ async function markReturnReceived(req, res, next) {
         });
       }
 
-      // Log returned items into damagedStock (NOT sellable stock)
-      for (const item of order.items) {
-        const product = await Product.findById(item.product);
-        if (product) {
-          const variant = product.variants.find((v) => v.sku === item.sku);
-          if (variant) {
-            variant.damagedStock = (variant.damagedStock || 0) + (item.quantity || 1);
-            await product.save();
-            console.log(`Return item SKU ${item.sku} counted into Damaged Stock (+${item.quantity || 1}). Sellable stock remained unchanged at ${variant.stock}.`);
-          }
-        }
-      }
-
       order.orderStatus = "returned";
       order.paymentStatus = "refunded";
       order.returnRequest.status = "completed";
       order.returnRequest.refundProcessedAt = new Date();
       order.statusHistory.push({ status: "returned", updatedAt: new Date() });
     } else if (order.returnRequest.requestType === "exchange") {
-      // If customer exchanged due to damage, also count the returned damaged item into damagedStock
-      if (order.returnRequest.claimReasonType === "damage") {
-        for (const item of order.items) {
-          const product = await Product.findById(item.product);
-          if (product) {
-            const variant = product.variants.find((v) => v.sku === item.sku);
-            if (variant) {
-              variant.damagedStock = (variant.damagedStock || 0) + (item.quantity || 1);
-              await product.save();
-              console.log(`Exchanged damaged item SKU ${item.sku} counted into Damaged Stock (+${item.quantity || 1}).`);
-            }
-          }
-        }
-      }
-
       // Process replacement SKU stock adjustment
       const targetSku = order.returnRequest.exchangeVariantSku;
       if (targetSku) {
@@ -636,10 +608,9 @@ async function getAdminDashboard(req, res, next) {
     // 2. Total orders count
     const totalOrders = await Order.countDocuments({ paymentStatus: "paid" });
 
-    // 3. Low stock alerts (variant stock <= 10) & Damaged stock count
+    // 3. Low stock alerts (variant stock <= 10)
     const products = await Product.find({});
     const lowStockProducts = [];
-    let totalDamagedStock = 0;
     products.forEach((p) => {
       p.variants.forEach((v) => {
         if (v.stock <= 10) {
@@ -650,11 +621,7 @@ async function getAdminDashboard(req, res, next) {
             size: v.size,
             finish: v.finish,
             stock: v.stock,
-            damagedStock: v.damagedStock || 0,
           });
-        }
-        if (v.damagedStock > 0) {
-          totalDamagedStock += v.damagedStock;
         }
       });
     });
@@ -670,7 +637,6 @@ async function getAdminDashboard(req, res, next) {
       totalOrders,
       lowStockProducts,
       activeReturnRequests,
-      totalDamagedStock,
     });
   } catch (error) {
     next(error);

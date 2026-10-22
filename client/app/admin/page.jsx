@@ -224,7 +224,7 @@ export default function AdminPage() {
   const [variantSku, setVariantSku] = useState("");
   const [isOnSale, setIsOnSale] = useState(false);
   const [formVariants, setFormVariants] = useState([
-    { size: "6 inch", finish: "Matte Black", price: "", discountPrice: "", stock: "10", damagedStock: "0", sku: "", image: "", images: [] }
+    { size: "6 inch", finish: "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", image: "", images: [] }
   ]);
   const [draggingVariantIndex, setDraggingVariantIndex] = useState(null);
   const [draggedImageInfo, setDraggedImageInfo] = useState(null); // { variantIndex, imageIndex }
@@ -1766,7 +1766,7 @@ export default function AdminPage() {
     setVariantFinish("Matte Black");
     setVariantStock("10");
     setVariantSku("");
-    setFormVariants([{ size: "6 inch", finish: finishes[0]?.name || "Matte Black", price: "", discountPrice: "", stock: "10", damagedStock: "0", sku: "", isCustomSku: false, image: "", images: [] }]);
+    setFormVariants([{ size: "6 inch", finish: finishes[0]?.name || "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", isCustomSku: false, image: "", images: [] }]);
     setProductTags([]);
     setCustomTagInput("");
     setProductDetails("");
@@ -2030,7 +2030,6 @@ export default function AdminPage() {
               price: v.price !== undefined && v.price !== null ? v.price.toString() : "",
               discountPrice: v.discountPrice !== undefined && v.discountPrice !== null ? v.discountPrice.toString() : "",
               stock: v.stock !== undefined && v.stock !== null ? v.stock.toString() : "10",
-              damagedStock: v.damagedStock !== undefined && v.damagedStock !== null ? v.damagedStock.toString() : "0",
               sku: v.sku || "",
               isCustomSku: !!v.sku,
               image: vImages[0] || "",
@@ -2044,7 +2043,7 @@ export default function AdminPage() {
         setVariantStock(totalStock.toString());
         setVariantSku(fullProduct.variants[0].sku || "");
       } else {
-        setFormVariants([{ size: "6 inch", finish: finishes[0]?.name || "Matte Black", price: "", discountPrice: "", stock: "10", damagedStock: "0", sku: "", isCustomSku: false, image: "", images: [] }]);
+        setFormVariants([{ size: "6 inch", finish: finishes[0]?.name || "Matte Black", price: "", discountPrice: "", stock: "10", sku: "", isCustomSku: false, image: "", images: [] }]);
         setVariantSize("6 inch");
         setVariantFinish(finishes[0]?.name || "Matte Black");
         setVariantStock("10");
@@ -2115,7 +2114,6 @@ export default function AdminPage() {
         price: Number(v.price) || Number(basePrice),
         discountPrice: v.discountPrice ? Number(v.discountPrice) : null,
         stock: Number(v.stock) || 0,
-        damagedStock: Number(v.damagedStock) || 0,
         sku: sku,
         weight: "500g",
         image: cleanImgStrings[0] || "",
@@ -2694,7 +2692,7 @@ export default function AdminPage() {
         {activeTab === "dashboard" && stats && (
           <div className="space-y-8 animate-fade-in">
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-white/70 backdrop-blur-md p-6 rounded-2xl border border-charcoal/10 shadow-sm">
                 <p className="text-xs text-charcoal/50 uppercase font-semibold">Total Revenue</p>
                 <p className="text-2xl font-bold text-maroon mt-2">₹{stats.totalRevenue}</p>
@@ -2710,15 +2708,9 @@ export default function AdminPage() {
                 </p>
               </div>
               <div className="bg-white/70 backdrop-blur-md p-6 rounded-2xl border border-charcoal/10 shadow-sm">
-                <p className="text-xs text-charcoal/50 uppercase font-semibold">Low Stock (≤ 10)</p>
+                <p className="text-xs text-charcoal/50 uppercase font-semibold">Low Stock Items (≤ 10)</p>
                 <p className={`text-2xl font-bold mt-2 ${stats.lowStockProducts.length > 0 ? "text-amber-600" : "text-charcoal"}`}>
                   {stats.lowStockProducts.length}
-                </p>
-              </div>
-              <div className="bg-white/70 backdrop-blur-md p-6 rounded-2xl border border-charcoal/10 shadow-sm">
-                <p className="text-xs text-charcoal/50 uppercase font-semibold">Damaged Units</p>
-                <p className={`text-2xl font-bold mt-2 ${(stats.totalDamagedStock || 0) > 0 ? "text-rose-600" : "text-charcoal"}`}>
-                  {stats.totalDamagedStock || 0}
                 </p>
               </div>
             </div>
@@ -3243,25 +3235,13 @@ export default function AdminPage() {
                         The claim has been approved. Once the return product has physically arrived back at your warehouse, click the button below to verify receipt and complete the claim.
                       </p>
                       {selectedOrder.returnRequest.requestType === "return" ? (
-                        <div className="space-y-1.5">
-                          <p className="text-[10px] font-semibold text-red-700">
-                            ⚠️ This will automatically trigger the customer refund back to their bank card via Razorpay.
-                          </p>
-                          <p className="text-[10px] font-bold text-amber-900 bg-amber-50 p-2 rounded border border-amber-300">
-                            🛡️ Inventory Safeguard: This returned item will be counted into <strong>Damaged Units</strong> and will NOT be added to sellable stock.
-                          </p>
-                        </div>
+                        <p className="text-[10px] font-semibold text-red-700">
+                          ⚠️ This will automatically trigger the customer refund back to their bank card via Razorpay.
+                        </p>
                       ) : (
-                        <div className="space-y-1.5">
-                          <p className="text-[10px] font-semibold text-green-700">
-                            ✓ This will complete the exchange and decrement 1 quantity from the replacement item's stock levels.
-                          </p>
-                          {selectedOrder.returnRequest.claimReasonType === "damage" && (
-                            <p className="text-[10px] font-bold text-amber-900 bg-amber-50 p-2 rounded border border-amber-300">
-                              🛡️ The incoming damaged idol will be moved into <strong>Damaged Units</strong>.
-                            </p>
-                          )}
-                        </div>
+                        <p className="text-[10px] font-semibold text-green-700">
+                          ✓ This will complete the exchange and decrement 1 quantity from the replacement item's stock levels.
+                        </p>
                       )}
 
                       <button
@@ -5132,7 +5112,6 @@ export default function AdminPage() {
                               price: "",
                               discountPrice: "",
                               stock: "10",
-                              damagedStock: "0",
                               sku: defSku,
                               isCustomSku: false,
                               image: "",
@@ -5179,7 +5158,7 @@ export default function AdminPage() {
                             </div>
 
                             {/* Row 1: Variant Specs */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5 items-end">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 items-end">
                               <div className="space-y-1">
                                 <label className="text-[9px] uppercase font-bold tracking-wider text-charcoal/60 block">Size *</label>
                                 <input
@@ -5265,22 +5244,6 @@ export default function AdminPage() {
                                     setFormVariants(updated);
                                   }}
                                   className="w-full px-2.5 py-1.5 border border-charcoal/15 rounded-lg bg-neutral-50/50 outline-none focus:bg-white text-xs"
-                                />
-                              </div>
-
-                              <div className="space-y-1">
-                                <label className="text-[9px] uppercase font-bold tracking-wider text-rose-700 block">Damaged</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={v.damagedStock !== undefined ? v.damagedStock : "0"}
-                                  onChange={(e) => {
-                                    const updated = [...formVariants];
-                                    updated[index].damagedStock = e.target.value;
-                                    setFormVariants(updated);
-                                  }}
-                                  className="w-full px-2.5 py-1.5 border border-rose-200 rounded-lg bg-rose-50/30 outline-none focus:bg-white text-xs font-semibold text-rose-800"
-                                  title="Damaged / broken units (excluded from sellable stock)"
                                 />
                               </div>
 
@@ -5773,8 +5736,7 @@ export default function AdminPage() {
                       </thead>
                       <tbody className="divide-y divide-charcoal/5">
                         {products.map((p) => {
-                          const totalStock = p.variants?.reduce((sum, v) => sum + (Number(v.stock) || 0), 0) || 0;
-                          const totalDamaged = p.variants?.reduce((sum, v) => sum + (Number(v.damagedStock) || 0), 0) || 0;
+                          const totalStock = p.variants?.reduce((sum, v) => sum + v.stock, 0) || 0;
                           return (
                             <tr key={p._id} className="hover:bg-charcoal/5 transition-colors">
                               <td className="p-4 font-semibold text-charcoal">
@@ -5808,17 +5770,10 @@ export default function AdminPage() {
                               </td>
                               <td className="p-4 font-semibold text-maroon">₹{p.basePrice}</td>
                               <td className="p-4 font-medium text-charcoal/60">
-                                <div className="flex flex-col gap-1 items-start">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${totalStock === 0 ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
-                                    }`}>
-                                    {totalStock} in stock
-                                  </span>
-                                  {totalDamaged > 0 && (
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-900 border border-rose-300">
-                                      ⚠️ {totalDamaged} damaged
-                                    </span>
-                                  )}
-                                </div>
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${totalStock === 0 ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
+                                  }`}>
+                                  {totalStock} in stock
+                                </span>
                               </td>
                               <td className="p-4 text-right space-x-3">
                                 <button
