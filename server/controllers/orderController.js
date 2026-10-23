@@ -321,27 +321,43 @@ async function getOrderById(req, res, next) {
 /**
  * POST /api/orders/:id/return-request
  * (Authenticated)
- * body: { reason, unboxingVideoUrl }
+ * body: {
+ *   selectedItemSku,
+ *   claimReasonType, // "damage", "size_color", "wrong_item", "other"
+ *   condition, // "broken_damaged", "good_condition"
+ *   requestType, // "exchange" (primary) or "return"
+ *   reason,
+ *   unboxingVideoUrl,
+ *   exchangeVariantSku
+ * }
  */
 async function createReturnRequest(req, res, next) {
   try {
-    const { requestType, reason, claimReasonType, unboxingVideoUrl, exchangeVariantSku } = req.body;
+    const {
+      selectedItemSku,
+      claimReasonType,
+      condition,
+      requestType = "exchange",
+      reason,
+      unboxingVideoUrl,
+      exchangeVariantSku,
+    } = req.body;
 
-    if (!requestType || !claimReasonType || !reason) {
-      return res.status(400).json({ message: "Request type, reason, and claim type are required" });
+    if (!reason || !claimReasonType) {
+      return res.status(400).json({ message: "Reason and claim type are required." });
     }
 
     const order = await Order.findById(req.params.id);
     if (!order) {
-      return res.status(404).json({ message: "Order not found" });
+      return res.status(404).json({ message: "Order not found." });
     }
 
     if (order.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: "Not authorized to modify this order" });
+      return res.status(403).json({ message: "Not authorized to modify this order." });
     }
 
     if (order.orderStatus !== "delivered") {
-      return res.status(400).json({ message: "Return/Exchange claims can only be requested for delivered orders" });
+      return res.status(400).json({ message: "Return/Exchange claims can only be requested for delivered orders." });
     }
 
     // Check 7-day claim window
@@ -349,33 +365,180 @@ async function createReturnRequest(req, res, next) {
     const deliveredDate = deliveredHistoryItem ? new Date(deliveredHistoryItem.updatedAt) : new Date(order.updatedAt);
     const diffDays = Math.ceil((new Date() - deliveredDate) / (1000 * 60 * 60 * 24));
     if (diffDays > 7) {
-      return res.status(400).json({ message: "Return or exchange requests must be filed within 7 days of delivery" });
+      return res.status(400).json({ message: "Return or exchange requests must be filed within 7 days of delivery." });
     }
 
-    // Refunds are only permitted for damaged goods
-    if (requestType === "return" && claimReasonType !== "damage") {
-      return res.status(400).json({ message: "Return and refund requests are only allowed if the product arrived damaged" });
+    const isBroken = condition === "broken_damaged" || claimReasonType === "damage";
+
+    // 1. SCENARIO 1: Broken / Damaged Product
+    if (isBroken) {
+      // If customer does NOT have unboxing video: NO return & NO exchange!
+      if (!unboxingVideoUrl || typeof unboxingVideoUrl !== "string" || !unboxingVideoUrl.trim()) {
+        return res.status(400).json({
+          message: "Damage claims strictly require an unboxing video. Without video evidence, returns and exchanges cannot be processed. Please contact WhatsApp support.",
+          requiresVideo: true,
+        });
+      }
+      // If customer has unboxing video: Exchange is preferred/primary, Return is secondary
     }
 
-    // Unboxing video proof is strictly compulsory for all return and exchange claims
-    if (!unboxingVideoUrl) {
-      return res.status(400).json({ message: "A valid unboxing video proof is compulsory for all return and exchange claims" });
+    // 2. SCENARIO 2: Good Condition (Sahi Salamat) Product
+    if (!isBroken) {
+      // Customer received product safely, but wants exchange. Return/Refund is NOT allowed!
+      if (requestType === "return") {
+        return res.status(400).json({
+          message: "Products delivered in good condition are only eligible for Exchange (Size / Color / Finish). Return & Refund is not available.",
+        });
+      }
+    }
+
+    // 3. Price difference calculation for exchange
+    let originalPrice = 0;
+    let replacementPrice = 0;
+    let priceDifference = 0;
+    let differencePaymentStatus = "not_applicable";
+    let razorpayOrder = null;
+
+    const matchedItem = order.items.find((i) => i.variantSku === selectedItemSku) || order.items[0];
+    if (matchedItem) {
+      originalPrice = Number(matchedItem.price) || 0;
+    }
+
+    if (requestType === "exchange") {
+      if (!exchangeVariantSku) {
+        return res.status(400).json({ message: "Please select a replacement size/finish variant for exchange." });
+      }
+
+      const replacementProduct = await Product.findOne({ "variants.sku": exchangeVariantSku });
+      if (!replacementProduct) {
+        return res.status(404).json({ message: `Replacement variant SKU '${exchangeVariantSku}' not found.` });
+      }
+      const replacementVariant = replacementProduct.variants.find((v) => v.sku === exchangeVariantSku);
+      if (!replacementVariant) {
+        return res.status(404).json({ message: `Variant '${exchangeVariantSku}' not found on product.` });
+      }
+
+      replacementPrice = Number(replacementVariant.discountPrice || replacementVariant.price) || 0;
+      priceDifference = replacementPrice - originalPrice;
+
+      // Scenario A: Customer upgraded to higher priced product (e.g. ₹1500 -> ₹2000 => +₹500 extra)
+      if (priceDifference > 0) {
+        differencePaymentStatus = "pending";
+        try {
+          const keyId = process.env.RAZORPAY_KEY_ID || "";
+          const keySecret = process.env.RAZORPAY_KEY_SECRET || "";
+
+          if (!keyId || !keySecret || keyId.includes("your_") || keyId.includes("placeholder")) {
+            console.warn("WARNING: Razorpay credentials using placeholders. Simulating exchange difference order.");
+            razorpayOrder = {
+              id: "order_mock_diff_" + Math.floor(100000 + Math.random() * 900000),
+              amount: Math.round(priceDifference * 100),
+              currency: "INR",
+            };
+          } else {
+            razorpayOrder = await razorpay.orders.create({
+              amount: Math.round(priceDifference * 100), // in paise
+              currency: "INR",
+              receipt: `ex_${order.orderNumber}_${Date.now().toString().slice(-6)}`,
+              notes: {
+                orderId: order._id.toString(),
+                orderNumber: order.orderNumber,
+                type: "exchange_price_difference",
+                fromSku: matchedItem?.variantSku || "",
+                toSku: exchangeVariantSku,
+              },
+            });
+          }
+        } catch (rzpErr) {
+          console.error("Failed to create Razorpay exchange difference order:", rzpErr.message || rzpErr);
+          return res.status(502).json({ message: "Failed to initialize difference payment gateway." });
+        }
+      } else if (priceDifference < 0) {
+        // Scenario B: Customer downgraded to lower priced product (e.g. ₹1500 -> ₹1000 => -₹500 surplus)
+        // ₹500 will be refunded to customer once original item is safely received at warehouse
+        differencePaymentStatus = "refund_pending";
+      } else {
+        differencePaymentStatus = "not_applicable";
+      }
     }
 
     order.returnRequest = {
       isRequested: true,
       requestType,
       claimReasonType,
-      exchangeVariantSku: requestType === "exchange" ? exchangeVariantSku : undefined,
+      condition: isBroken ? "broken_damaged" : "good_condition",
       reason,
-      unboxingVideoUrl: unboxingVideoUrl,
+      unboxingVideoUrl: unboxingVideoUrl || "",
       unboxingVideoVerified: false,
+      originalVariantSku: matchedItem?.variantSku || "",
+      originalPrice,
+      exchangeVariantSku: requestType === "exchange" ? exchangeVariantSku : undefined,
+      replacementPrice,
+      priceDifference,
+      differencePaymentStatus,
+      differencePaymentInfo: razorpayOrder
+        ? { razorpayOrderId: razorpayOrder.id }
+        : undefined,
+      inspectionResult: "pending",
+      transitDamageCompensationAmount: 0,
       status: "requested",
       requestedAt: new Date(),
     };
+
     await order.save();
 
-    return res.status(200).json(order);
+    const razorpayKeyId = process.env.RAZORPAY_KEY_ID || "rzp_live_TcNNAglqRPpV08";
+    return res.status(200).json({
+      order,
+      razorpayOrder,
+      razorpayKeyId,
+      priceDifference,
+      differencePaymentStatus,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /api/orders/:id/return-request/pay-difference
+ * (Authenticated)
+ * body: { razorpayOrderId, razorpayPaymentId, razorpaySignature }
+ */
+async function payExchangeDifference(req, res, next) {
+  try {
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+    if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      return res.status(400).json({ message: "Payment credentials are required." });
+    }
+
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found." });
+    }
+
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || "rzp_test_secret_placeholder";
+    const hmac = crypto.createHmac("sha256", keySecret);
+    hmac.update(razorpayOrderId + "|" + razorpayPaymentId);
+    const generatedSignature = hmac.digest("hex");
+
+    if (generatedSignature !== razorpaySignature && !razorpayOrderId.startsWith("order_mock_")) {
+      return res.status(400).json({ message: "Invalid payment signature verification." });
+    }
+
+    order.returnRequest.differencePaymentStatus = "paid";
+    order.returnRequest.differencePaymentInfo = {
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+    };
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Exchange price difference paid successfully. Exchange confirmed!",
+      order,
+    });
   } catch (error) {
     next(error);
   }
@@ -511,20 +674,28 @@ async function reviewReturnRequest(req, res, next) {
 // @access  Private/Admin
 async function markReturnReceived(req, res, next) {
   try {
+    const { inspectionResult = "intact_received", adminNotes } = req.body;
     const order = await Order.findById(req.params.id);
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    if (!order.returnRequest?.isRequested || order.returnRequest.status !== "approved") {
-      return res.status(400).json({ message: "Return request must be approved first" });
+    if (!order.returnRequest?.isRequested || !["approved", "requested"].includes(order.returnRequest.status)) {
+      return res.status(400).json({ message: "Return/Exchange request must be in an approved or active state" });
     }
 
     order.returnRequest.status = "received";
+    order.returnRequest.inspectionResult = inspectionResult;
+    if (adminNotes) {
+      order.returnRequest.adminNotes = adminNotes;
+    }
 
+    const paymentId = order.paymentInfo?.razorpayPaymentId;
+    const keyId = process.env.RAZORPAY_KEY_ID || "";
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || "";
+
+    // CASE 1: Standard Return & Full Refund
     if (order.returnRequest.requestType === "return") {
-      // Process Razorpay automatic refund
-      const paymentId = order.paymentInfo?.razorpayPaymentId;
       if (!paymentId) {
         return res.status(400).json({
           message: "Cannot process automatic refund. Razorpay Payment ID not found on this order."
@@ -536,18 +707,15 @@ async function markReturnReceived(req, res, next) {
       }
 
       try {
-        const keyId = process.env.RAZORPAY_KEY_ID || "";
-        const keySecret = process.env.RAZORPAY_KEY_SECRET || "";
-
         if (!keyId || !keySecret || keyId.includes("your_") || keyId.includes("placeholder")) {
           console.warn("WARNING: Razorpay credentials are using placeholders. Simulating refund.");
           order.paymentInfo.razorpayRefundId = "rfnd_mock_" + Math.floor(100000 + Math.random() * 900000);
         } else {
           console.log(`Initiating automatic Razorpay refund for Payment ID: ${paymentId}`);
           const refundResponse = await razorpay.payments.refund(paymentId, {
-            amount: order.totalAmount * 100, // in paise
+            amount: Math.round(order.totalAmount * 100), // in paise
             notes: {
-              reason: `Return received at warehouse. Refund approved for order ${order.orderNumber}`,
+              reason: `Return received at warehouse. Full refund approved for order #${order.orderNumber}`,
             }
           });
           console.log("Razorpay refund processed successfully:", refundResponse.id);
@@ -565,24 +733,87 @@ async function markReturnReceived(req, res, next) {
       order.returnRequest.status = "completed";
       order.returnRequest.refundProcessedAt = new Date();
       order.statusHistory.push({ status: "returned", updatedAt: new Date() });
-    } else if (order.returnRequest.requestType === "exchange") {
-      // Process replacement SKU stock adjustment
-      const targetSku = order.returnRequest.exchangeVariantSku;
-      if (targetSku) {
-        const product = await Product.findOne({ "variants.sku": targetSku });
-        if (product) {
-          const variant = product.variants.find((v) => v.sku === targetSku);
-          if (variant) {
-            variant.stock = Math.max(0, variant.stock - 1);
-            await product.save();
-            console.log(`Decremented replacement variant SKU ${targetSku} stock by 1.`);
+    }
+    // CASE 2: Exchange Request
+    else if (order.returnRequest.requestType === "exchange") {
+      // SUB-CASE 2A: Return Transit Damage (User Policy: Customer gets 50% refund)
+      if (inspectionResult === "transit_damaged_50_percent") {
+        const baseAmount = order.returnRequest.originalPrice || order.totalAmount;
+        const halfAmount = Math.round(baseAmount * 0.5);
+
+        if (paymentId) {
+          try {
+            if (!keyId || !keySecret || keyId.includes("your_") || keyId.includes("placeholder")) {
+              order.returnRequest.transitDamageRefundId = "rfnd_mock_half_" + Math.floor(100000 + Math.random() * 900000);
+            } else {
+              const refundResponse = await razorpay.payments.refund(paymentId, {
+                amount: Math.round(halfAmount * 100), // in paise
+                notes: {
+                  reason: `50% Compensation for transit damage during reverse return (Order #${order.orderNumber})`,
+                }
+              });
+              order.returnRequest.transitDamageRefundId = refundResponse.id;
+            }
+          } catch (halfErr) {
+            console.error("50% Transit Damage Refund Failed:", halfErr.message || halfErr);
+            return res.status(502).json({
+              message: `Failed to process 50% refund on Razorpay: ${halfErr.description || halfErr.message || "Unknown error"}`
+            });
           }
         }
-      }
 
-      order.returnRequest.status = "completed";
-      order.returnRequest.resolvedAt = new Date();
-      order.statusHistory.push({ status: "replacement_shipped", updatedAt: new Date() });
+        order.returnRequest.transitDamageCompensationAmount = halfAmount;
+        order.returnRequest.status = "completed";
+        order.returnRequest.resolvedAt = new Date();
+        order.statusHistory.push({ status: "transit_damaged_50_refunded", updatedAt: new Date() });
+      }
+      // SUB-CASE 2B: Intact / Safe Reception
+      else {
+        // If price difference is negative (e.g. ₹1500 -> ₹1000 => ₹500 surplus refund)
+        if (order.returnRequest.priceDifference < 0 && paymentId) {
+          const surplusAmount = Math.abs(order.returnRequest.priceDifference);
+          try {
+            if (!keyId || !keySecret || keyId.includes("your_") || keyId.includes("placeholder")) {
+              order.returnRequest.differencePaymentInfo = {
+                ...order.returnRequest.differencePaymentInfo,
+                refundId: "rfnd_mock_surplus_" + Math.floor(100000 + Math.random() * 900000),
+              };
+            } else {
+              const surplusRefund = await razorpay.payments.refund(paymentId, {
+                amount: Math.round(surplusAmount * 100),
+                notes: {
+                  reason: `Exchange surplus refund for lower-priced variant (Order #${order.orderNumber})`,
+                }
+              });
+              order.returnRequest.differencePaymentInfo = {
+                ...order.returnRequest.differencePaymentInfo,
+                refundId: surplusRefund.id,
+              };
+            }
+            order.returnRequest.differencePaymentStatus = "refunded";
+          } catch (surplusErr) {
+            console.error("Exchange Surplus Refund Failed:", surplusErr.message || surplusErr);
+          }
+        }
+
+        // Process replacement SKU stock adjustment (deduct 1 replacement unit)
+        const targetSku = order.returnRequest.exchangeVariantSku;
+        if (targetSku) {
+          const product = await Product.findOne({ "variants.sku": targetSku });
+          if (product) {
+            const variant = product.variants.find((v) => v.sku === targetSku);
+            if (variant) {
+              variant.stock = Math.max(0, variant.stock - 1);
+              await product.save();
+              console.log(`Decremented replacement variant SKU ${targetSku} stock by 1.`);
+            }
+          }
+        }
+
+        order.returnRequest.status = "completed";
+        order.returnRequest.resolvedAt = new Date();
+        order.statusHistory.push({ status: "replacement_shipped", updatedAt: new Date() });
+      }
     }
 
     await order.save();
@@ -1181,6 +1412,7 @@ module.exports = {
   getMyOrders,
   getOrderById,
   createReturnRequest,
+  payExchangeDifference,
   getAllOrders,
   updateOrderStatus,
   reviewReturnRequest,

@@ -124,8 +124,10 @@ export const updateOrderStatus = (id, payload) => {
 export const reviewReturnRequest = (id, status, unboxingVideoVerified) =>
   api.put(`/api/orders/${id}/return-request/review`, { status, unboxingVideoVerified });
 export const deleteAdminCombo = (id) => api.delete(`/api/admin/combos/${id}`);
-export const receiveReturnRequest = (id) =>
-  api.put(`/api/orders/${id}/return-request/receive`);
+export const receiveReturnRequest = (id, payload) =>
+  api.put(`/api/orders/${id}/return-request/receive`, payload || {});
+export const payExchangeDifference = (id, payload) =>
+  api.post(`/api/orders/${id}/return-request/pay-difference`, payload);
 
 // Offers, Combos & Coupons
 export const getActiveCoupons = () => api.get("/api/admin/public/coupons");

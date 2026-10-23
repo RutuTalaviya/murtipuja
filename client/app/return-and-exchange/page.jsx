@@ -72,9 +72,11 @@ export default function ReturnAndExchangePage() {
     setSubmitting(true);
     try {
       const cleanOrderId = orderId.trim().replace(/^#/, "");
+      const isDamaged = requestType === "damage" || requestType === "refund";
       const res = await api.post(`/api/orders/${cleanOrderId}/return-request`, {
-        requestType: requestType === "exchange" ? "exchange" : "return",
-        claimReasonType: requestType,
+        requestType: requestType === "refund" ? "return" : "exchange",
+        claimReasonType: isDamaged ? "damage" : "size_color",
+        condition: isDamaged ? "broken_damaged" : "good_condition",
         exchangeVariantSku: exchangeDetails || undefined,
         reason: `${requestType.toUpperCase()}: ${reason} ${exchangeDetails ? `| Desired Item: ${exchangeDetails}` : ""}`,
         unboxingVideoUrl: videoPreviewUrl,

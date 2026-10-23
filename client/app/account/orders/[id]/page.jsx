@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import ImageWithSkeleton from "@/components/ImageWithSkeleton";
-import { getOrderById, submitReturnRequest, getProducts } from "@/lib/api";
+import { getOrderById, submitReturnRequest, payExchangeDifference, getProducts } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
 const STATUS_STEPS = ["placed", "confirmed", "shipped", "out_for_delivery", "delivered"];
@@ -76,6 +76,20 @@ export default function OrderDetailPage() {
     fetchOrder();
   }, [user, authLoading, params.id]);
 
+  const loadRazorpay = () => {
+    return new Promise((resolve) => {
+      if (typeof window !== "undefined" && window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   async function handleReturnSubmit(e) {
     e.preventDefault();
     setFormError("");
@@ -87,7 +101,7 @@ export default function OrderDetailPage() {
     }
 
     if (claimReasonType === "damage" && !videoUrl.trim()) {
-      setFormError("A link to your unboxing video is compulsory for damage claims.");
+      setFormError("Continuous unboxing video proof is strictly mandatory for damage claims. Without video proof, returns and exchanges cannot be processed.");
       return;
     }
 
@@ -99,15 +113,68 @@ export default function OrderDetailPage() {
     setFormLoading(true);
     try {
       const payload = {
+        selectedItemSku,
         requestType,
         claimReasonType,
+        condition: claimReasonType === "damage" ? "broken_damaged" : "good_condition",
         reason: returnReason,
         unboxingVideoUrl: claimReasonType === "damage" ? videoUrl : undefined,
         exchangeVariantSku: requestType === "exchange" ? exchangeVariantSku : undefined,
       };
+
       const res = await submitReturnRequest(order._id, payload);
-      setOrder(res.data);
-      setFormSuccess("Your claim request has been successfully submitted for review!");
+      const { order: updatedOrder, razorpayOrder, razorpayKeyId, priceDifference } = res.data;
+      setOrder(updatedOrder || res.data);
+
+      if (priceDifference > 0 && razorpayOrder) {
+        // Upgrade: Customer needs to pay the price difference
+        const loaded = await loadRazorpay();
+        if (!loaded || !window.Razorpay) {
+          setFormSuccess(`Exchange request registered! Please complete difference payment of ₹${priceDifference} to confirm dispatch.`);
+          return;
+        }
+
+        const options = {
+          key: razorpayKeyId || "rzp_live_TcNNAglqRPpV08",
+          amount: razorpayOrder.amount,
+          currency: "INR",
+          name: "MurtiPuja",
+          description: `Exchange Upgrade Difference (+₹${priceDifference})`,
+          order_id: razorpayOrder.id,
+          prefill: {
+            name: user?.name || "Customer",
+            email: user?.email || "",
+            contact: user?.phone || "",
+          },
+          theme: { color: "#800000" },
+          handler: async function (response) {
+            try {
+              await payExchangeDifference(order._id, {
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              });
+              fetchOrder();
+              setFormSuccess(`Payment of ₹${priceDifference} received! Your exchange request is confirmed.`);
+            } catch (pErr) {
+              setFormError("Payment verification failed. Please contact support.");
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              setFormError(`Difference payment of ₹${priceDifference} was not completed. Your exchange request is pending difference payment.`);
+              fetchOrder();
+            },
+          },
+        };
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      } else if (priceDifference < 0) {
+        setFormSuccess(`Exchange request submitted! A surplus refund of ₹${Math.abs(priceDifference)} will be processed back to your account once original item is safely received.`);
+      } else {
+        setFormSuccess("Your claim request has been successfully submitted for review!");
+      }
+
       setReturnReason("");
       setVideoUrl("");
     } catch (err) {
@@ -117,9 +184,63 @@ export default function OrderDetailPage() {
     }
   }
 
+  async function handlePayPendingDifference() {
+    if (!order?.returnRequest?.priceDifference || !order?.returnRequest?.differencePaymentInfo?.razorpayOrderId) return;
+    setFormLoading(true);
+    try {
+      const loaded = await loadRazorpay();
+      if (!loaded || !window.Razorpay) {
+        alert("Razorpay gateway could not be loaded. Please refresh.");
+        return;
+      }
+
+      const diff = order.returnRequest.priceDifference;
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_TcNNAglqRPpV08",
+        amount: Math.round(diff * 100),
+        currency: "INR",
+        name: "MurtiPuja",
+        description: `Pay Exchange Difference (+₹${diff})`,
+        order_id: order.returnRequest.differencePaymentInfo.razorpayOrderId,
+        prefill: {
+          name: user?.name || "Customer",
+          email: user?.email || "",
+          contact: user?.phone || "",
+        },
+        theme: { color: "#800000" },
+        handler: async function (response) {
+          try {
+            await payExchangeDifference(order._id, {
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+            fetchOrder();
+            setFormSuccess(`Payment of ₹${diff} received! Your exchange request is confirmed.`);
+          } catch (pErr) {
+            setFormError("Payment verification failed.");
+          }
+        },
+      };
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      setFormError("Failed to initiate difference payment.");
+    } finally {
+      setFormLoading(false);
+    }
+  }
+
   function handleFillMockVideo() {
     setVideoUrl("https://res.cloudinary.com/demo/video/upload/sample_unboxing.mp4");
   }
+
+  // Live calculation of price difference
+  const currentSelectedItem = order?.items?.find((i) => i.variantSku === selectedItemSku) || order?.items?.[0];
+  const currentOriginalPrice = currentSelectedItem?.price || 0;
+  const currentReplacementVariant = selectedProductDetails?.variants?.find((v) => v.sku === exchangeVariantSku);
+  const currentReplacementPrice = currentReplacementVariant ? (currentReplacementVariant.discountPrice || currentReplacementVariant.price || 0) : 0;
+  const livePriceDiff = requestType === "exchange" && currentReplacementPrice ? (currentReplacementPrice - currentOriginalPrice) : 0;
 
   if (authLoading || loading) {
     return (
@@ -243,107 +364,291 @@ export default function OrderDetailPage() {
 
         {/* Return Claims Section */}
         <div className="bg-white rounded-none p-6 border-2 border-black">
-          <h2 className="font-display text-lg text-black font-extrabold uppercase tracking-wider mb-4">Damage / Return Claims</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b-2 border-black pb-4 mb-4">
+            <div>
+              <span className="text-[9px] uppercase font-extrabold tracking-widest bg-black text-white px-2 py-0.5 inline-block mb-1">
+                Policy Protected
+              </span>
+              <h2 className="font-display text-lg text-black font-extrabold uppercase tracking-wider">
+                Returns & Exchange Center
+              </h2>
+            </div>
+            <span className="text-[10px] text-neutral-500 font-extrabold uppercase tracking-wider">
+              7-Day Window · Doorstep Pickup
+            </span>
+          </div>
           
           {order.returnRequest?.isRequested ? (
             <div className="space-y-4">
-              <div className="p-4 border-2 border-black text-xs font-semibold bg-neutral-50 uppercase tracking-wider space-y-1.5">
-                <p className="font-extrabold">
-                  Request Type: {order.returnRequest.requestType === "return" ? "Return & Refund" : "Exchange"}
-                </p>
-                <p className="font-extrabold">
-                  Claim Status: {order.returnRequest.status}
-                </p>
-                <p>Reason: {order.returnRequest.reason}</p>
-                {order.returnRequest.exchangeVariantSku && (
-                  <p>Replacement Variant: {order.returnRequest.exchangeVariantSku}</p>
-                )}
+              <div className="p-5 border-2 border-black text-xs font-semibold bg-neutral-50 uppercase tracking-wider space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-300 pb-3">
+                  <span className="font-extrabold text-sm text-black">
+                    {order.returnRequest.requestType === "return" ? "💰 Return & Full Refund" : "🔄 Product Exchange"}
+                  </span>
+                  <span className="px-2.5 py-1 bg-black text-white font-extrabold text-[10px] tracking-widest">
+                    Status: {order.returnRequest.status.replace(/_/g, " ")}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] leading-relaxed">
+                  <div>
+                    <span className="text-neutral-400 font-extrabold block text-[9.5px]">Claim Reason</span>
+                    <p className="font-bold text-black capitalize">
+                      {order.returnRequest.claimReasonType === "damage"
+                        ? "🛡️ Transit Damaged / Broken Idol"
+                        : order.returnRequest.claimReasonType === "size_color"
+                        ? "📦 Good Condition (Size / Finish Swap)"
+                        : order.returnRequest.claimReasonType}
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className="text-neutral-400 font-extrabold block text-[9.5px]">Product Condition</span>
+                    <p className="font-bold text-black">
+                      {order.returnRequest.condition === "broken_damaged" ? "Broken on Arrival" : "Good Condition (Safe)"}
+                    </p>
+                  </div>
+
+                  {order.returnRequest.exchangeVariantSku && (
+                    <div className="sm:col-span-2 bg-white p-3 border border-neutral-300 space-y-1">
+                      <span className="text-neutral-400 font-extrabold block text-[9.5px]">Replacement Item</span>
+                      <p className="font-mono text-xs font-bold text-black">
+                        SKU: {order.returnRequest.exchangeVariantSku} (Replacement Price: ₹{order.returnRequest.replacementPrice || "—"})
+                      </p>
+                    </div>
+                  )}
+
+                  {order.returnRequest.priceDifference !== 0 && (
+                    <div className="sm:col-span-2 bg-neutral-100 p-3 border border-neutral-300 space-y-1.5">
+                      <span className="text-neutral-400 font-extrabold block text-[9.5px]">Price Difference Accounting</span>
+                      {order.returnRequest.priceDifference > 0 ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-bold text-black">
+                            Upgrade Amount: <span className="text-rose-700 font-extrabold">+₹{order.returnRequest.priceDifference}</span>
+                            <span className="ml-2 text-[10px] uppercase font-extrabold px-1.5 py-0.5 rounded bg-black text-white">
+                              {order.returnRequest.differencePaymentStatus}
+                            </span>
+                          </p>
+                          {order.returnRequest.differencePaymentStatus === "pending" && (
+                            <button
+                              type="button"
+                              onClick={handlePayPendingDifference}
+                              className="px-3.5 py-1.5 bg-black hover:bg-gold hover:text-black text-white text-[10px] font-extrabold uppercase tracking-wider transition-all"
+                            >
+                              💳 Pay ₹{order.returnRequest.priceDifference} Online Now
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="font-bold text-green-800">
+                          Surplus Refund Due: <span className="font-extrabold">₹{Math.abs(order.returnRequest.priceDifference)}</span>
+                          <span className="ml-2 text-[10px] text-neutral-600">
+                            (Will be credited back after original item is received at warehouse)
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {order.returnRequest.transitDamageCompensationAmount > 0 && (
+                    <div className="sm:col-span-2 bg-amber-50 border border-amber-300 p-3 text-amber-900">
+                      <span className="font-extrabold block text-[10px]">⚠️ 50% Reverse Transit Damage Policy Applied</span>
+                      <p className="text-[11px] mt-0.5">
+                        Product arrived broken during return courier transit. 50% compensation (<strong>₹{order.returnRequest.transitDamageCompensationAmount}</strong>) has been refunded to your payment method.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-neutral-300 pt-2">
+                  <span className="text-neutral-400 font-extrabold block text-[9.5px]">Customer Notes</span>
+                  <p className="text-neutral-700 normal-case">{order.returnRequest.reason}</p>
+                </div>
+
                 {order.returnRequest.unboxingVideoUrl && (
-                  <p className="mt-1">
-                    Unboxing Video:{" "}
-                    <a href={order.returnRequest.unboxingVideoUrl} target="_blank" rel="noopener noreferrer" className="underline font-extrabold text-gold">
-                      View Video ↗
+                  <div className="border-t border-neutral-300 pt-2">
+                    <span className="text-neutral-400 font-extrabold block text-[9.5px]">Unboxing Proof</span>
+                    <a
+                      href={order.returnRequest.unboxingVideoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline font-extrabold text-gold text-xs"
+                    >
+                      View Attached Video Proof ↗
                     </a>
-                  </p>
+                  </div>
                 )}
               </div>
             </div>
           ) : order.orderStatus === "delivered" ? (
-            <div className="space-y-4">
-              <div className="bg-neutral-50 border-2 border-black p-4 text-xs font-semibold uppercase tracking-wider space-y-1">
-                <p className="font-extrabold text-black">📹 Returns & Exchange Policy:</p>
-                <p>• Returns & Refunds: Only for transit damaged idols (Unboxing video mandatory).</p>
-                <p>• Exchanges: Available for size or finish preference.</p>
+            <div className="space-y-6">
+              {/* Policy Quick Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-neutral-50 p-4 border border-neutral-200 text-xs font-semibold uppercase tracking-wider">
+                <div className="space-y-1">
+                  <span className="text-lg">🛡️</span>
+                  <p className="font-extrabold text-black">Transit Damage</p>
+                  <p className="text-[10px] text-neutral-500 normal-case">
+                    Continuous unboxing video strictly mandatory. Exchange (recommended) or Return.
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-lg">🔄</span>
+                  <p className="font-extrabold text-black">Good Condition</p>
+                  <p className="text-[10px] text-neutral-500 normal-case">
+                    100% Free Size & Finish Exchange. (Refunds are not applicable for good idols).
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-lg">⚖️</span>
+                  <p className="font-extrabold text-black">Reverse Transit</p>
+                  <p className="text-[10px] text-neutral-500 normal-case">
+                    If returned idol breaks during reverse courier transit, 50% compensation policy applies.
+                  </p>
+                </div>
               </div>
 
-              <form onSubmit={handleReturnSubmit} className="space-y-4 pt-2">
-                {formError && <p className="text-red-600 text-xs font-bold">{formError}</p>}
-                {formSuccess && <p className="text-green-700 text-xs font-bold">{formSuccess}</p>}
+              <form onSubmit={handleReturnSubmit} className="space-y-5 pt-1">
+                {formError && (
+                  <div className="p-3 bg-red-50 border-2 border-red-300 text-red-800 text-xs font-bold leading-relaxed">
+                    {formError}
+                  </div>
+                )}
+                {formSuccess && (
+                  <div className="p-3 bg-green-50 border-2 border-green-300 text-green-900 text-xs font-bold leading-relaxed">
+                    {formSuccess}
+                  </div>
+                )}
 
+                {/* Step 1: Select Item & Claim Reason */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-extrabold uppercase tracking-widest text-neutral-400 mb-1">Select Item *</label>
+                    <label className="block text-[10px] font-extrabold uppercase tracking-widest text-neutral-400 mb-1.5">
+                      Select Item from Order *
+                    </label>
                     <select
                       value={selectedItemSku}
                       onChange={(e) => {
                         setSelectedItemSku(e.target.value);
-                        const item = order.items.find(i => i.variantSku === e.target.value);
+                        const item = order.items.find((i) => i.variantSku === e.target.value);
                         if (item) fetchProductVariants(item.product);
                       }}
-                      className="w-full px-3 py-2.5 border-2 border-neutral-300 rounded-none bg-white text-xs font-bold text-black outline-none focus:border-black"
+                      className="w-full px-3.5 py-3 border-2 border-neutral-300 rounded-none bg-white text-xs font-bold text-black outline-none focus:border-black"
                     >
-                      {order.items.map(item => (
+                      {order.items.map((item) => (
                         <option key={item.variantSku} value={item.variantSku}>
-                          {item.title} ({item.size} / {item.finish})
+                          {item.title} ({item.size} / {item.finish}) — ₹{item.price}
                         </option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-extrabold uppercase tracking-widest text-neutral-400 mb-1">Reason for Claim *</label>
+                    <label className="block text-[10px] font-extrabold uppercase tracking-widest text-neutral-400 mb-1.5">
+                      Reason for Claim / Product Condition *
+                    </label>
                     <select
                       value={claimReasonType}
                       onChange={(e) => {
                         const val = e.target.value;
                         setClaimReasonType(val);
-                        if (val === "size_color") setRequestType("exchange");
+                        if (val === "size_color") {
+                          setRequestType("exchange");
+                        }
                       }}
-                      className="w-full px-3 py-2.5 border-2 border-neutral-300 rounded-none bg-white text-xs font-bold text-black outline-none focus:border-black"
+                      className="w-full px-3.5 py-3 border-2 border-neutral-300 rounded-none bg-white text-xs font-bold text-black outline-none focus:border-black"
                     >
-                      <option value="size_color">Size or Color Issue</option>
-                      <option value="damage">Transit Damage / Broken Product</option>
-                      <option value="other">Other / Incorrect Item Sent</option>
+                      <option value="damage">🛡️ Product arrived damaged / broken</option>
+                      <option value="size_color">📦 Good condition, but want another product / size / color</option>
+                      <option value="wrong_item">🔄 Wrong product received</option>
                     </select>
                   </div>
                 </div>
 
+                {/* Step 2: Unboxing Video Proof Gating (Mandatory if damage) */}
+                {claimReasonType === "damage" && (
+                  <div className={`p-4 border-2 transition-all space-y-3 ${
+                    !videoUrl.trim() ? "bg-red-50/70 border-red-300" : "bg-neutral-50 border-neutral-300"
+                  }`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <div>
+                        <span className="text-xs font-black uppercase tracking-wider text-black flex items-center gap-1.5">
+                          <span>📹</span> Continuous Unboxing Video Proof *
+                        </span>
+                        <p className="text-[10px] text-neutral-600 font-semibold mt-0.5 normal-case">
+                          Video must start before cutting the outer courier box tape and show the idol unboxing continuously.
+                        </p>
+                      </div>
+                      <span className="text-[9.5px] font-black uppercase tracking-widest px-2 py-0.5 bg-red-600 text-white self-start sm:self-auto">
+                        Strictly Mandatory *
+                      </span>
+                    </div>
+
+                    {!videoUrl.trim() && (
+                      <div className="p-2.5 bg-red-100 border border-red-200 text-red-900 text-[11px] font-bold">
+                        ⚠️ <strong>No Video?</strong> As per store policy, transit damage claims cannot be processed without an unboxing video. If you do not have a video, returns and exchanges are blocked. Please contact WhatsApp support.
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        required={claimReasonType === "damage"}
+                        placeholder="Paste Google Drive, Dropbox or YouTube link to unboxing video"
+                        value={videoUrl}
+                        onChange={(e) => setVideoUrl(e.target.value)}
+                        className="flex-1 px-3.5 py-2.5 border-2 border-neutral-300 rounded-none bg-white text-xs font-bold text-black outline-none focus:border-black"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleFillMockVideo}
+                        className="text-xs border-2 border-black text-black hover:bg-neutral-100 px-3 font-extrabold uppercase tracking-wider shrink-0"
+                      >
+                        Fill Test Link
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Preferred Solution & Replacement Selector */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-extrabold uppercase tracking-widest text-neutral-400 mb-1">Preferred Solution *</label>
+                    <label className="block text-[10px] font-extrabold uppercase tracking-widest text-neutral-400 mb-1.5">
+                      Preferred Solution *
+                    </label>
                     <select
                       value={requestType}
+                      disabled={claimReasonType === "damage" && !videoUrl.trim()}
                       onChange={(e) => setRequestType(e.target.value)}
-                      className="w-full px-3 py-2.5 border-2 border-neutral-300 rounded-none bg-white text-xs font-bold text-black outline-none focus:border-black"
+                      className="w-full px-3.5 py-3 border-2 border-neutral-300 rounded-none bg-white text-xs font-bold text-black outline-none focus:border-black disabled:bg-neutral-100 disabled:text-neutral-400"
                     >
-                      <option value="exchange">Exchange for Replacement</option>
-                      {claimReasonType === "damage" && (
-                        <option value="return">Return & Refund</option>
+                      <option value="exchange">
+                        🔄 Exchange for Replacement (Recommended · Free Swap)
+                      </option>
+                      {claimReasonType === "damage" && videoUrl.trim() && (
+                        <option value="return">💰 Return & Full Refund</option>
                       )}
                     </select>
+
+                    {claimReasonType === "size_color" && (
+                      <span className="text-[10px] text-green-700 font-extrabold uppercase tracking-wider block mt-1">
+                        ✓ Exchange Only (Refund not applicable for good condition idols)
+                      </span>
+                    )}
                   </div>
 
                   {requestType === "exchange" && selectedProductDetails && (
                     <div>
-                      <label className="block text-[10px] font-extrabold uppercase tracking-widest text-neutral-400 mb-1">Choose Replacement Variant *</label>
+                      <label className="block text-[10px] font-extrabold uppercase tracking-widest text-neutral-400 mb-1.5">
+                        Choose Replacement Variant *
+                      </label>
                       <select
                         value={exchangeVariantSku}
                         onChange={(e) => setExchangeVariantSku(e.target.value)}
-                        className="w-full px-3 py-2.5 border-2 border-neutral-300 rounded-none bg-white text-xs font-bold text-black outline-none focus:border-black"
+                        className="w-full px-3.5 py-3 border-2 border-neutral-300 rounded-none bg-white text-xs font-bold text-black outline-none focus:border-black"
                       >
-                        {selectedProductDetails.variants?.map(v => (
+                        {selectedProductDetails.variants?.map((v) => (
                           <option key={v.sku} value={v.sku}>
-                            {v.size} / {v.finish} (₹{v.price})
+                            {v.size} / {v.finish} — ₹{v.discountPrice || v.price}
                           </option>
                         ))}
                       </select>
@@ -351,47 +656,75 @@ export default function OrderDetailPage() {
                   )}
                 </div>
 
-                {claimReasonType === "damage" && (
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-extrabold uppercase tracking-widest text-neutral-400 mb-1">Unboxing Video URL *</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="url"
-                        required
-                        placeholder="Google Drive, Dropbox, YouTube video link"
-                        value={videoUrl}
-                        onChange={(e) => setVideoUrl(e.target.value)}
-                        className="flex-1 px-4 py-2.5 border-2 border-neutral-300 rounded-none bg-white text-xs font-bold text-black outline-none focus:border-black"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleFillMockVideo}
-                        className="text-xs border-2 border-black text-black hover:bg-neutral-100 px-3 font-extrabold uppercase tracking-wider"
-                      >
-                        Fill Mock Link
-                      </button>
+                {/* Step 4: Live Price Difference Box (When Exchange selected) */}
+                {requestType === "exchange" && currentReplacementVariant && (
+                  <div className="p-4 border-2 border-black bg-neutral-50 space-y-2">
+                    <span className="text-[9.5px] uppercase font-black tracking-widest bg-gold text-black px-2 py-0.5 border border-black inline-block">
+                      Exchange Price Accounting
+                    </span>
+                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-bold">
+                      <div>
+                        <span className="text-neutral-400 block text-[10px]">Original Item Value</span>
+                        <span className="text-black text-sm">₹{currentOriginalPrice}</span>
+                      </div>
+                      <span className="text-neutral-400 text-lg">→</span>
+                      <div>
+                        <span className="text-neutral-400 block text-[10px]">Replacement Item Value</span>
+                        <span className="text-black text-sm">₹{currentReplacementPrice}</span>
+                      </div>
+                      <span className="text-neutral-400 text-lg">=</span>
+                      <div>
+                        <span className="text-neutral-400 block text-[10px]">Difference</span>
+                        <span className={`text-sm ${
+                          livePriceDiff > 0 ? "text-rose-700 font-black" : livePriceDiff < 0 ? "text-green-700 font-black" : "text-black"
+                        }`}>
+                          {livePriceDiff > 0 ? `+₹${livePriceDiff} (Customer Pays)` : livePriceDiff < 0 ? `-₹${Math.abs(livePriceDiff)} (Refund Due)` : "₹0 (Free Swap)"}
+                        </span>
+                      </div>
                     </div>
+
+                    {livePriceDiff > 0 && (
+                      <p className="text-[11px] text-rose-800 font-semibold leading-relaxed border-t border-neutral-200 pt-2 normal-case">
+                        ⚡ <strong>Upgrade Difference:</strong> You will be prompted to complete an online payment of <strong>₹{livePriceDiff}</strong> via Razorpay upon clicking submit to confirm this replacement.
+                      </p>
+                    )}
+
+                    {livePriceDiff < 0 && (
+                      <p className="text-[11px] text-green-800 font-semibold leading-relaxed border-t border-neutral-200 pt-2 normal-case">
+                        💰 <strong>Surplus Refund:</strong> The balance of <strong>₹{Math.abs(livePriceDiff)}</strong> will be credited directly back to your payment account via Razorpay once the original idol is safely received at our studio.
+                      </p>
+                    )}
                   </div>
                 )}
 
+                {/* Step 5: Notes */}
                 <div>
-                  <label className="block text-[10px] font-extrabold uppercase tracking-widest text-neutral-400 mb-1">Describe the Issue *</label>
+                  <label className="block text-[10px] font-extrabold uppercase tracking-widest text-neutral-400 mb-1.5">
+                    Please describe what you need (Reason / Notes) *
+                  </label>
                   <textarea
                     required
                     rows={3}
-                    placeholder="Enter details about your request..."
+                    placeholder="Provide additional details about your return or exchange request..."
                     value={returnReason}
                     onChange={(e) => setReturnReason(e.target.value)}
-                    className="w-full px-4 py-2.5 border-2 border-neutral-300 rounded-none bg-white text-xs font-bold text-black outline-none focus:border-black"
+                    className="w-full px-4 py-3 border-2 border-neutral-300 rounded-none bg-white text-xs font-bold text-black outline-none focus:border-black"
                   />
                 </div>
 
+                {/* Submit Action Button */}
                 <button
                   type="submit"
-                  disabled={formLoading}
-                  className="bg-black hover:bg-gold hover:text-black text-white px-8 py-3 rounded-none text-xs font-extrabold uppercase tracking-widest border-2 border-black transition-all disabled:opacity-50"
+                  disabled={formLoading || (claimReasonType === "damage" && !videoUrl.trim())}
+                  className="w-full sm:w-auto bg-black hover:bg-gold hover:text-black text-white px-8 py-3.5 rounded-none text-xs font-extrabold uppercase tracking-widest border-2 border-black transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {formLoading ? "Submitting Request..." : "Submit Claim Request →"}
+                  {formLoading
+                    ? "Processing Request..."
+                    : claimReasonType === "damage" && !videoUrl.trim()
+                    ? "❌ Unboxing Video Proof Required to Submit"
+                    : livePriceDiff > 0
+                    ? `Submit & Pay Difference of ₹${livePriceDiff} →`
+                    : "Submit Claim Request →"}
                 </button>
               </form>
             </div>

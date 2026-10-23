@@ -530,12 +530,12 @@ export default function AdminPage() {
   }
 
   // Handle marking returning product as received at warehouse
-  async function handleReturnReceive() {
+  async function handleReturnReceive(inspectionResult = "intact_received") {
     if (!selectedOrder) return;
     setActionError("");
     setReceiveLoading(true);
     try {
-      const res = await receiveReturnRequest(selectedOrder._id);
+      const res = await receiveReturnRequest(selectedOrder._id, { inspectionResult });
       setOrders(orders.map((o) => (o._id === selectedOrder._id ? res.data : o)));
       setSelectedOrder(res.data);
 
@@ -3154,17 +3154,37 @@ export default function AdminPage() {
                   </div>
 
                   <div className="bg-charcoal/5 p-4 rounded-xl text-xs space-y-3 leading-relaxed text-charcoal/80">
-                    <p><strong>Claim Type:</strong> <span className="font-semibold uppercase text-maroon">{selectedOrder.returnRequest.requestType === "return" ? "Return & Refund" : "Exchange / Replacement"}</span></p>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p><strong>Claim Type:</strong> <span className="font-semibold uppercase text-maroon">{selectedOrder.returnRequest.requestType === "return" ? "Return & Refund" : "Exchange / Replacement"}</span></p>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-charcoal/10 uppercase">
+                        Condition: {selectedOrder.returnRequest.condition === "good_condition" ? "📦 Good Condition (Safe)" : "🛡️ Broken / Damaged"}
+                      </span>
+                    </div>
                     <p><strong>Reason Category:</strong> <span className="font-semibold capitalize text-charcoal">{selectedOrder.returnRequest.claimReasonType || "Damage"}</span></p>
                     <p><strong>Customer Explanation:</strong> {selectedOrder.returnRequest.reason}</p>
 
-                    {selectedOrder.returnRequest.requestType === "exchange" && selectedOrder.returnRequest.exchangeVariantSku && (
-                      <p className="bg-white p-2 rounded border border-charcoal/10">
-                        <strong>Requested Replacement SKU:</strong> <span className="font-mono text-maroon font-semibold">{selectedOrder.returnRequest.exchangeVariantSku}</span>
-                      </p>
+                    {selectedOrder.returnRequest.requestType === "exchange" && (
+                      <div className="bg-white p-3 rounded-lg border border-charcoal/10 space-y-1">
+                        <p><strong>Original Item SKU:</strong> <span className="font-mono text-charcoal font-semibold">{selectedOrder.returnRequest.originalVariantSku || "Original"} (₹{selectedOrder.returnRequest.originalPrice || "—"})</span></p>
+                        <p><strong>Requested Replacement SKU:</strong> <span className="font-mono text-maroon font-semibold">{selectedOrder.returnRequest.exchangeVariantSku || "None"} (₹{selectedOrder.returnRequest.replacementPrice || "—"})</span></p>
+                        {selectedOrder.returnRequest.priceDifference !== 0 && (
+                          <p className="pt-1 border-t border-charcoal/10 text-[11px]">
+                            <strong>Price Difference: </strong>
+                            {selectedOrder.returnRequest.priceDifference > 0 ? (
+                              <span className="text-red-700 font-bold">
+                                +₹{selectedOrder.returnRequest.priceDifference} Upgrade (Status: {selectedOrder.returnRequest.differencePaymentStatus?.toUpperCase()})
+                              </span>
+                            ) : (
+                              <span className="text-green-700 font-bold">
+                                -₹{Math.abs(selectedOrder.returnRequest.priceDifference)} Surplus Refund (Due to customer on reception)
+                              </span>
+                            )}
+                          </p>
+                        )}
+                      </div>
                     )}
 
-                    {selectedOrder.returnRequest.claimReasonType === "damage" ? (
+                    {selectedOrder.returnRequest.claimReasonType === "damage" || selectedOrder.returnRequest.condition === "broken_damaged" ? (
                       <div>
                         <strong>Compulsory Unboxing Video:</strong>
                         <div className="mt-2 p-3 bg-white rounded-lg border border-charcoal/15 flex items-center justify-between">
@@ -3174,14 +3194,14 @@ export default function AdminPage() {
                             rel="noopener noreferrer"
                             className="font-mono text-maroon font-medium hover:underline truncate mr-2 text-[10px] block"
                           >
-                            {selectedOrder.returnRequest.unboxingVideoUrl} ↗
+                            {selectedOrder.returnRequest.unboxingVideoUrl || "No video URL"} ↗
                           </a>
                           <span className="text-[9px] bg-gold/15 text-gold font-bold px-2 py-0.5 rounded flex-shrink-0 uppercase">External Video Link</span>
                         </div>
                       </div>
                     ) : (
                       <p className="text-[10px] text-green-700 font-semibold bg-green-50 p-2 rounded">
-                        ✓ No unboxing video required for size/color exchanges.
+                        ✓ Exchange initiated for good condition product (Refund blocked).
                       </p>
                     )}
                   </div>
@@ -3189,7 +3209,7 @@ export default function AdminPage() {
                   {selectedOrder.returnRequest.status === "requested" ? (
                     <div className="space-y-4">
                       {/* Video Verification Checkbox (Only for damages) */}
-                      {selectedOrder.returnRequest.claimReasonType === "damage" ? (
+                      {selectedOrder.returnRequest.claimReasonType === "damage" || selectedOrder.returnRequest.condition === "broken_damaged" ? (
                         <label className="flex items-start gap-3 cursor-pointer select-none bg-yellow-50 border border-yellow-200 p-4 rounded-xl">
                           <input
                             type="checkbox"
@@ -3200,7 +3220,7 @@ export default function AdminPage() {
                           <div>
                             <p className="text-xs font-semibold text-yellow-800">Verify Unboxing Video Quality</p>
                             <p className="text-[10px] text-yellow-700/80 mt-0.5">
-                              I verify that I have viewed the customer&apos;s unboxing video, verified that it is unedited, starts from a sealed package, and confirms transit damage.
+                              I verify that I have viewed the customer&apos;s unboxing video, verified that it is continuous, unedited, starts from a sealed package, and confirms transit damage.
                             </p>
                           </div>
                         </label>
@@ -3218,51 +3238,113 @@ export default function AdminPage() {
                         </button>
                         <button
                           type="button"
-                          disabled={reviewLoading || (selectedOrder.returnRequest.claimReasonType === "damage" && !videoVerified)}
+                          disabled={reviewLoading || ((selectedOrder.returnRequest.claimReasonType === "damage" || selectedOrder.returnRequest.condition === "broken_damaged") && !videoVerified)}
                           onClick={() => handleReturnReview("approved")}
                           className="px-5 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700 text-xs font-semibold disabled:opacity-50"
                         >
-                          {reviewLoading ? "Reviewing..." : "Approve Return Request"}
+                          {reviewLoading ? "Reviewing..." : "Approve Claim Request"}
                         </button>
                       </div>
                     </div>
                   ) : selectedOrder.returnRequest.status === "approved" ? (
-                    <div className="space-y-4 bg-yellow-50 border border-yellow-200 p-6 rounded-xl text-center">
-                      <p className="text-xs font-semibold text-yellow-800">
-                        📦 Claim is Approved (Pickup Initiated)
-                      </p>
-                      <p className="text-[10px] text-yellow-700 leading-relaxed">
-                        The claim has been approved. Once the return product has physically arrived back at your warehouse, click the button below to verify receipt and complete the claim.
-                      </p>
-                      {selectedOrder.returnRequest.requestType === "return" ? (
-                        <p className="text-[10px] font-semibold text-red-700">
-                          ⚠️ This will automatically trigger the customer refund back to their bank card via Razorpay.
+                    <div className="space-y-4 bg-yellow-50 border border-yellow-200 p-6 rounded-xl">
+                      <div className="text-center space-y-1">
+                        <p className="text-xs font-bold text-yellow-800">
+                          📦 Claim is Approved (Item in Transit / Awaiting Warehouse Receipt)
                         </p>
-                      ) : (
-                        <p className="text-[10px] font-semibold text-green-700">
-                          ✓ This will complete the exchange and decrement 1 quantity from the replacement item's stock levels.
+                        <p className="text-[10px] text-yellow-700 leading-relaxed">
+                          Once the returned package physically arrives at your studio/warehouse, inspect the idol&apos;s condition and choose the appropriate completion action below:
                         </p>
-                      )}
+                      </div>
 
-                      <button
-                        type="button"
-                        disabled={receiveLoading}
-                        onClick={handleReturnReceive}
-                        className="mt-3 w-full bg-maroon text-white text-xs font-semibold py-3 rounded-xl hover:bg-maroon-dark shadow transition-all disabled:opacity-50"
-                      >
-                        {receiveLoading ? "Processing Reception..." : "Mark Returned Product Received at Warehouse"}
-                      </button>
+                      {selectedOrder.returnRequest.requestType === "return" ? (
+                        <div className="space-y-2 pt-2">
+                          <p className="text-[10px] font-semibold text-red-700 text-center">
+                            ⚠️ This will automatically trigger a 100% full refund of ₹{selectedOrder.totalAmount} via Razorpay.
+                          </p>
+                          <button
+                            type="button"
+                            disabled={receiveLoading}
+                            onClick={() => handleReturnReceive("intact_received")}
+                            className="w-full bg-maroon text-white text-xs font-semibold py-3 rounded-xl hover:bg-maroon-dark shadow transition-all disabled:opacity-50"
+                          >
+                            {receiveLoading ? "Processing Reception..." : "Mark Return Received & Issue Full Refund"}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3 pt-2">
+                          {/* Option 1: Received Intact */}
+                          <div className="p-3 bg-white rounded-lg border border-yellow-300 flex flex-col sm:flex-row items-center justify-between gap-3">
+                            <div className="text-left">
+                              <p className="text-xs font-bold text-charcoal">✓ Received Intact / In Good Condition</p>
+                              <p className="text-[10px] text-charcoal/60">
+                                Idol arrived safely. Stock of replacement SKU will be decremented by 1.
+                                {selectedOrder.returnRequest.priceDifference < 0 && (
+                                  <span className="text-green-700 font-bold block">
+                                    Surplus refund of ₹{Math.abs(selectedOrder.returnRequest.priceDifference)} will be automatically credited to customer.
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              disabled={receiveLoading}
+                              onClick={() => handleReturnReceive("intact_received")}
+                              className="px-4 py-2.5 bg-green-700 hover:bg-green-800 text-white text-xs font-semibold rounded-lg shrink-0 disabled:opacity-50"
+                            >
+                              Confirm Safe Reception
+                            </button>
+                          </div>
+
+                          {/* Option 2: Received Broken in Reverse Transit (50% Policy) */}
+                          <div className="p-3 bg-red-50 rounded-lg border border-red-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                            <div className="text-left">
+                              <p className="text-xs font-bold text-red-800">⚠️ Damaged in Reverse Courier Transit (Apply 50% Rule)</p>
+                              <p className="text-[10px] text-red-700/80">
+                                Customer sent idol, but it broke on the way to seller. As per policy, customer receives a <strong>50% compensation refund (₹{Math.round((selectedOrder.returnRequest.originalPrice || selectedOrder.totalAmount) * 0.5)})</strong> and exchange is closed.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              disabled={receiveLoading}
+                              onClick={() => {
+                                if (window.confirm(`Are you sure you want to apply the 50% Reverse Transit Damage policy? This will refund ₹${Math.round((selectedOrder.returnRequest.originalPrice || selectedOrder.totalAmount) * 0.5)} (50%) to the customer via Razorpay and complete this case.`)) {
+                                  handleReturnReceive("transit_damaged_50_percent");
+                                }
+                              }}
+                              className="px-4 py-2.5 bg-red-700 hover:bg-red-800 text-white text-xs font-semibold rounded-lg shrink-0 disabled:opacity-50"
+                            >
+                              Apply 50% Refund & Close
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className={`p-4 rounded-xl text-center text-xs space-y-2 ${selectedOrder.returnRequest.status === "completed"
-                      ? "bg-green-50 text-green-800"
+                      ? "bg-green-50 text-green-800 border border-green-200"
                       : selectedOrder.returnRequest.status === "rejected"
-                        ? "bg-red-50 text-red-800"
-                        : "bg-blue-50 text-blue-800"
+                        ? "bg-red-50 text-red-800 border border-red-200"
+                        : "bg-blue-50 text-blue-800 border border-blue-200"
                       }`}>
                       <p>This claim has been processed and is marked as <strong>{selectedOrder.returnRequest.status.toUpperCase()}</strong>.</p>
+                      
+                      {selectedOrder.returnRequest.inspectionResult === "transit_damaged_50_percent" && (
+                        <p className="text-[11px] font-bold text-amber-800">
+                          ⚠️ 50% Reverse Transit Damage Compensation Applied: ₹{selectedOrder.returnRequest.transitDamageCompensationAmount} Refunded to Customer.
+                        </p>
+                      )}
+
                       {selectedOrder.paymentInfo?.razorpayRefundId && (
-                        <p className="text-[10px] font-mono text-charcoal/50">Refund ID: {selectedOrder.paymentInfo.razorpayRefundId}</p>
+                        <p className="text-[10px] font-mono text-charcoal/50">Full Refund ID: {selectedOrder.paymentInfo.razorpayRefundId}</p>
+                      )}
+
+                      {selectedOrder.returnRequest.transitDamageRefundId && (
+                        <p className="text-[10px] font-mono text-charcoal/50">50% Compensation Refund ID: {selectedOrder.returnRequest.transitDamageRefundId}</p>
+                      )}
+
+                      {selectedOrder.returnRequest.differencePaymentInfo?.refundId && (
+                        <p className="text-[10px] font-mono text-charcoal/50">Surplus Refund ID: {selectedOrder.returnRequest.differencePaymentInfo.refundId}</p>
                       )}
                     </div>
                   )}

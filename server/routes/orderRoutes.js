@@ -7,6 +7,7 @@ const {
   getMyOrders,
   getOrderById,
   createReturnRequest,
+  payExchangeDifference,
   getAllOrders,
   updateOrderStatus,
   reviewReturnRequest,
@@ -40,6 +41,7 @@ router.post("/payment/razorpay/verify", protect, verifyRazorpayPayment);
 router.get("/orders/my-orders", protect, getMyOrders);
 router.get("/orders/:id", protect, getOrderById);
 router.post("/orders/:id/return-request", protect, createReturnRequest);
+router.post("/orders/:id/return-request/pay-difference", protect, payExchangeDifference);
 
 // Admin dashboard & Order management
 router.get("/admin/orders", protect, adminOnly, getAllOrders);
