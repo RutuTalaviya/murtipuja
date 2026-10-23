@@ -10,24 +10,28 @@ const DEFAULT_RETURN_FAQS = [
     a: "We provide a 7-Day Hassle-Free Window starting from the exact calendar day your shipment is marked as delivered by the courier partner. You can request a size exchange, finish swap, or transit damage claim within this 7-day period.",
   },
   {
-    q: "Why is an unboxing video strictly mandatory for all returns and exchanges?",
-    a: "Spiritual murtis are precision 3D-sculpted, consecrated, and feature delicate micro-carvings (e.g. Trishul, Bansuri, Mukut). An unedited, single continuous unboxing video starting from before opening the sealed package is strictly compulsory to verify transit handling and authorize instant replacement or refund approvals.",
+    q: "Why is an unboxing video strictly mandatory for damaged item claims?",
+    a: "Spiritual murtis are precision 3D-sculpted, consecrated, and feature delicate micro-carvings (e.g. Trishul, Bansuri, Mukut). An unedited, single continuous unboxing video starting from before opening the sealed package is strictly compulsory to verify transit handling. Without video proof, returns or exchanges cannot be processed.",
+  },
+  {
+    q: "Can I return an item for a refund if it arrived in good, undamaged condition?",
+    a: "Items received in good, undamaged condition are eligible for Exchange Only (size, deity, or finish swap). Direct return for cash refund is only available for transit-damaged items supported by unboxing video proof.",
+  },
+  {
+    q: "What is the 50% Reverse Transit Damage Rule ('Apply 50% Rule')?",
+    a: "When you return a good-condition item for an exchange, if the idol accidentally suffers breakage or damage during reverse courier transit before reaching our warehouse, MurtiPuja provides a 50% compensation refund of the original item value credited directly back to your payment account via Razorpay upon warehouse inspection.",
+  },
+  {
+    q: "How does the price difference work during an exchange?",
+    a: "If you exchange for a higher-priced idol (e.g. ₹1,500 to ₹2,000), you pay the remaining ₹500 via secure Razorpay checkout before the replacement is dispatched. If you exchange for a lower-priced idol (e.g. ₹1,500 to ₹1,000), the surplus ₹500 will be refunded to your original payment method via Razorpay once your return safely reaches our warehouse.",
   },
   {
     q: "Is reverse doorstep pickup free across India?",
-    a: "Yes, 100% Free! Once your unboxing video claim is verified, our logistics partners (Blue Dart, Delhivery, DTDC) will collect the safely packed parcel directly from your doorstep with zero reverse shipping fees.",
-  },
-  {
-    q: "How fast will my exchange item be dispatched?",
-    a: "Once your reverse pickup is initiated or damage claim verified with unboxing video proof, your fresh replacement murti is dispatched via Express Air Courier within 24 hours with live WhatsApp tracking updates.",
+    a: "Yes, 100% Free! Once your claim or exchange is verified, our logistics partners (Delhivery, Blue Dart, DTDC) will collect the safely packed parcel directly from your doorstep with zero reverse shipping fees.",
   },
   {
     q: "How and when are refunds processed?",
-    a: "All MurtiPuja orders are 100% prepaid. Approved refunds are processed directly via Razorpay back to your original source payment method (Bank Account, UPI, or Card) within 24 to 48 hours of warehouse inspection.",
-  },
-  {
-    q: "Can I exchange for a larger size or a different deity sculpture?",
-    a: "Yes! You can exchange for any available size or finish variant. If there is a price difference, our concierge team will share a direct secure Razorpay payment link or instantly refund any surplus amount.",
+    a: "All MurtiPuja refunds are processed directly via Razorpay back to your original source payment method (Bank Account, UPI, or Card) within 24 to 48 hours of warehouse inspection.",
   },
 ];
 
@@ -273,6 +277,49 @@ export default function RefundPolicyPage() {
                   <p className="text-xs sm:text-sm text-neutral-600 font-semibold leading-relaxed pl-0 sm:pl-10">
                     MurtiPuja operates exclusively on a 100% prepaid model to ensure expedited air dispatch. Approved refunds are credited directly back to the original source payment method (Bank Account, UPI, or Card via 256-bit SSL Razorpay) within <strong>24 to 48 hours</strong> of warehouse reception.
                   </p>
+                </div>
+
+                {/* Section 6: 50% Reverse Transit Damage Rule */}
+                <div className="bg-amber-50/70 border border-amber-200 shadow-sm p-6 sm:p-8 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 bg-amber-600 text-white font-extrabold text-xs flex items-center justify-center">
+                      6
+                    </span>
+                    <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
+                      50% Reverse Courier Transit Damage Compensation Rule
+                    </h2>
+                  </div>
+                  <div className="text-xs sm:text-sm text-neutral-700 font-semibold leading-relaxed pl-0 sm:pl-10 space-y-2">
+                    <p>
+                      If a customer initiates an exchange for an item received in good condition, and during reverse courier transit back to our workshop the sculpture suffers accidental damage or breakage:
+                    </p>
+                    <div className="bg-white p-4 border border-amber-300">
+                      <p className="font-bold text-amber-900 uppercase text-xs">Warehouse 50% Compensation Policy:</p>
+                      <p className="text-neutral-700 text-xs mt-1">
+                        Upon physical inspection and recording of courier transit damage, a <strong>50% compensation refund</strong> of the product value is immediately issued back to the customer's original payment method via Razorpay.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 7: Exchange Price Difference Handling */}
+                <div className="bg-white border border-stone-200 shadow-sm p-6 sm:p-8 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 bg-black text-white font-extrabold text-xs flex items-center justify-center">
+                      7
+                    </span>
+                    <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
+                      Exchange Price Difference (Upgrade vs. Downgrade)
+                    </h2>
+                  </div>
+                  <ul className="list-disc pl-5 sm:pl-14 text-xs sm:text-sm text-neutral-600 font-semibold space-y-2 leading-relaxed">
+                    <li>
+                      <strong>Upgrade:</strong> If you select a higher-priced product variant (e.g. ₹1,500 to ₹2,000), the difference (+₹500) must be paid online via Razorpay before the replacement product order is confirmed.
+                    </li>
+                    <li>
+                      <strong>Downgrade:</strong> If you select a lower-priced product variant (e.g. ₹1,500 to ₹1,000), the surplus balance (-₹500) will be refunded to your original payment account via Razorpay once your returned idol is safely inspected at our warehouse.
+                    </li>
+                  </ul>
                 </div>
               </>
             )}
