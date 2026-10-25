@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import ImageWithSkeleton from "@/components/ImageWithSkeleton";
-import { getOrderById, submitReturnRequest, payExchangeDifference, getProducts } from "@/lib/api";
+import { getOrderById, cancelMyOrder, submitReturnRequest, payExchangeDifference, getProducts } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
 const STATUS_STEPS = ["placed", "confirmed", "shipped", "out_for_delivery", "delivered"];
@@ -30,6 +30,29 @@ export default function OrderDetailPage() {
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
   const [formLoading, setFormLoading] = useState(false);
+
+  // Cancellation state
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("Placed order by mistake");
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelError, setCancelError] = useState("");
+  const [cancelSuccess, setCancelSuccess] = useState("");
+
+  async function handleCancelOrder(e) {
+    if (e) e.preventDefault();
+    setCancelLoading(true);
+    setCancelError("");
+    try {
+      const res = await cancelMyOrder(order._id, { reason: cancelReason });
+      setCancelSuccess("Order cancelled successfully. 100% full refund has been initiated.");
+      setOrder(res.data.order);
+      setCancelModalOpen(false);
+    } catch (err) {
+      setCancelError(err.response?.data?.message || "Failed to cancel order. Please contact support.");
+    } finally {
+      setCancelLoading(false);
+    }
+  }
 
   async function fetchProductVariants(productId) {
     try {
@@ -277,6 +300,13 @@ export default function OrderDetailPage() {
 
   const activeStepIndex = STATUS_STEPS.indexOf(order.orderStatus);
 
+  // 24-Hour Self-Cancellation calculation
+  const orderPlacedMs = order?.createdAt ? new Date(order.createdAt).getTime() : Date.now();
+  const hoursElapsed = (Date.now() - orderPlacedMs) / (1000 * 60 * 60);
+  const isWithin24Hours = hoursElapsed <= 24;
+  const remainingHours = Math.max(1, Math.ceil(24 - hoursElapsed));
+  const canCancel = order && (order.orderStatus === "placed" || order.orderStatus === "confirmed") && isWithin24Hours;
+
   return (
     <main className="min-h-screen bg-white px-4 md:px-8 lg:px-12 py-8 md:py-12 font-display w-full">
       <div className="w-full space-y-8">
@@ -294,6 +324,14 @@ export default function OrderDetailPage() {
           </div>
         )}
 
+        {/* Cancellation Success Alert */}
+        {cancelSuccess && (
+          <div className="bg-green-50 border-2 border-green-600 text-green-900 p-4 rounded-none">
+            <h3 className="font-extrabold text-sm uppercase tracking-wider mb-0.5">✓ Order Cancelled</h3>
+            <p className="text-xs font-semibold">{cancelSuccess}</p>
+          </div>
+        )}
+
         {/* Order Header Card */}
         <div className="bg-white rounded-none p-6 border-2 border-black flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div>
@@ -308,9 +346,22 @@ export default function OrderDetailPage() {
             </p>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/account/orders/${order._id}/invoice`}
+              target="_blank"
+              className="px-3.5 py-1.5 bg-black hover:bg-gold hover:text-black text-white text-[11px] font-extrabold uppercase tracking-wider border-2 border-black transition-colors flex items-center gap-1.5 shadow-sm"
+              title="View and download printable GST Tax Invoice"
+            >
+              <span>📄</span>
+              <span>Tax Invoice</span>
+            </Link>
             <span className={`text-[9.5px] font-extrabold px-3 py-1 border border-black uppercase tracking-wider ${
-              order.paymentStatus === "paid" ? "bg-green-100 text-green-900" : "bg-amber-100 text-amber-900"
+              order.paymentStatus === "paid"
+                ? "bg-green-100 text-green-900 border-green-700"
+                : order.paymentStatus === "refunded"
+                ? "bg-purple-100 text-purple-900 border-purple-700"
+                : "bg-amber-100 text-amber-900 border-amber-700"
             }`}>
               {order.paymentStatus}
             </span>
@@ -319,6 +370,62 @@ export default function OrderDetailPage() {
             </span>
           </div>
         </div>
+
+        {/* 24-Hour Self-Cancellation Action Banner */}
+        {canCancel && (
+          <div className="bg-amber-50 border-2 border-amber-500 p-5 rounded-none flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⏳</span>
+                <h3 className="font-black text-xs uppercase tracking-wider text-amber-950">
+                  Self-Cancellation Eligible ({remainingHours} hours remaining)
+                </h3>
+              </div>
+              <p className="text-xs text-amber-900 font-semibold leading-relaxed">
+                You can cancel this order within 24 hours of placement for an instant <strong>100% full refund</strong> directly back to your original payment method.
+              </p>
+            </div>
+            <button
+              onClick={() => setCancelModalOpen(true)}
+              className="px-5 py-2.5 bg-white hover:bg-red-600 hover:text-white text-red-600 border-2 border-red-600 text-xs font-black uppercase tracking-widest transition-colors shrink-0 cursor-pointer shadow-sm"
+            >
+              Cancel Order
+            </button>
+          </div>
+        )}
+
+        {/* Order Cancelled Notification Banner */}
+        {order.orderStatus === "cancelled" && (
+          <div className="bg-red-50 border-2 border-red-500 p-5 rounded-none space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🛑</span>
+              <h3 className="font-black text-xs uppercase tracking-wider text-red-950">
+                Order Cancelled
+              </h3>
+            </div>
+            <p className="text-xs text-red-900 font-semibold leading-relaxed">
+              This order was cancelled {order.cancelledAt ? `on ${new Date(order.cancelledAt).toLocaleDateString("en-IN")}` : ""}.
+              {order.cancellationReason && ` Reason: "${order.cancellationReason}".`}
+            </p>
+            <p className="text-xs text-red-800 font-bold">
+              Refund Status: {order.paymentStatus === "refunded"
+                ? "✓ 100% Full Refund has been processed to your original payment method via Razorpay."
+                : "Refund is being processed by accounts."}
+            </p>
+          </div>
+        )}
+
+        {/* Expired 24h Window Notice */}
+        {!canCancel && (order.orderStatus === "placed" || order.orderStatus === "confirmed") && !isWithin24Hours && (
+          <div className="bg-neutral-50 border-2 border-neutral-300 p-3.5 rounded-none flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-600">
+            <p className="font-semibold">
+              ℹ️ Cancellation window expired (self-cancellation is available only within 24 hours of placement).
+            </p>
+            <Link href="/contact" className="text-black font-extrabold underline hover:text-gold uppercase tracking-wider">
+              Contact Devotee Support →
+            </Link>
+          </div>
+        )}
 
         {/* Order Progress Tracker */}
         {order.orderStatus !== "cancelled" && order.orderStatus !== "returned" && (
@@ -795,11 +902,20 @@ export default function OrderDetailPage() {
                 <span>Grand Total</span>
                 <span>₹{order.totalAmount}</span>
               </div>
-              <div className="mt-4 text-[10px] text-neutral-400 font-semibold uppercase tracking-wider space-y-0.5">
-                <p>Method: {order.paymentMethod.toUpperCase()}</p>
-                {order.paymentInfo?.razorpayPaymentId && (
-                  <p>Transaction ID: {order.paymentInfo.razorpayPaymentId}</p>
-                )}
+              <div className="mt-4 pt-3 border-t border-neutral-100 flex flex-wrap justify-between items-center gap-2">
+                <div className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider space-y-0.5">
+                  <p>Method: {order.paymentMethod.toUpperCase()}</p>
+                  {order.paymentInfo?.razorpayPaymentId && (
+                    <p>Transaction ID: {order.paymentInfo.razorpayPaymentId}</p>
+                  )}
+                </div>
+                <Link
+                  href={`/account/orders/${order._id}/invoice`}
+                  target="_blank"
+                  className="text-xs font-bold uppercase tracking-wider text-black hover:text-gold underline flex items-center gap-1"
+                >
+                  <span>📄 Print Tax Invoice →</span>
+                </Link>
               </div>
             </div>
           </div>
@@ -828,6 +944,75 @@ export default function OrderDetailPage() {
             ))}
           </div>
         </div>
+
+        {/* Cancel Order Modal */}
+        {cancelModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <div className="bg-white border-2 border-black max-w-lg w-full p-6 space-y-4 shadow-2xl animate-fadeIn">
+              <div className="flex justify-between items-start border-b-2 border-black pb-3">
+                <div>
+                  <span className="text-[9px] uppercase font-bold tracking-widest text-red-600">Action Confirmation</span>
+                  <h2 className="text-xl font-black uppercase tracking-wider text-black mt-0.5">Cancel Order #{order.orderNumber}?</h2>
+                </div>
+                <button
+                  onClick={() => { setCancelModalOpen(false); setCancelError(""); }}
+                  className="text-neutral-400 hover:text-black font-bold text-lg p-1 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="bg-amber-50 border-l-4 border-amber-500 p-3.5 text-xs text-amber-950 font-semibold space-y-1">
+                <p className="font-bold uppercase tracking-wide">100% Full Refund Guarantee:</p>
+                <p>
+                  A full refund of <strong>₹{order.totalAmount}</strong> will be immediately initiated back to your original source payment method (Bank/UPI/Card via Razorpay).
+                </p>
+              </div>
+
+              {cancelError && (
+                <p className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 p-2.5">
+                  {cancelError}
+                </p>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-xs font-extrabold uppercase tracking-wider text-neutral-700 block">
+                  Please select a cancellation reason:
+                </label>
+                <select
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="w-full border-2 border-black p-3 text-xs font-bold uppercase tracking-wider focus:outline-hidden bg-white"
+                >
+                  <option value="Placed order by mistake">Placed order by mistake</option>
+                  <option value="Change of mind / Need different deity">Change of mind / Need different deity</option>
+                  <option value="Shipping address is incorrect">Shipping address is incorrect</option>
+                  <option value="Expected delivery time too long">Expected delivery time too long</option>
+                  <option value="Ordered another variant or size">Ordered another variant or size</option>
+                  <option value="Other reasons">Other reasons</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setCancelModalOpen(false); setCancelError(""); }}
+                  className="flex-1 py-3 border-2 border-neutral-300 hover:border-black text-black text-xs font-black uppercase tracking-widest transition-colors cursor-pointer"
+                >
+                  Keep Order
+                </button>
+                <button
+                  type="button"
+                  disabled={cancelLoading}
+                  onClick={handleCancelOrder}
+                  className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-widest border-2 border-red-600 transition-colors disabled:opacity-50 cursor-pointer shadow-md"
+                >
+                  {cancelLoading ? "Processing..." : "Confirm Cancellation"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </main>

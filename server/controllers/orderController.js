@@ -319,6 +319,127 @@ async function getOrderById(req, res, next) {
 }
 
 /**
+ * POST /api/orders/:id/cancel
+ * (Authenticated Customer)
+ * body: { reason }
+ * Enforces strict 24-hour window from order placement
+ */
+async function cancelMyOrder(req, res, next) {
+  try {
+    const { reason } = req.body;
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (order.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Not authorized to cancel this order." });
+    }
+
+    if (order.orderStatus === "cancelled") {
+      return res.status(400).json({ message: "Order is already cancelled." });
+    }
+
+    if (["shipped", "out_for_delivery", "delivered", "returned"].includes(order.orderStatus)) {
+      return res.status(400).json({
+        message: `Order cannot be cancelled as it has already been ${order.orderStatus.replace(/_/g, " ")}. You may initiate an exchange or return upon delivery.`
+      });
+    }
+
+    // Enforce strict 24-hour cancellation rule
+    const orderPlacedTime = new Date(order.createdAt).getTime();
+    const hoursElapsed = (Date.now() - orderPlacedTime) / (1000 * 60 * 60);
+
+    if (hoursElapsed > 24) {
+      return res.status(400).json({
+        message: "Order can only be cancelled within 24 hours of placement. Your cancellation window has expired. Please contact support if you need assistance.",
+        hoursElapsed: Math.round(hoursElapsed * 10) / 10
+      });
+    }
+
+    // Restore stock for all purchased variants
+    for (const item of order.items) {
+      if (item.product && item.variantSku) {
+        try {
+          await Product.updateOne(
+            { _id: item.product, "variants.sku": item.variantSku },
+            { $inc: { "variants.$.stock": item.quantity } }
+          );
+        } catch (stockErr) {
+          console.error(`[Cancel Order] Failed to restock SKU ${item.variantSku}:`, stockErr.message);
+        }
+      }
+    }
+
+    // Process refund if prepaid and paid
+    let refundInfo = null;
+    if (order.paymentStatus === "paid" && order.paymentInfo?.razorpayPaymentId) {
+      try {
+        const paymentId = order.paymentInfo.razorpayPaymentId;
+        const refundAmount = Math.round(order.totalAmount * 100);
+
+        if (
+          process.env.RAZORPAY_KEY_ID &&
+          !process.env.RAZORPAY_KEY_ID.includes("mock") &&
+          process.env.RAZORPAY_KEY_SECRET
+        ) {
+          refundInfo = await razorpay.payments.refund(paymentId, {
+            amount: refundAmount,
+            notes: {
+              reason: reason || "Customer self-cancellation within 24 hours",
+              orderId: order._id.toString(),
+              orderNumber: order.orderNumber,
+            },
+          });
+          order.paymentStatus = "refunded";
+        } else {
+          refundInfo = { id: `rfnd_mock_cancel_${Date.now()}`, simulated: true };
+          order.paymentStatus = "refunded";
+        }
+      } catch (refundErr) {
+        console.error("[Cancel Order] Razorpay refund error:", refundErr.message);
+        order.paymentStatus = "refund_pending";
+      }
+    }
+
+    order.orderStatus = "cancelled";
+    order.cancellationReason = reason || "Customer cancelled within 24h window";
+    order.cancelledBy = "customer";
+    order.cancelledAt = new Date();
+
+    if (Array.isArray(order.statusHistory)) {
+      order.statusHistory.push({
+        status: "cancelled",
+        comment: `Self-cancelled by customer within 24h: ${reason || "No reason specified"}`,
+        updatedAt: new Date(),
+      });
+    }
+
+    await order.save();
+
+    // Send WhatsApp notification
+    try {
+      if (order.shippingAddress?.phone) {
+        await sendWhatsAppMessage(
+          order.shippingAddress.phone,
+          `Hi ${req.user.name || "Customer"}, your MurtiPuja order #${order.orderNumber} has been successfully cancelled. A 100% refund of ₹${order.totalAmount} has been initiated back to your original payment method.`
+        );
+      }
+    } catch (msgErr) {
+      console.warn("[Cancel Order] WhatsApp notification skipped:", msgErr.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Order has been cancelled successfully. 100% refund has been initiated.",
+      order,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * POST /api/orders/:id/return-request
  * (Authenticated)
  * body: {
@@ -1411,6 +1532,7 @@ module.exports = {
   verifyRazorpayPayment,
   getMyOrders,
   getOrderById,
+  cancelMyOrder,
   createReturnRequest,
   payExchangeDifference,
   getAllOrders,

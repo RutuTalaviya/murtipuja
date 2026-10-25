@@ -3,11 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
 import { getVariantGalleryMedia } from "@/lib/api";
 
 export default function AddToCartPanel({ product, finishes }) {
   const router = useRouter();
   const { addItem } = useCart();
+  const { isInWishlist, toggleFavorite } = useWishlist();
+  const isFav = isInWishlist(product._id);
 
   // Extract unique sizes and finishes
   const uniqueSizes = [...new Set(product.variants?.map((v) => v.size) || [])];
@@ -247,7 +250,7 @@ export default function AddToCartPanel({ product, finishes }) {
         <button
           onClick={handleAddToCart}
           disabled={!inStock || status === "adding"}
-          className="flex-1 bg-black text-white hover:bg-gold hover:text-black border-2 border-black py-4 rounded-none transition-colors font-extrabold uppercase tracking-widest text-xs disabled:opacity-40"
+          className="flex-1 bg-black text-white hover:bg-gold hover:text-black border-2 border-black py-4 rounded-none transition-colors font-extrabold uppercase tracking-widest text-xs disabled:opacity-40 cursor-pointer shadow-sm"
         >
           {!inStock
             ? "Out of Stock"
@@ -259,9 +262,22 @@ export default function AddToCartPanel({ product, finishes }) {
         </button>
         <button
           onClick={() => router.push("/cart")}
-          className="w-full sm:w-auto sm:px-8 py-4 rounded-none border-2 border-black text-black hover:bg-neutral-100 transition-colors font-extrabold uppercase tracking-widest text-xs text-center"
+          className="w-full sm:w-auto sm:px-6 py-4 rounded-none border-2 border-black text-black hover:bg-neutral-100 transition-colors font-extrabold uppercase tracking-widest text-xs text-center cursor-pointer"
         >
           View Cart
+        </button>
+        <button
+          type="button"
+          onClick={() => toggleFavorite(product._id)}
+          className={`w-full sm:w-14 py-4 sm:py-0 rounded-none border-2 border-black flex items-center justify-center transition-colors cursor-pointer ${
+            isFav ? "bg-red-50 text-red-600 border-red-600" : "bg-white text-neutral-600 hover:text-red-600"
+          }`}
+          title={isFav ? "Remove from wishlist" : "Save to wishlist"}
+          aria-label="Toggle Wishlist"
+        >
+          <svg width="20" height="20" fill={isFav ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+          </svg>
         </button>
       </div>
     </div>

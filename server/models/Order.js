@@ -81,6 +81,9 @@ const orderSchema = new mongoose.Schema(
     ],
     returnPolicyAcknowledged: { type: Boolean, default: false },
     acknowledgedAt: { type: Date },
+    cancellationReason: { type: String },
+    cancelledBy: { type: String, enum: ["customer", "admin"], default: null },
+    cancelledAt: { type: Date },
     returnRequest: {
       isRequested: { type: Boolean, default: false },
       requestType: { type: String, enum: ["exchange", "return"], default: null },

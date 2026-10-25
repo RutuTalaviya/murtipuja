@@ -6,6 +6,7 @@ const {
   verifyRazorpayPayment,
   getMyOrders,
   getOrderById,
+  cancelMyOrder,
   createReturnRequest,
   payExchangeDifference,
   getAllOrders,
@@ -40,6 +41,7 @@ router.post("/payment/razorpay/verify", protect, verifyRazorpayPayment);
 // Customer Account Orders
 router.get("/orders/my-orders", protect, getMyOrders);
 router.get("/orders/:id", protect, getOrderById);
+router.post("/orders/:id/cancel", protect, cancelMyOrder);
 router.post("/orders/:id/return-request", protect, createReturnRequest);
 router.post("/orders/:id/return-request/pay-difference", protect, payExchangeDifference);
 

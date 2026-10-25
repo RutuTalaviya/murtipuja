@@ -106,6 +106,7 @@ export const removeCartItem = (itemId, couponCode, offerId) =>
 // Orders & Returns
 export const getMyOrders = () => api.get("/api/orders/my-orders");
 export const getOrderById = (id) => api.get(`/api/orders/${id}`);
+export const cancelMyOrder = (id, payload) => api.post(`/api/orders/${id}/cancel`, payload || {});
 export const trackOrderPublic = (orderNumber, phone) => api.post("/api/orders/track-public", { orderNumber, phone });
 export const submitReturnRequest = (id, payload) =>
   api.post(`/api/orders/${id}/return-request`, payload);

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
+import { useWishlist } from "@/context/WishlistContext";
 import SearchModal from "./SearchModal";
 import api, { getCategories, getCategoryTree, getNavMenu, getActiveCoupons, getActiveOffers } from "@/lib/api";
 
@@ -12,6 +13,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const { itemCount, setCartDrawerOpen } = useCart();
   const { user, logout, openLoginModal } = useAuth();
+  const { wishlist } = useWishlist();
   const [isSearchOpen, setSearchOpen] = useState(false);
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -713,6 +715,31 @@ export default function Navbar() {
                 </div>
               )}
             </div>
+
+            {/* Wishlist Link with Heart Icon & Count Badge */}
+            <Link
+              href="/wishlist"
+              className="relative p-2 text-black hover:text-red-600 hover:bg-red-50 rounded-full transition-colors flex items-center justify-center cursor-pointer"
+              aria-label="Wishlist"
+              title="Saved Devotional Favorites"
+            >
+              <svg
+                width="22"
+                height="22"
+                fill={wishlist && wishlist.length > 0 ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth="2.2"
+                viewBox="0 0 24 24"
+                className={wishlist && wishlist.length > 0 ? "text-red-600" : ""}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+              </svg>
+              {wishlist && wishlist.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 bg-red-600 text-white text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center border border-white shadow-sm pointer-events-none">
+                  {wishlist.length}
+                </span>
+              )}
+            </Link>
 
             {/* Slide-out Cart Trigger (Icon with Orange Hover & Top-Right Count Badge) */}
             <button
