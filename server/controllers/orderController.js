@@ -7,6 +7,47 @@ const razorpay = require("../config/razorpay");
 const crypto = require("crypto");
 const { calculateCartDiscounts } = require("../utils/discountCalculator");
 const { syncExpiredPromotions } = require("../utils/promotionExpirySync");
+const { sendWhatsAppMessage } = require("../utils/whatsappService");
+
+/**
+ * Automated WhatsApp Notification Dispatcher for Order Lifecycle Milestones
+ */
+async function sendOrderStatusWhatsApp(order, newStatus) {
+  try {
+    const phone = order.shippingAddress?.phone || order.user?.phone;
+    if (!phone) return;
+
+    const customerName = order.shippingAddress?.fullName || order.user?.name || "Customer";
+    const awb = order.delhiveryWaybill || order.awbNumber || order.trackingId || "";
+    let messageText = "";
+
+    switch (newStatus) {
+      case "confirmed":
+        messageText = `Namaste ${customerName}, aapka MurtiPuja order #${order.orderNumber} confirm ho gaya hai! Total: ₹${order.totalAmount}. Hamari team jald hi aapki murti dispatch karegi. Live tracking: https://murtipuja.com/track-order?orderId=${order.orderNumber}`;
+        break;
+      case "shipped":
+        messageText = `Namaste ${customerName}, aapka MurtiPuja order #${order.orderNumber} dispatch ho chuka hai! Courier: ${order.courierPartner || "Delhivery Express"}${awb ? `, AWB: ${awb}` : ""}. Live tracking link: https://murtipuja.com/track-order?orderId=${order.orderNumber}`;
+        break;
+      case "out_for_delivery":
+        messageText = `Namaste ${customerName}, aapka MurtiPuja order #${order.orderNumber} aaj deliver hone ke liye nikal chuka hai (Out for Delivery). Kripya delivery partner se sampark rakhein.`;
+        break;
+      case "delivered":
+        messageText = `Namaste ${customerName}, aapka MurtiPuja order #${order.orderNumber} successfully deliver ho gaya hai! MurtiPuja se judne ke liye aabhar. Kripya parcel open karte waqt unboxing video zaroor banayein.`;
+        break;
+      case "cancelled":
+        messageText = `Namaste ${customerName}, aapka MurtiPuja order #${order.orderNumber} cancel ho gaya hai. Yadi aapne online payment kiya tha to refund 3-5 business days me aapke source account me credit ho jayega.`;
+        break;
+      default:
+        break;
+    }
+
+    if (messageText) {
+      await sendWhatsAppMessage(phone, messageText);
+    }
+  } catch (err) {
+    console.warn(`[WhatsApp Notification] Failed for order ${order.orderNumber} (${newStatus}):`, err.message);
+  }
+}
 
 /**
  * POST /api/coupons/validate
@@ -278,6 +319,9 @@ async function verifyRazorpayPayment(req, res, next) {
 
     // 5. Clear User's Cart
     await Cart.deleteOne({ user: order.user });
+
+    // Automated WhatsApp confirmation to customer
+    sendOrderStatusWhatsApp(order, "confirmed");
 
     return res.status(200).json({ success: true, order });
   } catch (error) {
@@ -751,6 +795,10 @@ async function updateOrderStatus(req, res, next) {
     }
 
     await order.save();
+
+    if (status && status !== previousStatus) {
+      sendOrderStatusWhatsApp(order, status);
+    }
 
     return res.status(200).json(order);
   } catch (error) {
@@ -1367,6 +1415,7 @@ async function pushOrderToDelhivery(req, res, next) {
         order.statusHistory.push({ status: "shipped", updatedAt: new Date() });
       }
       await order.save();
+      sendOrderStatusWhatsApp(order, "shipped");
     }
 
     return res.status(200).json({
@@ -1433,9 +1482,11 @@ async function syncDelhiveryTracking(req, res, next) {
       if (newStatus && order.orderStatus !== newStatus) {
         order.orderStatus = newStatus;
         order.statusHistory.push({ status: newStatus, updatedAt: new Date() });
+        await order.save();
+        sendOrderStatusWhatsApp(order, newStatus);
+      } else {
+        await order.save();
       }
-
-      await order.save();
     }
 
     return res.status(200).json({
@@ -1514,8 +1565,11 @@ async function handleDelhiveryWebhook(req, res, next) {
         if (newStatus && order.orderStatus !== newStatus) {
           order.orderStatus = newStatus;
           order.statusHistory.push({ status: newStatus, updatedAt: new Date() });
+          await order.save();
+          sendOrderStatusWhatsApp(order, newStatus);
+        } else {
+          await order.save();
         }
-        await order.save();
       }
     }
 

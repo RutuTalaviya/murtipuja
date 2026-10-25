@@ -22,7 +22,8 @@ async function sendWhatsAppMessage(phone, messageText) {
   const isDevMode = 
     !process.env.MSG91_AUTH_KEY || 
     process.env.MSG91_AUTH_KEY === "your_msg91_auth_key" || 
-    !process.env.MSG91_WHATSAPP_NUMBER;
+    !process.env.MSG91_WHATSAPP_NUMBER ||
+    process.env.MSG91_WHATSAPP_NUMBER.includes("your_");
 
   if (isDevMode) {
     const timestamp = new Date().toISOString();
