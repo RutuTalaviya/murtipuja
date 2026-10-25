@@ -385,7 +385,7 @@ export default async function ProductDetailPage({ params }) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-12 items-start">
           {/* Left: Product Image & Vertical Gallery (Variant-Specific) */}
           <div className="lg:col-span-7 xl:col-span-7 w-full flex justify-center lg:justify-start lg:pl-2 xl:pl-4">
-            <ImageGallery images={finalGalleryImages} title={product.title} />
+            <ImageGallery images={finalGalleryImages} videos={product.videos} title={product.title} />
           </div>
 
           {/* Right: Product Details & Add to Cart Panel */}

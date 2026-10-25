@@ -5,7 +5,12 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import { formatImageUrl } from "@/lib/api";
 
-function formatMediaItems(items, defaultTitle) {
+function isVideoUrl(url) {
+  if (!url) return false;
+  return /\.(mp4|webm|mov|ogg|m4v)(\?.*)?$/i.test(url);
+}
+
+function formatMediaItems(items, defaultTitle, defaultType = null) {
   const list = Array.isArray(items) ? items : items ? [items] : [];
   const seen = new Set();
   const result = [];
@@ -17,10 +22,12 @@ function formatMediaItems(items, defaultTitle) {
       const formatted = formatImageUrl(cleanUrl);
       if (formatted && !seen.has(formatted)) {
         seen.add(formatted);
+        const isVideo = defaultType === "video" || item?.type === "video" || isVideoUrl(cleanUrl);
         result.push({
           url: formatted,
           alt: (typeof item === "object" ? item?.alt : defaultTitle) || defaultTitle || `View ${idx + 1}`,
-          type: "image",
+          type: isVideo ? "video" : "image",
+          thumbnail: item?.thumbnail ? formatImageUrl(item.thumbnail) : null,
         });
       }
     }
@@ -29,8 +36,15 @@ function formatMediaItems(items, defaultTitle) {
 }
 
 export default function ImageGallery({ images = [], videos = [], title = "" }) {
+  const getCombinedMedia = useCallback(() => {
+    const formattedImages = formatMediaItems(images, title, "image");
+    const formattedVideos = formatMediaItems(videos, title, "video");
+    const combined = [...formattedImages, ...formattedVideos];
+    return combined.length > 0 ? combined : [{ url: "/placeholder.png", alt: title, type: "image" }];
+  }, [images, videos, title]);
+
   const [mounted, setMounted] = useState(false);
-  const [mediaList, setMediaList] = useState(() => formatMediaItems(images, title));
+  const [mediaList, setMediaList] = useState(getCombinedMedia);
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -52,12 +66,12 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
 
   // Sync state with props
   useEffect(() => {
-    const formatted = formatMediaItems(images, title);
-    if (formatted.length > 0) {
-      setMediaList(formatted);
+    const combined = getCombinedMedia();
+    if (combined.length > 0) {
+      setMediaList(combined);
       setActiveIndex(0);
     }
-  }, [images, title]);
+  }, [getCombinedMedia]);
 
   // Variant change listener: Show variant images with full gallery accessible
   useEffect(() => {
@@ -77,7 +91,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
       if (data.image) {
         const formattedUrl = formatImageUrl(data.image);
         if (formattedUrl) {
-          setMediaList([{ url: formattedUrl, alt: `${title} - Selected Variant`, type: "image" }]);
+          setMediaList([{ url: formattedUrl, alt: `${title} - Selected Variant`, type: isVideoUrl(data.image) ? "video" : "image" }]);
           setActiveIndex(0);
         }
       }
