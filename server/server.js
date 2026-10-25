@@ -84,6 +84,8 @@ const corsOptions = {
   optionsSuccessStatus: 200,
 };
 
+const compression = require("compression");
+app.use(compression());
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 app.use(express.json({ limit: "100mb" }));

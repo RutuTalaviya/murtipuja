@@ -53,5 +53,11 @@ const productSchema = new mongoose.Schema(
 // Basic text index to support the autocomplete/search feature
 productSchema.index({ title: "text", deity: "text", tags: "text" });
 
+// High performance catalog sort & filter indexes
+productSchema.index({ createdAt: -1 });
+productSchema.index({ isFeatured: 1, createdAt: -1 });
+productSchema.index({ isOnSale: 1, createdAt: -1 });
+productSchema.index({ basePrice: 1 });
+
 module.exports = mongoose.model("Product", productSchema);
 

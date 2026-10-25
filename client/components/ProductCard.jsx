@@ -117,16 +117,16 @@ export default function ProductCard({ product }) {
       </Link>
 
       {/* Product Details: Name, Category, Price only (Clean minimalist layout) */}
-      <div className="p-4 sm:p-5 flex flex-col justify-between bg-white border-t border-stone-300">
-        <div className="flex justify-between items-start gap-2">
+      <div className="p-2.5 sm:p-5 flex flex-col justify-between bg-white border-t border-stone-300">
+        <div className="flex justify-between items-start gap-1.5 sm:gap-2">
           <div className="min-w-0 flex-1">
             <Link href={`/products/${product.slug}`}>
-              <h3 className="font-display text-[14px] sm:text-[15px] font-extrabold uppercase tracking-wider text-black hover:text-amber-800 transition-colors truncate">
+              <h3 className="font-display text-xs sm:text-[15px] font-extrabold uppercase tracking-wider text-black hover:text-amber-800 transition-colors truncate">
                 {product.title}
               </h3>
             </Link>
-            <div className="flex items-center gap-1.5 flex-wrap mt-1">
-              <span className="text-[11px] text-neutral-500 font-bold uppercase tracking-wider truncate">
+            <div className="flex items-center gap-1 flex-wrap mt-0.5 sm:mt-1">
+              <span className="text-[9px] sm:text-[11px] text-neutral-500 font-bold uppercase tracking-wider truncate">
                 {categoryName.toUpperCase()} {categoryName.toLowerCase().includes("series") ? "" : "SERIES"}
               </span>
             </div>
@@ -134,9 +134,9 @@ export default function ProductCard({ product }) {
 
           {/* Price */}
           <div className="text-right flex-shrink-0">
-            <p className="text-black font-extrabold text-[14px] sm:text-[15px]">
+            <p className="text-black font-extrabold text-xs sm:text-[15px]">
               {currentDiscountPrice && (
-                <span className="text-neutral-400 line-through mr-1 text-xs font-semibold">
+                <span className="text-neutral-400 line-through mr-1 text-[10px] sm:text-xs font-semibold">
                   ₹{currentPrice}
                 </span>
               )}

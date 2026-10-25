@@ -94,6 +94,13 @@ export const verifyOtp = (phone, otp) => api.post("/api/auth/verify-otp", { phon
 export const getMe = () => api.get("/api/auth/me");
 export const updateProfile = (data) => api.put("/api/auth/profile", data);
 
+// Address Book API methods
+export const getAddresses = () => api.get("/api/auth/addresses");
+export const addAddress = (data) => api.post("/api/auth/addresses", data);
+export const updateAddress = (id, data) => api.put(`/api/auth/addresses/${id}`, data);
+export const deleteAddress = (id) => api.delete(`/api/auth/addresses/${id}`);
+export const setDefaultAddress = (id) => api.put(`/api/auth/addresses/${id}/default`);
+
 export const getCart = (couponCode, offerId) => api.get("/api/cart", { params: { couponCode, offerId } });
 export const addToCart = (productId, variantSku, quantity = 1, couponCode, offerId) =>
   api.post("/api/cart/add", { productId, variantSku, quantity }, { params: { couponCode, offerId } });

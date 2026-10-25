@@ -121,6 +121,36 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
     setLightboxPos({ x: 0, y: 0 });
   }, [mediaList.length]);
 
+  // Mobile Touch Swipe Gesture Handling (Main Gallery)
+  const touchStartXRef = useRef(null);
+  const touchStartYRef = useRef(null);
+
+  const handleGalleryTouchStart = (e) => {
+    if (e.touches && e.touches.length === 1) {
+      touchStartXRef.current = e.touches[0].clientX;
+      touchStartYRef.current = e.touches[0].clientY;
+    }
+  };
+
+  const handleGalleryTouchEnd = (e) => {
+    if (touchStartXRef.current === null) return;
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const diffX = touchStartXRef.current - endX;
+    const diffY = touchStartYRef.current - endY;
+
+    // Detect horizontal swipe if delta X > 45px and dominant over vertical scroll
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 45) {
+      if (diffX > 0) {
+        handleNext();
+      } else {
+        handlePrev();
+      }
+    }
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+  };
+
   // Lightbox Controls
   const openLightbox = () => {
     setIsLightboxOpen(true);
@@ -366,6 +396,8 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
           onMouseMove={handleMouseMove}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
+          onTouchStart={handleGalleryTouchStart}
+          onTouchEnd={handleGalleryTouchEnd}
           onClick={openLightbox}
           className={`relative w-full aspect-square max-h-[min(540px,calc(100vh-180px))] bg-neutral-50 rounded-none overflow-hidden border-2 border-black shadow-sm group flex items-center justify-center ${
             activeMedia.type === "video" ? "cursor-default" : "cursor-zoom-in"

@@ -29,7 +29,7 @@ export async function fetchProductBySlug(slug) {
 
 export async function fetchCategories() {
   const res = await fetch(`${API_URL}/api/categories`, {
-    cache: "no-store",
+    next: { revalidate: 60 },
   });
   if (!res.ok) throw new Error("Failed to fetch categories");
   return res.json();
@@ -37,7 +37,7 @@ export async function fetchCategories() {
 
 export async function fetchFinishes() {
   const res = await fetch(`${API_URL}/api/finishes`, {
-    cache: "no-store",
+    next: { revalidate: 60 },
   });
   if (!res.ok) throw new Error("Failed to fetch finishes");
   return res.json();
@@ -46,7 +46,7 @@ export async function fetchFinishes() {
 export async function fetchBanners(params = {}) {
   const query = new URLSearchParams(params).toString();
   const res = await fetch(`${API_URL}/api/banners?${query}`, {
-    cache: "no-store",
+    next: { revalidate: 60 },
   });
   if (!res.ok) throw new Error("Failed to fetch banners");
   return res.json();
@@ -55,7 +55,7 @@ export async function fetchBanners(params = {}) {
 export async function fetchVideos() {
   try {
     const res = await fetch(`${API_URL}/api/videos`, {
-      cache: "no-store",
+      next: { revalidate: 60 },
     });
     if (!res.ok) return { success: true, data: [] };
     return res.json();
@@ -68,7 +68,7 @@ export async function fetchVideos() {
 export async function fetchTags() {
   try {
     const res = await fetch(`${API_URL}/api/tags`, {
-      cache: "no-store",
+      next: { revalidate: 60 },
     });
     if (!res.ok) return [];
     const data = await res.json();
@@ -81,7 +81,7 @@ export async function fetchTags() {
 export async function fetchDeities() {
   try {
     const res = await fetch(`${API_URL}/api/products/deities`, {
-      cache: "no-store",
+      next: { revalidate: 60 },
     });
     const fallback = ["Ram", "Shiva", "Ganesh", "Krishna", "Hanuman", "Durga"];
     if (!res.ok) return fallback;
@@ -109,7 +109,7 @@ export async function fetchDeities() {
 export async function fetchPurposes() {
   try {
     const res = await fetch(`${API_URL}/api/purposes`, {
-      cache: "no-store",
+      next: { revalidate: 60 },
     });
     if (!res.ok) return [];
     const data = await res.json();

@@ -19,8 +19,8 @@ module.exports = {
         charcoal: "#000000",
       },
       fontFamily: {
-        display: ["'Space Grotesk'", "sans-serif"],
-        body: ["'Plus Jakarta Sans'", "sans-serif"],
+        display: ["var(--font-space-grotesk)", "'Space Grotesk'", "sans-serif"],
+        body: ["var(--font-plus-jakarta)", "'Plus Jakarta Sans'", "sans-serif"],
       },
     },
   },

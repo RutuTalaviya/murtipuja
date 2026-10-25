@@ -1,4 +1,5 @@
 import "./globals.css";
+import { Space_Grotesk, Plus_Jakarta_Sans } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
 import { WishlistProvider } from "@/context/WishlistContext";
 import { CartProvider } from "@/context/CartContext";
@@ -7,6 +8,20 @@ import Footer from "@/components/Footer";
 import CartDrawer from "@/components/CartDrawer";
 import LoginModal from "@/components/LoginModal";
 import ShadedBackground from "@/components/ShadedBackground";
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-space-grotesk",
+  display: "swap",
+  weight: ["500", "700"],
+});
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-plus-jakarta",
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
+});
 
 export const metadata = {
   metadataBase: new URL("https://murtipuja.com"),
@@ -145,7 +160,7 @@ export default function RootLayout({ children }) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
       </head>
-      <body className="font-body bg-ivory text-charcoal min-h-screen flex flex-col relative">
+      <body className={`${spaceGrotesk.variable} ${plusJakartaSans.variable} font-body bg-ivory text-charcoal min-h-screen flex flex-col relative`}>
         <ShadedBackground />
         <AuthProvider>
           <WishlistProvider>

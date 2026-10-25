@@ -253,6 +253,7 @@ async function getProducts(req, res, next) {
 
     let [products, total] = await Promise.all([
       Product.find(filter)
+        .select("title slug deity basePrice images isOnSale isFeatured category subCategory variants ratingsAverage ratingsCount tags purpose")
         .populate("category", "name slug icon parentCategory")
         .populate("subCategory", "name slug icon parentCategory")
         .sort(sortOption)

@@ -22,16 +22,36 @@ export default function VideoReelsCarousel({ videos = [] }) {
   // Ref map to manage video elements
   const videoElementsRef = useRef({});
 
-  // Trigger autoplay for all visible videos on mount
+  // Intelligent IntersectionObserver to play ONLY in-view videos (60fps mobile scrolling)
   useEffect(() => {
-    Object.values(videoElementsRef.current).forEach((videoEl) => {
-      if (videoEl) {
-        videoEl.play().catch(() => {
-          videoEl.muted = true;
-          videoEl.play().catch(() => {});
+    if (typeof window === "undefined" || !("IntersectionObserver" in window)) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const videoEl = entry.target;
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            videoEl.play().catch(() => {
+              videoEl.muted = true;
+              videoEl.play().catch(() => {});
+            });
+          } else {
+            videoEl.pause();
+          }
         });
+      },
+      {
+        threshold: [0, 0.5, 1],
       }
-    });
+    );
+
+    const elements = Object.values(videoElementsRef.current).filter(Boolean);
+    elements.forEach((el) => observer.observe(el));
+
+    return () => {
+      elements.forEach((el) => observer.unobserve(el));
+      observer.disconnect();
+    };
   }, [videoList]);
 
   // Check scroll positions
@@ -206,11 +226,10 @@ export default function VideoReelsCarousel({ videos = [] }) {
                         }}
                         src={formatImageUrl(video.videoUrl)}
                         poster={formatImageUrl(video.thumbnailUrl) || undefined}
-                        autoPlay
                         loop
                         muted={!isUnmuted}
                         playsInline
-                        preload="auto"
+                        preload="metadata"
                         className="w-full h-full object-cover rounded-none transition-transform duration-700 group-hover:scale-105"
                       />
                     ) : video.thumbnailUrl ? (

@@ -646,6 +646,13 @@ export default function Navbar() {
                           My Orders & History
                         </Link>
                         <Link
+                          href="/account/addresses"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="block hover:text-orange-500 hover:translate-x-1 transition-all py-0.5"
+                        >
+                          Saved Addresses
+                        </Link>
+                        <Link
                           href="/track-order"
                           onClick={() => setUserMenuOpen(false)}
                           className="block hover:text-orange-500 hover:translate-x-1 transition-all py-0.5"

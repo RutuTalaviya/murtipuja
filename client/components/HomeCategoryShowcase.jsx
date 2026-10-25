@@ -277,10 +277,10 @@ export default function HomeCategoryShowcase({ categories = [], products = [], d
               </Link>
             </div>
 
-            {/* Edge-to-Edge Grid: 1 col mobile, 2 tablet, up to 4 desktop with crisp borders */}
-            <div className="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-stone-300 bg-white">
+            {/* Edge-to-Edge Grid: 2 col mobile, up to 4 desktop with crisp borders */}
+            <div className="w-full grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 divide-stone-300 bg-white">
               {displayProducts.map((product) => (
-                <div key={product._id} className="h-full flex flex-col justify-between w-full">
+                <div key={product._id} className="h-full flex flex-col justify-between w-full border-r border-b border-stone-300">
                   <ProductCard product={product} />
                 </div>
               ))}

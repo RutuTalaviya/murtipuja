@@ -321,10 +321,10 @@ export default function ProductCatalogSection({
           <div
             className={`w-full grid border-t border-l border-stone-300 bg-white transition-all duration-300 ${
               gridCols === 3
-                ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3"
                 : gridCols === 6
                 ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
-                : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+                : "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
             }`}
           >
             {products.map((product) => (
