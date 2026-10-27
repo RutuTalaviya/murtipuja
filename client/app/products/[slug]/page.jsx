@@ -9,6 +9,7 @@ import AddComboButton from "@/components/AddComboButton";
 import RelatedDropsCarousel from "@/components/RelatedDropsCarousel";
 import ProductAccordion from "@/components/ProductAccordion";
 import ProductVideoShowcase from "@/components/ProductVideoShowcase";
+import WhyChooseUs from "@/components/WhyChooseUs";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -521,6 +522,9 @@ export default async function ProductDetailPage({ params }) {
             <ProductAccordion product={product} />
           </div>
         </div>
+
+        {/* Why Choose MurtiPuja Craftsmanship & Trust Section (Silaii Style) */}
+        <WhyChooseUs brandName="MurtiPuja" />
 
         {/* Dynamic Sacred 3D & Showcase Videos Section with Left/Right Arrow Carousel */}
         {product.videos && product.videos.length > 0 && (
