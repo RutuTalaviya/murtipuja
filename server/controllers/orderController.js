@@ -627,8 +627,11 @@ async function createReturnRequest(req, res, next) {
       }
     }
 
+    const isUpgradePaymentRequired = priceDifference > 0;
+
     order.returnRequest = {
-      isRequested: true,
+      // Must NOT be requested/confirmed until customer completes difference payment
+      isRequested: isUpgradePaymentRequired ? false : true,
       requestType,
       claimReasonType,
       condition: isBroken ? "broken_damaged" : "good_condition",
@@ -646,8 +649,8 @@ async function createReturnRequest(req, res, next) {
         : undefined,
       inspectionResult: "pending",
       transitDamageCompensationAmount: 0,
-      status: "requested",
-      requestedAt: new Date(),
+      status: isUpgradePaymentRequired ? null : "requested",
+      requestedAt: isUpgradePaymentRequired ? null : new Date(),
     };
 
     await order.save();
@@ -691,6 +694,10 @@ async function payExchangeDifference(req, res, next) {
       return res.status(400).json({ message: "Invalid payment signature verification." });
     }
 
+    // Activate and confirm the exchange request now that payment is verified
+    order.returnRequest.isRequested = true;
+    order.returnRequest.status = "requested";
+    order.returnRequest.requestedAt = new Date();
     order.returnRequest.differencePaymentStatus = "paid";
     order.returnRequest.differencePaymentInfo = {
       razorpayOrderId,

@@ -147,13 +147,12 @@ export default function OrderDetailPage() {
 
       const res = await submitReturnRequest(order._id, payload);
       const { order: updatedOrder, razorpayOrder, razorpayKeyId, priceDifference } = res.data;
-      setOrder(updatedOrder || res.data);
 
       if (priceDifference > 0 && razorpayOrder) {
-        // Upgrade: Customer needs to pay the price difference
+        // Upgrade: Customer MUST pay the price difference right now to proceed
         const loaded = await loadRazorpay();
         if (!loaded || !window.Razorpay) {
-          setFormSuccess(`Exchange request registered! Please complete difference payment of ₹${priceDifference} to confirm dispatch.`);
+          setFormError(`Payment gateway could not be loaded. Please check your connection and try again.`);
           return;
         }
 
@@ -172,27 +171,32 @@ export default function OrderDetailPage() {
           theme: { color: "#800000" },
           handler: async function (response) {
             try {
-              await payExchangeDifference(order._id, {
+              const payRes = await payExchangeDifference(order._id, {
                 razorpayOrderId: response.razorpay_order_id,
                 razorpayPaymentId: response.razorpay_payment_id,
                 razorpaySignature: response.razorpay_signature,
               });
-              fetchOrder();
+              setOrder(payRes.data?.order || payRes.data);
               setFormSuccess(`Payment of ₹${priceDifference} received! Your exchange request is confirmed.`);
+              setReturnReason("");
+              setVideoUrl("");
             } catch (pErr) {
               setFormError("Payment verification failed. Please contact support.");
             }
           },
           modal: {
             ondismiss: function () {
-              setFormError(`Difference payment of ₹${priceDifference} was not completed. Your exchange request is pending difference payment.`);
-              fetchOrder();
+              setFormError(`Payment incomplete raha. Exchange request register nahi hui hai. Exchange aage badhane ke liye ₹${priceDifference} ka difference us waqt hi pay karna hoga.`);
             },
           },
         };
         const rzp = new window.Razorpay(options);
         rzp.open();
-      } else if (priceDifference < 0) {
+        return;
+      }
+
+      setOrder(updatedOrder || res.data);
+      if (priceDifference < 0) {
         setFormSuccess(`Exchange request submitted! A surplus refund of ₹${Math.abs(priceDifference)} will be processed back to your account once original item is safely received.`);
       } else {
         setFormSuccess("Your claim request has been successfully submitted for review!");
@@ -202,53 +206,6 @@ export default function OrderDetailPage() {
       setVideoUrl("");
     } catch (err) {
       setFormError(err.response?.data?.message || "Failed to submit request.");
-    } finally {
-      setFormLoading(false);
-    }
-  }
-
-  async function handlePayPendingDifference() {
-    if (!order?.returnRequest?.priceDifference || !order?.returnRequest?.differencePaymentInfo?.razorpayOrderId) return;
-    setFormLoading(true);
-    try {
-      const loaded = await loadRazorpay();
-      if (!loaded || !window.Razorpay) {
-        alert("Razorpay gateway could not be loaded. Please refresh.");
-        return;
-      }
-
-      const diff = order.returnRequest.priceDifference;
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_TcNNAglqRPpV08",
-        amount: Math.round(diff * 100),
-        currency: "INR",
-        name: "MurtiPuja",
-        description: `Pay Exchange Difference (+₹${diff})`,
-        order_id: order.returnRequest.differencePaymentInfo.razorpayOrderId,
-        prefill: {
-          name: user?.name || "Customer",
-          email: user?.email || "",
-          contact: user?.phone || "",
-        },
-        theme: { color: "#800000" },
-        handler: async function (response) {
-          try {
-            await payExchangeDifference(order._id, {
-              razorpayOrderId: response.razorpay_order_id,
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpaySignature: response.razorpay_signature,
-            });
-            fetchOrder();
-            setFormSuccess(`Payment of ₹${diff} received! Your exchange request is confirmed.`);
-          } catch (pErr) {
-            setFormError("Payment verification failed.");
-          }
-        },
-      };
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-    } catch (err) {
-      setFormError("Failed to initiate difference payment.");
     } finally {
       setFormLoading(false);
     }
@@ -529,23 +486,12 @@ export default function OrderDetailPage() {
                     <div className="sm:col-span-2 bg-neutral-100 p-3 border border-neutral-300 space-y-1.5">
                       <span className="text-neutral-400 font-extrabold block text-[9.5px]">Price Difference Accounting</span>
                       {order.returnRequest.priceDifference > 0 ? (
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="font-bold text-black">
-                            Upgrade Amount: <span className="text-rose-700 font-extrabold">+₹{order.returnRequest.priceDifference}</span>
-                            <span className="ml-2 text-[10px] uppercase font-extrabold px-1.5 py-0.5 rounded bg-black text-white">
-                              {order.returnRequest.differencePaymentStatus}
-                            </span>
-                          </p>
-                          {order.returnRequest.differencePaymentStatus === "pending" && (
-                            <button
-                              type="button"
-                              onClick={handlePayPendingDifference}
-                              className="px-3.5 py-1.5 bg-black hover:bg-gold hover:text-black text-white text-[10px] font-extrabold uppercase tracking-wider transition-all"
-                            >
-                              💳 Pay ₹{order.returnRequest.priceDifference} Online Now
-                            </button>
-                          )}
-                        </div>
+                        <p className="font-bold text-black">
+                          Upgrade Amount: <span className="text-rose-700 font-extrabold">+₹{order.returnRequest.priceDifference}</span>
+                          <span className="ml-2 text-[10px] uppercase font-extrabold px-1.5 py-0.5 rounded bg-green-700 text-white">
+                            PAID
+                          </span>
+                        </p>
                       ) : (
                         <p className="font-bold text-green-800">
                           Surplus Refund Due: <span className="font-extrabold">₹{Math.abs(order.returnRequest.priceDifference)}</span>
