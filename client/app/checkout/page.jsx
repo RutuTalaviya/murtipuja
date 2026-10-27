@@ -302,17 +302,31 @@ export default function CheckoutPage() {
           color: "#000000",
         },
         modal: {
-          ondismiss: function () {
+          ondismiss: async function () {
             setCheckoutLoading(false);
-            setCheckoutError("Payment was cancelled by the user.");
+            setCheckoutError("Payment was cancelled. Order was NOT placed. Kripya order complete karne ke liye payment complete karein.");
+            try {
+              if (order?._id) {
+                await api.delete(`/api/orders/${order._id}/discard`);
+              }
+            } catch (dErr) {
+              // Ignore discard error
+            }
           },
         },
       };
 
       const rzp = new window.Razorpay(options);
-      rzp.on("payment.failed", function (response) {
-        setCheckoutError(response.error?.description || "Payment failed. Please try again.");
+      rzp.on("payment.failed", async function (response) {
+        setCheckoutError(response.error?.description || "Payment failed. Order was NOT placed.");
         setCheckoutLoading(false);
+        try {
+          if (order?._id) {
+            await api.delete(`/api/orders/${order._id}/discard`);
+          }
+        } catch (dErr) {
+          // Ignore discard error
+        }
       });
       rzp.open();
     } catch (err) {

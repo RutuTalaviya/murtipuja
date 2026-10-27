@@ -25,6 +25,7 @@ const {
   syncDelhiveryTracking,
   getDelhiveryLabel,
   handleDelhiveryWebhook,
+  discardPendingOrder,
 } = require("../controllers/orderController");
 const { protect, adminOnly, optionalAuth } = require("../middleware/auth");
 
@@ -37,6 +38,7 @@ router.post("/orders/track-public", optionalAuth, trackOrderPublic);
 // Orders & Checkout
 router.post("/orders/create", protect, createOrder);
 router.post("/payment/razorpay/verify", protect, verifyRazorpayPayment);
+router.delete("/orders/:id/discard", protect, discardPendingOrder);
 
 // Customer Account Orders
 router.get("/orders/my-orders", protect, getMyOrders);

@@ -179,6 +179,12 @@ async function createOrder(req, res, next) {
     const rand = Math.floor(10000 + Math.random() * 90000); // 5 digit random number
     const orderNumber = `MP-${year}-${rand}`;
 
+    // Clean up any previously abandoned pending checkout attempts for this user
+    await Order.deleteMany({
+      user: req.user._id,
+      paymentStatus: "pending",
+    });
+
     // 7. Create DB entry for Order
     const order = await Order.create({
       orderNumber,
@@ -335,7 +341,11 @@ async function verifyRazorpayPayment(req, res, next) {
  */
 async function getMyOrders(req, res, next) {
   try {
-    const orders = await Order.find({ user: req.user._id }).sort("-createdAt");
+    // Only return orders that have been successfully paid
+    const orders = await Order.find({
+      user: req.user._id,
+      paymentStatus: { $ne: "pending" },
+    }).sort("-createdAt");
     return res.status(200).json(orders);
   } catch (error) {
     next(error);
@@ -356,7 +366,38 @@ async function getOrderById(req, res, next) {
     if (order.user.toString() !== req.user._id.toString() && req.user.role !== "admin") {
       return res.status(403).json({ message: "Not authorized to view this order" });
     }
+    // Block viewing pending orders unless admin
+    if (order.paymentStatus === "pending" && req.user.role !== "admin") {
+      return res.status(400).json({ message: "Payment has not been completed for this order." });
+    }
     return res.status(200).json(order);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * DELETE /api/orders/:id/discard
+ * (Authenticated)
+ * Immediately delete an uncompleted order draft if customer cancels or payment fails
+ */
+async function discardPendingOrder(req, res, next) {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(200).json({ success: true, message: "Order not found or already removed." });
+    }
+
+    if (order.user.toString() !== req.user._id.toString() && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Not authorized to discard this order." });
+    }
+
+    if (order.paymentStatus === "pending") {
+      await Order.findByIdAndDelete(req.params.id);
+      console.log(`[Order Discard] Pending order ${order.orderNumber} deleted because payment was not completed.`);
+    }
+
+    return res.status(200).json({ success: true, message: "Pending order draft removed." });
   } catch (error) {
     next(error);
   }
@@ -722,7 +763,10 @@ async function payExchangeDifference(req, res, next) {
  */
 async function getAllOrders(req, res, next) {
   try {
-    const orders = await Order.find({}).populate("user", "name phone email").sort("-createdAt");
+    // Only return completed/paid orders for the admin order queue
+    const orders = await Order.find({
+      paymentStatus: { $ne: "pending" },
+    }).populate("user", "name phone email").sort("-createdAt");
     return res.status(200).json(orders);
   } catch (error) {
     next(error);
@@ -1336,6 +1380,10 @@ async function trackOrderPublic(req, res, next) {
       return res.status(404).json({ message: "Order not found. Please verify the Order ID." });
     }
 
+    if (order.paymentStatus === "pending") {
+      return res.status(404).json({ message: "Order not found or payment incomplete." });
+    }
+
     // 1. If user is logged in (and not admin), strictly ensure they own this order
     if (req.user && req.user.role !== "admin") {
       const orderUserId = order.user?._id?.toString() || order.user?.toString();
@@ -1612,5 +1660,6 @@ module.exports = {
   syncDelhiveryTracking,
   getDelhiveryLabel,
   handleDelhiveryWebhook,
+  discardPendingOrder,
 };
 
