@@ -598,7 +598,23 @@ async function createReturnRequest(req, res, next) {
       }
     }
 
-    // 3. Price difference calculation for exchange
+    // 3. Offer / Discount Policy: Orders with any offer/coupon/combo are Final Sale (Non-Returnable)
+    const hasOfferApplied = Boolean(
+      (order.couponApplied && typeof order.couponApplied === "string" && order.couponApplied.trim().length > 0) ||
+      (Array.isArray(order.appliedComboOffers) && order.appliedComboOffers.length > 0) ||
+      (Array.isArray(order.appliedAutoOffers) && order.appliedAutoOffers.length > 0) ||
+      (Number(order.discount) > 0) ||
+      (Number(order.comboDiscount) > 0) ||
+      (Number(order.autoOfferDiscount) > 0)
+    );
+
+    if (requestType === "return" && hasOfferApplied) {
+      return res.status(400).json({
+        message: "Orders placed with promotional offers, discount coupons, or combo deals are Final Sale and strictly non-returnable for a refund. You can request a Replacement Exchange if the idol was damaged in transit.",
+      });
+    }
+
+    // 4. Price difference calculation for exchange
     let originalPrice = 0;
     let replacementPrice = 0;
     let priceDifference = 0;

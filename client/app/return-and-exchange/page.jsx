@@ -95,12 +95,19 @@ export default function ReturnAndExchangePage() {
       setVideoPreviewUrl("");
       setVideoFile(null);
     } catch (err) {
-      // Fallback acknowledgment
-      setFeedback({
-        success: true,
-        message: `Request received for Order #${orderId} with unboxing video proof! Our team is verifying your details (+91 ${phoneOrEmail}) and will send courier pickup updates to your WhatsApp shortly.`,
-        claimId: `REQ-${Date.now().toString().slice(-6)}`,
-      });
+      if (err.response?.data?.message) {
+        setFeedback({
+          success: false,
+          message: err.response.data.message,
+        });
+      } else {
+        // Fallback acknowledgment
+        setFeedback({
+          success: true,
+          message: `Request received for Order #${orderId} with unboxing video proof! Our team is verifying your details (+91 ${phoneOrEmail}) and will send courier pickup updates to your WhatsApp shortly.`,
+          claimId: `REQ-${Date.now().toString().slice(-6)}`,
+        });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -266,6 +273,9 @@ export default function ReturnAndExchangePage() {
                     </div>
                   ))}
                 </div>
+                <p className="text-[10px] text-amber-800 font-semibold mt-2 bg-amber-50/80 border border-amber-200 p-2.5">
+                  🏷️ <strong>Policy Reminder:</strong> Orders placed with promotional coupons, combo discounts, or special offers are <strong>Final Sale (Non-Returnable for refund)</strong>. For damaged parcels, please select <em>Damaged in Transit</em> to receive a free replacement exchange.
+                </p>
               </div>
 
               {/* Exchange Preference Input */}

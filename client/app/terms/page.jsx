@@ -120,7 +120,24 @@ export default function TermsPage() {
               </section>
 
               <section className="space-y-2 border-t-2 border-neutral-100 pt-4">
-                <h2 className="font-display text-base text-black font-extrabold uppercase tracking-wider">7. Governing Law & Jurisdiction</h2>
+                <h2 className="font-display text-base text-black font-extrabold uppercase tracking-wider">
+                  7. Promotional Offers, Coupons & Combo Deals (Final Sale & Non-Returnable)
+                </h2>
+                <div className="text-neutral-600 text-xs normal-case leading-relaxed space-y-2">
+                  <p>
+                    All orders placed using promotional discount coupons, combo offers, automated cart discounts, or seasonal campaign pricing are treated as <strong>Final Sale</strong>.
+                  </p>
+                  <div className="bg-amber-50 border-l-4 border-amber-500 p-3 text-neutral-800">
+                    <p className="font-bold text-xs uppercase tracking-wide">Strict No-Return Policy on Offer Orders:</p>
+                    <p className="text-xs mt-1">
+                      Orders purchased with any discount or promotional offer are <strong>strictly non-returnable</strong> for cash refunds. If an item from an offer order arrives physically broken or damaged during courier transit, it is eligible exclusively for a <strong>Replacement Exchange</strong> of the identical deity sculpture, subject to providing the mandatory uncut unboxing video.
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="space-y-2 border-t-2 border-neutral-100 pt-4">
+                <h2 className="font-display text-base text-black font-extrabold uppercase tracking-wider">8. Governing Law & Jurisdiction</h2>
                 <p className="text-neutral-600 text-xs normal-case leading-relaxed">
                   These terms are governed by and construed in accordance with the laws of India, and any disputes shall be subject to the exclusive jurisdiction of the competent courts in Surat, Gujarat, India.
                 </p>

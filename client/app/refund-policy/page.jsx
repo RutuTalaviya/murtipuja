@@ -18,6 +18,10 @@ const DEFAULT_RETURN_FAQS = [
     a: "Items received in good, undamaged condition are eligible for Exchange Only (size, deity, or finish swap). Direct return for cash refund is only available for transit-damaged items supported by unboxing video proof.",
   },
   {
+    q: "Can I return an order for a refund if I used a discount coupon, combo offer, or promotional deal?",
+    a: "No. All orders placed with discount coupons, combo offers, automated cart discounts, or seasonal promotions are treated as Final Sale and are strictly Non-Returnable for cash refunds. If an item from an offer order arrives physically damaged, you can request a free Replacement Exchange of the identical idol with a mandatory unboxing video.",
+  },
+  {
     q: "What is the 50% Reverse Transit Damage Rule ('Apply 50% Rule')?",
     a: "When you return a good-condition item for an exchange, if the idol accidentally suffers breakage or damage during reverse courier transit before reaching our warehouse, MurtiPuja provides a 50% compensation refund of the original item value credited directly back to your payment account via Razorpay upon warehouse inspection.",
   },
@@ -320,6 +324,29 @@ export default function RefundPolicyPage() {
                       <strong>Downgrade:</strong> If you select a lower-priced product variant (e.g. ₹1,500 to ₹1,000), the surplus balance (-₹500) will be refunded to your original payment account via Razorpay once your returned idol is safely inspected at our warehouse.
                     </li>
                   </ul>
+                </div>
+
+                {/* Section 8: Promotional Offers & Discounted Orders (Final Sale) */}
+                <div className="bg-stone-50 border border-stone-200 shadow-sm p-6 sm:p-8 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 bg-black text-white font-extrabold text-xs flex items-center justify-center">
+                      8
+                    </span>
+                    <h2 className="font-display text-base sm:text-lg text-neutral-900 font-extrabold uppercase tracking-wider">
+                      Promotional Offers, Coupons & Combo Deals (Final Sale)
+                    </h2>
+                  </div>
+                  <div className="text-xs sm:text-sm text-neutral-700 font-semibold leading-relaxed pl-0 sm:pl-10 space-y-2">
+                    <p>
+                      Orders purchased using coupons, combo discounts, or promotional pricing are designated as <strong>Final Sale</strong>:
+                    </p>
+                    <div className="bg-amber-50 p-4 border border-amber-300 space-y-1">
+                      <p className="font-bold text-amber-900 uppercase text-xs">🏷️ Strict Non-Returnable Condition:</p>
+                      <p className="text-neutral-700 text-xs mt-1">
+                        Promotional orders are strictly <strong>non-returnable</strong> and non-refundable. If an idol from an offer order sustains verified transit damage, it is eligible exclusively for a <strong>Replacement Exchange</strong> with the mandatory uncut unboxing video.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </>
             )}

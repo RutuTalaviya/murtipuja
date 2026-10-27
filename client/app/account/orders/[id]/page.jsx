@@ -128,6 +128,11 @@ export default function OrderDetailPage() {
       return;
     }
 
+    if (requestType === "return" && hasOfferApplied) {
+      setFormError("Orders purchased with offers, coupons, or combo deals are Final Sale and cannot be returned for a refund.");
+      return;
+    }
+
     if (requestType === "exchange" && !exchangeVariantSku) {
       setFormError("Please select a replacement size/finish variant.");
       return;
@@ -221,6 +226,15 @@ export default function OrderDetailPage() {
   const currentReplacementVariant = selectedProductDetails?.variants?.find((v) => v.sku === exchangeVariantSku);
   const currentReplacementPrice = currentReplacementVariant ? (currentReplacementVariant.discountPrice || currentReplacementVariant.price || 0) : 0;
   const livePriceDiff = requestType === "exchange" && currentReplacementPrice ? (currentReplacementPrice - currentOriginalPrice) : 0;
+
+  const hasOfferApplied = Boolean(
+    (order?.couponApplied && typeof order.couponApplied === "string" && order.couponApplied.trim().length > 0) ||
+    (Array.isArray(order?.appliedComboOffers) && order.appliedComboOffers.length > 0) ||
+    (Array.isArray(order?.appliedAutoOffers) && order.appliedAutoOffers.length > 0) ||
+    (Number(order?.discount) > 0) ||
+    (Number(order?.comboDiscount) > 0) ||
+    (Number(order?.autoOfferDiscount) > 0)
+  );
 
   if (authLoading || loading) {
     return (
@@ -572,6 +586,19 @@ export default function OrderDetailPage() {
                   </div>
                 )}
 
+                {/* Offer Applied Non-Returnable Warning */}
+                {hasOfferApplied && (
+                  <div className="p-3.5 bg-amber-50 border-2 border-amber-300 text-amber-900 text-xs">
+                    <p className="font-extrabold uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                      <span>🏷️</span>
+                      <span>Offer / Coupon Applied — Final Sale</span>
+                    </p>
+                    <p className="text-[11px] font-medium text-amber-800 mt-1 leading-relaxed normal-case">
+                      This order was purchased with a promotional discount or offer. Under MurtiPuja store policy, it is <strong>Non-Returnable for a refund</strong>. If your idol suffered transit damage, an instant free <strong>Replacement Exchange</strong> is guaranteed with an unboxing video.
+                    </p>
+                  </div>
+                )}
+
                 {/* Step 1: Select Item & Claim Reason */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -677,16 +704,20 @@ export default function OrderDetailPage() {
                       <option value="exchange">
                         🔄 Exchange for Replacement (Recommended · Free Swap)
                       </option>
-                      {claimReasonType === "damage" && videoUrl.trim() && (
+                      {claimReasonType === "damage" && videoUrl.trim() && !hasOfferApplied && (
                         <option value="return">💰 Return & Full Refund</option>
                       )}
                     </select>
 
-                    {claimReasonType === "size_color" && (
+                    {hasOfferApplied ? (
+                      <span className="text-[10px] text-amber-800 font-extrabold uppercase tracking-wider block mt-1">
+                        ⚠️ Non-Returnable (Offer Applied): Final Sale policy. Exchange available for damage.
+                      </span>
+                    ) : claimReasonType === "size_color" ? (
                       <span className="text-[10px] text-green-700 font-extrabold uppercase tracking-wider block mt-1">
                         ✓ Exchange Only (Refund not applicable for good condition idols)
                       </span>
-                    )}
+                    ) : null}
                   </div>
 
                   {requestType === "exchange" && selectedProductDetails && (

@@ -89,6 +89,15 @@ export default function CheckoutPage() {
   const shippingFee = calculations.shippingFee;
   const tax = calculations.tax;
   const totalAmount = calculations.totalAmount;
+  const hasOfferApplied = Boolean(
+    appliedCouponCode ||
+    appliedOfferId ||
+    (calculations.couponDiscount > 0) ||
+    (calculations.comboDiscount > 0) ||
+    (calculations.autoOfferDiscount > 0) ||
+    (calculations.appliedCombos && calculations.appliedCombos.length > 0) ||
+    (calculations.appliedOffers && calculations.appliedOffers.length > 0)
+  );
 
   // Load user default address if available
   useEffect(() => {
@@ -904,6 +913,19 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            {/* Offer Applied Non-Returnable Policy Alert */}
+            {hasOfferApplied && (
+              <div className="mt-4 p-3.5 bg-amber-50/90 border-2 border-amber-300 text-left">
+                <div className="flex items-center gap-1.5 text-amber-900 font-extrabold text-[11px] uppercase tracking-wider">
+                  <span>🏷️</span>
+                  <span>Offer Applied — Final Sale</span>
+                </div>
+                <p className="text-[10.5px] text-amber-800 font-semibold mt-1 leading-relaxed">
+                  As per MurtiPuja Terms & Conditions, orders placed with promotional offers, discount coupons, or combo deals are <strong>Non-Returnable for a refund</strong>. In case of transit damage, replacement exchange is guaranteed with a mandatory unboxing video.
+                </p>
+              </div>
+            )}
+
             {/* Place Order Trigger */}
             <div className="mt-8">
               {checkoutError && (
@@ -933,6 +955,7 @@ export default function CheckoutPage() {
         onClose={() => setIsModalOpen(false)}
         onCancel={() => setIsModalOpen(false)}
         onConfirm={handleConfirmOrder}
+        hasOfferApplied={hasOfferApplied}
       />
     </main>
   );
