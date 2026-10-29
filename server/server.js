@@ -29,6 +29,7 @@ require("./models/Video");
 require("./models/PageContent");
 require("./models/Tag");
 require("./models/Purpose");
+require("./models/Inquiry");
 
 const categoryRoutes = require("./routes/categoryRoutes");
 const finishRoutes = require("./routes/finishRoutes");

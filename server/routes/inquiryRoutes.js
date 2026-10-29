@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Inquiry = require("../models/Inquiry");
-const { protect, admin } = require("../middleware/authMiddleware");
+const { protect, adminOnly } = require("../middleware/auth");
 
 // POST /api/inquiries (Public lead submission)
 router.post("/", async (req, res) => {
@@ -44,7 +44,7 @@ router.post("/", async (req, res) => {
 });
 
 // GET /api/inquiries (Admin only)
-router.get("/", protect, admin, async (req, res) => {
+router.get("/", protect, adminOnly, async (req, res) => {
   try {
     const inquiries = await Inquiry.find().sort({ createdAt: -1 });
     res.json(inquiries);
