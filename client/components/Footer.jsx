@@ -84,7 +84,7 @@ export default function Footer() {
             <ul className="space-y-2.5 text-xs text-white/60 font-semibold uppercase tracking-wider">
               <li><Link href="/products" className="hover:text-gold transition-colors">All Sculptures</Link></li>
               <li><Link href="/products?purpose=pooja-room" className="hover:text-gold transition-colors">Pooja Essentials</Link></li>
-              <li><Link href="/contact" className="hover:text-gold transition-colors">Custom & Bulk Orders</Link></li>
+              <li><Link href="/bulk-inquiry" className="hover:text-gold transition-colors">Custom & Bulk Orders</Link></li>
             </ul>
           </div>
 
@@ -116,9 +116,10 @@ export default function Footer() {
                   href="https://wa.me/917990138678?text=Hi%20MurtiPuja%20Support,%20I%20have%20an%20inquiry."
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-gold transition-colors text-gold"
+                  className="hover:text-gold transition-colors text-gold inline-flex items-center gap-1.5"
                 >
-                  WhatsApp: +91 79901 38678
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Chat on WhatsApp
                 </a>
               </li>
             </ul>
