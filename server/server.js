@@ -38,6 +38,7 @@ const navMenuRoutes = require("./routes/navMenuRoutes");
 const bannerRoutes = require("./routes/bannerRoutes");
 const videoRoutes = require("./routes/videoRoutes");
 const pageRoutes = require("./routes/pageRoutes");
+const inquiryRoutes = require("./routes/inquiryRoutes");
 
 const { syncExpiredPromotions } = require("./utils/promotionExpirySync");
 const { autoSyncActiveDelhiveryOrders } = require("./utils/delhivery");
@@ -211,6 +212,7 @@ app.use("/api", navMenuRoutes);
 app.use("/api", bannerRoutes);
 app.use("/api", videoRoutes);
 app.use("/api/pages", pageRoutes);
+app.use("/api/inquiries", inquiryRoutes);
 
 // ALSO mount routes without /api prefix (for Nginx reverse proxies that strip /api)
 app.use("/auth", authRoutes);
@@ -226,6 +228,7 @@ app.use("/", navMenuRoutes);
 app.use("/", bannerRoutes);
 app.use("/", videoRoutes);
 app.use("/pages", pageRoutes);
+app.use("/inquiries", inquiryRoutes);
 
 app.use(notFound);
 

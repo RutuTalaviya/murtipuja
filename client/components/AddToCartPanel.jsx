@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { getVariantGalleryMedia } from "@/lib/api";
+import BulkInquiryModal from "@/components/BulkInquiryModal";
 
 export default function AddToCartPanel({ product, finishes }) {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function AddToCartPanel({ product, finishes }) {
   const [quantity, setQuantity] = useState(1);
   const [status, setStatus] = useState(""); // "", "adding", "added", "error"
   const [message, setMessage] = useState("");
+  const [showBulkModal, setShowBulkModal] = useState(false);
 
   // Helper to map finish name to a premium color swatch background
   const getSwatchColor = (finish) => {
@@ -280,6 +282,37 @@ export default function AddToCartPanel({ product, finishes }) {
           </svg>
         </button>
       </div>
+
+      {/* Bulk / Corporate Gifting Inquiry Button */}
+      <button
+        type="button"
+        onClick={() => setShowBulkModal(true)}
+        className="w-full mt-2.5 py-2.5 px-3.5 border-2 border-dashed border-stone-300 hover:border-black bg-stone-50 hover:bg-amber-50/50 text-neutral-800 hover:text-black flex items-center justify-between transition-all rounded-none group cursor-pointer"
+      >
+        <div className="flex items-center gap-2.5">
+          <span className="text-base">🏢</span>
+          <div className="text-left font-display">
+            <p className="text-[11px] font-extrabold uppercase tracking-wider text-black group-hover:text-amber-900 transition-colors">
+              Order In Bulk / Corporate Inquiry
+            </p>
+            <p className="text-[9.5px] text-neutral-500 font-semibold">
+              Special tiered discounts & custom packaging for 10+ idols
+            </p>
+          </div>
+        </div>
+        <span className="text-xs font-black text-neutral-600 group-hover:translate-x-1 group-hover:text-black transition-all">
+          Inquire →
+        </span>
+      </button>
+
+      {/* Bulk Inquiry Modal Popup */}
+      <BulkInquiryModal
+        isOpen={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
+        product={product}
+        selectedSize={selectedSize}
+        selectedFinish={selectedFinish}
+      />
     </div>
   );
 }
