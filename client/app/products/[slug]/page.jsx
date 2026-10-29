@@ -371,7 +371,7 @@ export default async function ProductDetailPage({ params }) {
   );
 
   return (
-    <main className="min-h-screen bg-white px-2 sm:px-4 md:px-6 lg:px-8 py-6 md:py-8 font-display w-full">
+    <main className="min-h-screen bg-white font-display w-full">
       {/* Schema.org Structured Product & Breadcrumb Data for Google Shopping / Search */}
       <script
         type="application/ld+json"
@@ -382,144 +382,147 @@ export default async function ProductDetailPage({ params }) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
 
-      <div className="w-full space-y-16">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-12 items-start">
-          {/* Left: Product Image & Vertical Gallery (Variant-Specific) */}
-          <div className="lg:col-span-7 xl:col-span-7 w-full flex justify-center lg:justify-start lg:pl-2 xl:pl-4">
-            <ImageGallery images={finalGalleryImages} videos={product.videos} title={product.title} />
-          </div>
-
-          {/* Right: Product Details & Add to Cart Panel */}
-          <div className="lg:col-span-5 xl:col-span-5 sticky top-24 space-y-6">
-            <div>
-              <div className="flex items-center gap-2 flex-wrap mb-2">
-                {product.category && product.category.length > 0 ? (
-                  <Link
-                    href={`/products?category=${encodeURIComponent(product.category[0].slug || product.category[0].name || product.category[0])}`}
-                    className="text-[10.5px] uppercase tracking-widest text-amber-800 font-extrabold hover:underline"
-                  >
-                    {product.category[0].name || product.category[0]} Series
-                  </Link>
-                ) : product.deity ? (
-                  <Link
-                    href={`/products?category=${encodeURIComponent(product.deity)}`}
-                    className="text-[10.5px] uppercase tracking-widest text-amber-800 font-extrabold hover:underline"
-                  >
-                    {product.deity} Series
-                  </Link>
-                ) : null}
-                {product.subCategory && product.subCategory.map((sub, idx) => {
-                  const name = typeof sub === "object" ? sub.name : sub;
-                  return (
-                    <Link
-                      key={idx}
-                      href={`/products?subCategory=${encodeURIComponent(name)}`}
-                      className="text-[9.5px] font-extrabold bg-blue-50 hover:bg-black hover:text-white text-blue-900 border border-blue-200 px-2 py-0.5 rounded-none uppercase transition-colors"
-                    >
-                      {name}
-                    </Link>
-                  );
-                })}
-              </div>
-              <h1 className="font-display text-3xl sm:text-4xl font-extrabold uppercase tracking-wide text-black mb-4">{product.title}</h1>
+      <div className="w-full">
+        {/* Top Product Section: Left Image Gallery & Right Add To Cart Details */}
+        <div className="w-full max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 md:pt-6 md:pb-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-12 items-start">
+            {/* Left: Product Image & Vertical Gallery (Variant-Specific) */}
+            <div className="lg:col-span-7 xl:col-span-7 w-full flex justify-center lg:justify-start">
+              <ImageGallery images={finalGalleryImages} videos={product.videos} title={product.title} />
             </div>
 
-            <AddToCartPanel product={product} finishes={finishes} />
-
-            {/* Combo Offers Section */}
-            {product.comboOffers && product.comboOffers.length > 0 && (
-              <div className="mt-8 pt-6 border-t-2 border-neutral-100">
-                <h3 className="font-display text-sm text-black font-extrabold uppercase tracking-widest mb-4 flex items-center gap-1.5">
-                  <span>🎁</span> Available Combo Offers
-                </h3>
-                <div className="space-y-4">
-                  {product.comboOffers.map((combo) => {
-                    const otherProducts = combo.products.filter(
-                      (p) => p._id.toString() !== product._id.toString()
-                    );
-                    if (otherProducts.length === 0) return null;
-
+            {/* Right: Product Details & Add to Cart Panel */}
+            <div className="lg:col-span-5 xl:col-span-5 sticky top-24 space-y-3.5">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                  {product.category && product.category.length > 0 ? (
+                    <Link
+                      href={`/products?category=${encodeURIComponent(product.category[0].slug || product.category[0].name || product.category[0])}`}
+                      className="text-[10.5px] uppercase tracking-widest text-amber-800 font-extrabold hover:underline"
+                    >
+                      {product.category[0].name || product.category[0]} Series
+                    </Link>
+                  ) : product.deity ? (
+                    <Link
+                      href={`/products?category=${encodeURIComponent(product.deity)}`}
+                      className="text-[10.5px] uppercase tracking-widest text-amber-800 font-extrabold hover:underline"
+                    >
+                      {product.deity} Series
+                    </Link>
+                  ) : null}
+                  {product.subCategory && product.subCategory.map((sub, idx) => {
+                    const name = typeof sub === "object" ? sub.name : sub;
                     return (
-                      <div
-                        key={combo._id}
-                        className="bg-neutral-50 border-2 border-black rounded-none p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition-all relative overflow-hidden group"
+                      <Link
+                        key={idx}
+                        href={`/products?subCategory=${encodeURIComponent(name)}`}
+                        className="text-[9.5px] font-extrabold bg-blue-50 hover:bg-black hover:text-white text-blue-900 border border-blue-200 px-2 py-0.5 rounded-none uppercase transition-colors"
                       >
-                        <div className="flex justify-between items-center gap-2">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs">✨</span>
-                            <h4 className="text-xs font-extrabold text-black font-display uppercase tracking-wider">
-                              {combo.title}
-                            </h4>
-                          </div>
-                          <span className="bg-gold text-black text-[10px] font-extrabold px-3 py-1 border border-black rounded-none uppercase tracking-widest">
-                            Save {combo.discountType === "percentage" ? `${combo.discountValue}%` : `₹${combo.discountValue}`}
-                          </span>
-                        </div>
+                        {name}
+                      </Link>
+                    );
+                  })}
+                </div>
+                <h1 className="font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-wide text-black mb-2">{product.title}</h1>
+              </div>
 
-                        {combo.description && (
-                          <p className="text-[11px] text-neutral-500 font-semibold leading-relaxed -mt-2">
-                            {combo.description}
-                          </p>
-                        )}
+              <AddToCartPanel product={product} finishes={finishes} />
 
-                        <div className="flex flex-col sm:flex-row items-center gap-3 py-1">
-                          {/* Current product card */}
-                          <div className="flex items-center gap-2 bg-white p-2 border-2 border-black rounded-none w-full sm:flex-1 min-w-0">
-                            <div className="relative w-12 h-12 rounded-none bg-neutral-100 overflow-hidden flex-shrink-0 border border-neutral-200">
-                              {product.images?.[0]?.url && (
-                                <img
-                                  src={formatImageUrl(product.images[0].url)}
-                                  alt={product.title}
-                                  className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
-                                />
-                              )}
+              {/* Combo Offers Section */}
+              {product.comboOffers && product.comboOffers.length > 0 && (
+                <div className="mt-5 pt-4 border-t-2 border-neutral-100">
+                  <h3 className="font-display text-xs sm:text-sm text-black font-extrabold uppercase tracking-widest mb-2.5 flex items-center gap-1.5">
+                    <span>🎁</span> Available Combo Offers
+                  </h3>
+                  <div className="space-y-3">
+                    {product.comboOffers.map((combo) => {
+                      const otherProducts = combo.products.filter(
+                        (p) => p._id.toString() !== product._id.toString()
+                      );
+                      if (otherProducts.length === 0) return null;
+
+                      return (
+                        <div
+                          key={combo._id}
+                          className="bg-neutral-50 border-2 border-black rounded-none p-3.5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-all relative overflow-hidden group"
+                        >
+                          <div className="flex justify-between items-center gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs">✨</span>
+                              <h4 className="text-xs font-extrabold text-black font-display uppercase tracking-wider">
+                                {combo.title}
+                              </h4>
                             </div>
-                            <div className="text-left min-w-0 font-display">
-                              <p className="text-[10px] font-extrabold text-black uppercase tracking-wider">This Item</p>
-                              <p className="text-[10px] text-neutral-500 font-semibold truncate">{product.title}</p>
-                            </div>
+                            <span className="bg-gold text-black text-[10px] font-extrabold px-3 py-0.5 border border-black rounded-none uppercase tracking-widest">
+                              Save {combo.discountType === "percentage" ? `${combo.discountValue}%` : `₹${combo.discountValue}`}
+                            </span>
                           </div>
 
-                          {/* Separator badge */}
-                          <div className="w-7 h-7 rounded-none border-2 border-black bg-gold text-black flex items-center justify-center font-extrabold text-xs flex-shrink-0">
-                            +
-                          </div>
+                          {combo.description && (
+                            <p className="text-[11px] text-neutral-500 font-semibold leading-relaxed -mt-1">
+                              {combo.description}
+                            </p>
+                          )}
 
-                          {/* Other product card */}
-                          {otherProducts.map((op) => (
-                            <div key={op._id} className="flex items-center gap-2 bg-white p-2 border-2 border-black rounded-none w-full sm:flex-1 min-w-0">
-                              <div className="relative w-12 h-12 rounded-none bg-neutral-100 overflow-hidden flex-shrink-0 border border-neutral-200">
-                                {op.images?.[0]?.url && (
+                          <div className="flex flex-col sm:flex-row items-center gap-2.5 py-0.5">
+                            {/* Current product card */}
+                            <div className="flex items-center gap-2 bg-white p-2 border-2 border-black rounded-none w-full sm:flex-1 min-w-0">
+                              <div className="relative w-11 h-11 rounded-none bg-neutral-100 overflow-hidden flex-shrink-0 border border-neutral-200">
+                                {product.images?.[0]?.url && (
                                   <img
-                                    src={formatImageUrl(op.images[0].url)}
-                                    alt={op.title}
+                                    src={formatImageUrl(product.images[0].url)}
+                                    alt={product.title}
                                     className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
                                   />
                                 )}
                               </div>
                               <div className="text-left min-w-0 font-display">
-                                <p className="text-[10px] font-extrabold text-black uppercase tracking-wider">Add Product</p>
-                                <p className="text-[10px] text-neutral-500 font-semibold truncate" title={op.title}>{op.title}</p>
+                                <p className="text-[10px] font-extrabold text-black uppercase tracking-wider">This Item</p>
+                                <p className="text-[10px] text-neutral-500 font-semibold truncate">{product.title}</p>
                               </div>
                             </div>
-                          ))}
-                        </div>
 
-                        <div className="space-y-2">
-                          <AddComboButton combo={combo} product={product} />
-                          <p className="text-[9px] text-center text-neutral-400 font-bold uppercase tracking-wider">
-                            💡 Bundle includes default variant configurations for each murti
-                          </p>
+                            {/* Separator badge */}
+                            <div className="w-6 h-6 rounded-none border-2 border-black bg-gold text-black flex items-center justify-center font-extrabold text-xs flex-shrink-0">
+                              +
+                            </div>
+
+                            {/* Other product card */}
+                            {otherProducts.map((op) => (
+                              <div key={op._id} className="flex items-center gap-2 bg-white p-2 border-2 border-black rounded-none w-full sm:flex-1 min-w-0">
+                                <div className="relative w-11 h-11 rounded-none bg-neutral-100 overflow-hidden flex-shrink-0 border border-neutral-200">
+                                  {op.images?.[0]?.url && (
+                                    <img
+                                      src={formatImageUrl(op.images[0].url)}
+                                      alt={op.title}
+                                      className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+                                    />
+                                  )}
+                                </div>
+                                <div className="text-left min-w-0 font-display">
+                                  <p className="text-[10px] font-extrabold text-black uppercase tracking-wider">Add Product</p>
+                                  <p className="text-[10px] text-neutral-500 font-semibold truncate" title={op.title}>{op.title}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <AddComboButton combo={combo} product={product} />
+                            <p className="text-[9px] text-center text-neutral-400 font-bold uppercase tracking-wider">
+                              💡 Bundle includes default variant configurations for each murti
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Interactive Accordion: Product Details, Materials & Care, Shipping & Returns */}
-            <ProductAccordion product={product} />
+              {/* Interactive Accordion: Product Details, Materials & Care, Shipping & Returns */}
+              <ProductAccordion product={product} />
+            </div>
           </div>
         </div>
 

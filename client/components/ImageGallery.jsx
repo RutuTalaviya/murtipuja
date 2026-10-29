@@ -359,7 +359,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
   const activeMedia = mediaList[activeIndex] || mediaList[0];
 
   return (
-    <div className="w-full flex flex-col md:flex-row gap-3 sm:gap-4 md:gap-6 items-start font-display md:pl-3 lg:pl-6">
+    <div className="w-full flex flex-col md:flex-row gap-3 sm:gap-4 md:gap-6 items-start font-display">
       {/* ------------------------------------------------------------- */}
       {/* 1. LEFT VERTICAL THUMBNAILS (Desktop) */}
       {/* ------------------------------------------------------------- */}
@@ -404,7 +404,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
       {/* ------------------------------------------------------------- */}
       {/* 2. MAIN ACTIVE MEDIA DISPLAY (With Interactive Hover Zoom) */}
       {/* ------------------------------------------------------------- */}
-      <div className="flex-1 w-full max-w-[540px] mx-auto space-y-3">
+      <div className="flex-1 w-full max-w-[540px] space-y-3">
         <div
           ref={mainImageRef}
           onMouseMove={handleMouseMove}

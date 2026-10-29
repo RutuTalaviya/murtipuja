@@ -99,11 +99,11 @@ export default function ProductAccordion({ product }) {
     : [];
 
   return (
-    <div className="w-full border-t border-b border-neutral-200 divide-y divide-neutral-200 mt-8">
+    <div className="w-full border-t border-b border-neutral-200 divide-y divide-neutral-200 mt-5">
       {sections.map((sec) => {
         const isOpen = Boolean(openSections[sec.id]);
         return (
-          <div key={sec.id} className="py-4">
+          <div key={sec.id} className="py-3">
             <button
               type="button"
               onClick={() => toggleSection(sec.id)}
@@ -119,7 +119,7 @@ export default function ProductAccordion({ product }) {
             </button>
 
             {isOpen && (
-              <div className="pt-3.5 pb-1 text-neutral-600 animate-fade-in">
+              <div className="pt-2.5 pb-1 text-neutral-600 animate-fade-in">
                 {renderFormattedContent(sec.content, sec.fallback)}
               </div>
             )}
@@ -132,7 +132,7 @@ export default function ProductAccordion({ product }) {
         const secId = `custom_${idx}`;
         const isOpen = Boolean(openSections[secId]);
         return (
-          <div key={secId} className="py-4">
+          <div key={secId} className="py-3">
             <button
               type="button"
               onClick={() => toggleSection(secId)}
