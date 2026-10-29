@@ -526,9 +526,6 @@ export default async function ProductDetailPage({ params }) {
           </div>
         </div>
 
-        {/* Why Choose MurtiPuja Craftsmanship & Trust Section (Silaii Style) */}
-        <WhyChooseUs brandName="MurtiPuja" />
-
         {/* Dynamic Sacred 3D & Showcase Videos Section with Left/Right Arrow Carousel */}
         {product.videos && product.videos.length > 0 && (
           <ProductVideoShowcase videos={product.videos} productTitle={product.title} />
@@ -538,6 +535,9 @@ export default async function ProductDetailPage({ params }) {
         {relatedProducts.length > 0 && (
           <RelatedDropsCarousel products={relatedProducts} currentDeity={product.deity} />
         )}
+
+        {/* Why Choose MurtiPuja Craftsmanship & Trust Section (Silaii Style - Placed at the end) */}
+        <WhyChooseUs brandName="MurtiPuja" />
       </div>
     </main>
   );
