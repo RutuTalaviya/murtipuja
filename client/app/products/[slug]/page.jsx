@@ -384,7 +384,7 @@ export default async function ProductDetailPage({ params }) {
 
       <div className="w-full">
         {/* Top Product Section: Left Image Gallery & Right Add To Cart Details */}
-        <div className="w-full max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 md:pt-6 md:pb-10">
+        <div className="w-full px-4 md:px-8 lg:px-10 pt-4 pb-8 md:pt-6 md:pb-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-12 items-start">
             {/* Left: Product Image & Vertical Gallery (Variant-Specific) */}
             <div className="lg:col-span-7 xl:col-span-7 w-full flex justify-center lg:justify-start">
