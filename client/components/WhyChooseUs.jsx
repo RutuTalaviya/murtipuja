@@ -51,8 +51,8 @@ export default function WhyChooseUs({ brandName = "MurtiPuja" }) {
       ),
     },
     {
-      id: "worldwide-shipping",
-      title: "WORLDWIDE SHIPPING",
+      id: "all-india-shipping",
+      title: "ALL INDIA SHIPPING",
       icon: (
         <svg
           viewBox="0 0 80 80"
@@ -162,7 +162,7 @@ export default function WhyChooseUs({ brandName = "MurtiPuja" }) {
     },
     {
       id: "happy-customers",
-      title: "ONE LAKH+ HAPPY CUSTOMERS",
+      title: "HAPPY CUSTOMERS",
       icon: (
         <svg
           viewBox="0 0 80 80"
