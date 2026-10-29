@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { getVariantGalleryMedia } from "@/lib/api";
-import BulkInquiryModal from "@/components/BulkInquiryModal";
 
 export default function AddToCartPanel({ product, finishes }) {
   const router = useRouter();
@@ -23,7 +23,6 @@ export default function AddToCartPanel({ product, finishes }) {
   const [quantity, setQuantity] = useState(1);
   const [status, setStatus] = useState(""); // "", "adding", "added", "error"
   const [message, setMessage] = useState("");
-  const [showBulkModal, setShowBulkModal] = useState(false);
 
   // Helper to map finish name to a premium color swatch background
   const getSwatchColor = (finish) => {
@@ -283,11 +282,10 @@ export default function AddToCartPanel({ product, finishes }) {
         </button>
       </div>
 
-      {/* Bulk / Corporate Gifting Inquiry Button */}
-      <button
-        type="button"
-        onClick={() => setShowBulkModal(true)}
-        className="w-full mt-2.5 py-2.5 px-3.5 border-2 border-dashed border-stone-300 hover:border-black bg-stone-50 hover:bg-amber-50/50 text-neutral-800 hover:text-black flex items-center justify-between transition-all rounded-none group cursor-pointer"
+      {/* Bulk / Corporate Gifting Inquiry Link */}
+      <Link
+        href={`/bulk-inquiry?product=${encodeURIComponent(product?.title || "")}&size=${encodeURIComponent(selectedSize || "")}&finish=${encodeURIComponent(selectedFinish || "")}`}
+        className="w-full mt-2.5 py-2.5 px-3.5 border-2 border-dashed border-stone-300 hover:border-black bg-stone-50 hover:bg-amber-50/50 text-neutral-800 hover:text-black flex items-center justify-between transition-all rounded-none group"
       >
         <div className="flex items-center gap-2.5">
           <span className="text-base">🏢</span>
@@ -303,16 +301,7 @@ export default function AddToCartPanel({ product, finishes }) {
         <span className="text-xs font-black text-neutral-600 group-hover:translate-x-1 group-hover:text-black transition-all">
           Inquire →
         </span>
-      </button>
-
-      {/* Bulk Inquiry Modal Popup */}
-      <BulkInquiryModal
-        isOpen={showBulkModal}
-        onClose={() => setShowBulkModal(false)}
-        product={product}
-        selectedSize={selectedSize}
-        selectedFinish={selectedFinish}
-      />
+      </Link>
     </div>
   );
 }
