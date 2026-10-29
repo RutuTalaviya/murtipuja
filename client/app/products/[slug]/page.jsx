@@ -385,14 +385,14 @@ export default async function ProductDetailPage({ params }) {
       <div className="w-full">
         {/* Top Product Section: Left Image Gallery & Right Add To Cart Details */}
         <div className="w-full px-4 md:px-8 lg:px-10 pt-4 pb-8 md:pt-6 md:pb-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-12 items-start">
-            {/* Left: Product Image & Vertical Gallery (Variant-Specific) */}
-            <div className="lg:col-span-7 xl:col-span-7 w-full flex justify-center lg:justify-start">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-7 xl:gap-8 items-start">
+            {/* Left: Product Image & Vertical Gallery (Sticky on Scroll) */}
+            <div className="lg:col-span-7 xl:col-span-7 w-full lg:sticky lg:top-28 self-start">
               <ImageGallery images={finalGalleryImages} videos={product.videos} title={product.title} />
             </div>
 
-            {/* Right: Product Details & Add to Cart Panel */}
-            <div className="lg:col-span-5 xl:col-span-5 sticky top-24 space-y-3.5">
+            {/* Right: Product Details & Add to Cart Panel (Scrollable) */}
+            <div className="lg:col-span-5 xl:col-span-5 w-full space-y-3.5">
               <div>
                 <div className="flex items-center gap-2 flex-wrap mb-1.5">
                   {product.category && product.category.length > 0 ? (

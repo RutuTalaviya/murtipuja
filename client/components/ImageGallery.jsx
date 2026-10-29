@@ -364,7 +364,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
       {/* 1. LEFT VERTICAL THUMBNAILS (Desktop) */}
       {/* ------------------------------------------------------------- */}
       {mediaList.length > 1 && (
-        <div className="hidden md:flex flex-col gap-2.5 sm:gap-3 overflow-x-hidden overflow-y-auto w-16 lg:w-20 max-h-[min(540px,calc(100vh-180px))] no-scrollbar flex-shrink-0 py-0.5">
+        <div className="hidden md:flex flex-col gap-2.5 sm:gap-3 overflow-x-hidden overflow-y-auto w-16 lg:w-20 max-h-[min(620px,calc(100vh-160px))] xl:max-h-[min(680px,calc(100vh-160px))] no-scrollbar flex-shrink-0 py-0.5">
           {mediaList.map((media, idx) => (
             <button
               key={idx}
@@ -404,7 +404,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
       {/* ------------------------------------------------------------- */}
       {/* 2. MAIN ACTIVE MEDIA DISPLAY (With Interactive Hover Zoom) */}
       {/* ------------------------------------------------------------- */}
-      <div className="flex-1 w-full max-w-[540px] space-y-3">
+      <div className="flex-1 w-full max-w-[620px] xl:max-w-[680px] space-y-3">
         <div
           ref={mainImageRef}
           onMouseMove={handleMouseMove}
@@ -413,7 +413,7 @@ export default function ImageGallery({ images = [], videos = [], title = "" }) {
           onTouchStart={handleGalleryTouchStart}
           onTouchEnd={handleGalleryTouchEnd}
           onClick={openLightbox}
-          className={`relative w-full aspect-square max-h-[min(540px,calc(100vh-180px))] bg-neutral-50 rounded-none overflow-hidden border-2 border-black shadow-sm group flex items-center justify-center ${
+          className={`relative w-full aspect-square max-h-[min(620px,calc(100vh-160px))] xl:max-h-[min(680px,calc(100vh-160px))] bg-neutral-50 rounded-none overflow-hidden border-2 border-black shadow-sm group flex items-center justify-center ${
             activeMedia.type === "video" ? "cursor-default" : "cursor-zoom-in"
           }`}
         >
