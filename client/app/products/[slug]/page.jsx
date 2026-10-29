@@ -8,7 +8,7 @@ import ImageGallery from "@/components/ImageGallery";
 import AddComboButton from "@/components/AddComboButton";
 import RelatedDropsCarousel from "@/components/RelatedDropsCarousel";
 import ProductAccordion from "@/components/ProductAccordion";
-import ProductVideoShowcase from "@/components/ProductVideoShowcase";
+import ProductSideVideoReels from "@/components/ProductSideVideoReels";
 import WhyChooseUs from "@/components/WhyChooseUs";
 
 export const dynamic = "force-dynamic";
@@ -428,6 +428,11 @@ export default async function ProductDetailPage({ params }) {
 
               <AddToCartPanel product={product} finishes={finishes} />
 
+              {/* Product Video Reels Showcase in Details Column (Reels Style) */}
+              {product.videos && product.videos.length > 0 && (
+                <ProductSideVideoReels videos={product.videos} productTitle={product.title} />
+              )}
+
               {/* Combo Offers Section */}
               {product.comboOffers && product.comboOffers.length > 0 && (
                 <div className="mt-5 pt-4 border-t-2 border-neutral-100">
@@ -525,11 +530,6 @@ export default async function ProductDetailPage({ params }) {
             </div>
           </div>
         </div>
-
-        {/* Dynamic Sacred 3D & Showcase Videos Section with Left/Right Arrow Carousel */}
-        {product.videos && product.videos.length > 0 && (
-          <ProductVideoShowcase videos={product.videos} productTitle={product.title} />
-        )}
 
         {/* Dynamic Related Products Carousel in 1 Row with Zero Gap and Scroll Controls */}
         {relatedProducts.length > 0 && (
