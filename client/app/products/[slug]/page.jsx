@@ -8,7 +8,7 @@ import ImageGallery from "@/components/ImageGallery";
 import AddComboButton from "@/components/AddComboButton";
 import RelatedDropsCarousel from "@/components/RelatedDropsCarousel";
 import ProductAccordion from "@/components/ProductAccordion";
-import ProductFloatingVideoBubble from "@/components/ProductFloatingVideoBubble";
+import ProductSideVideoReels from "@/components/ProductSideVideoReels";
 import WhyChooseUs from "@/components/WhyChooseUs";
 
 export const dynamic = "force-dynamic";
@@ -437,6 +437,12 @@ export default async function ProductDetailPage({ params }) {
 
               <AddToCartPanel product={product} finishes={finishes} />
 
+              {/* Video Reels Row in Right Details Column (matching reference image) */}
+              <ProductSideVideoReels
+                videos={product.videos && product.videos.length > 0 ? product.videos : storeVideos}
+                product={product}
+              />
+
               {/* Combo Offers Section */}
               {product.comboOffers && product.comboOffers.length > 0 && (
                 <div className="mt-5 pt-4 border-t-2 border-neutral-100">
@@ -543,12 +549,6 @@ export default async function ProductDetailPage({ params }) {
         {/* Why Choose MurtiPuja Craftsmanship & Trust Section (Silaii Style - Placed at the end) */}
         <WhyChooseUs brandName="MurtiPuja" />
       </div>
-
-      {/* Floating Bottom-Left Circular Video Reel & Full Screen Player (Silaii Style) */}
-      <ProductFloatingVideoBubble
-        product={product}
-        videos={product.videos && product.videos.length > 0 ? product.videos : storeVideos}
-      />
     </main>
   );
 }
