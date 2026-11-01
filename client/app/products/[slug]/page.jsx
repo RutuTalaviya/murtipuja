@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { fetchProductBySlug, fetchProducts, fetchFinishes } from "@/lib/serverApi";
+import { fetchProductBySlug, fetchProducts, fetchFinishes, fetchVideos } from "@/lib/serverApi";
 import { formatImageUrl, getVariantGalleryMedia } from "@/lib/api";
 import AddToCartPanel from "@/components/AddToCartPanel";
 import ProductCard from "@/components/ProductCard";
@@ -8,7 +8,7 @@ import ImageGallery from "@/components/ImageGallery";
 import AddComboButton from "@/components/AddComboButton";
 import RelatedDropsCarousel from "@/components/RelatedDropsCarousel";
 import ProductAccordion from "@/components/ProductAccordion";
-import ProductSideVideoReels from "@/components/ProductSideVideoReels";
+import ProductFloatingVideoBubble from "@/components/ProductFloatingVideoBubble";
 import WhyChooseUs from "@/components/WhyChooseUs";
 
 export const dynamic = "force-dynamic";
@@ -109,6 +109,15 @@ export default async function ProductDetailPage({ params }) {
     finishes = await fetchFinishes();
   } catch (err) {
     console.error("Failed to load finishes:", err);
+  }
+
+  // Fetch store videos as fallback for floating reel widget
+  let storeVideos = [];
+  try {
+    const vData = await fetchVideos();
+    storeVideos = vData?.data || [];
+  } catch (err) {
+    console.error("Failed to load store videos:", err);
   }
 
   // Fetch related products dynamically (strictly matching the same category / deity only)
@@ -428,11 +437,6 @@ export default async function ProductDetailPage({ params }) {
 
               <AddToCartPanel product={product} finishes={finishes} />
 
-              {/* Product Video Reels Showcase in Details Column (Reels Style) */}
-              {product.videos && product.videos.length > 0 && (
-                <ProductSideVideoReels videos={product.videos} productTitle={product.title} />
-              )}
-
               {/* Combo Offers Section */}
               {product.comboOffers && product.comboOffers.length > 0 && (
                 <div className="mt-5 pt-4 border-t-2 border-neutral-100">
@@ -539,6 +543,12 @@ export default async function ProductDetailPage({ params }) {
         {/* Why Choose MurtiPuja Craftsmanship & Trust Section (Silaii Style - Placed at the end) */}
         <WhyChooseUs brandName="MurtiPuja" />
       </div>
+
+      {/* Floating Bottom-Left Circular Video Reel & Full Screen Player (Silaii Style) */}
+      <ProductFloatingVideoBubble
+        product={product}
+        videos={product.videos && product.videos.length > 0 ? product.videos : storeVideos}
+      />
     </main>
   );
 }

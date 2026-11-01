@@ -27,164 +27,59 @@ export default function HomeCategoryShowcase({ categories = [], products = [], d
   // Client-side randomized category products map
   const [randomizedCategoryMap, setRandomizedCategoryMap] = useState({});
 
-  // Group products by Series / Deity first, then by Subcategories/Categories
+  // Group products strictly by Main Category (only top-level categories without parentCategory)
   const showcaseGroups = useMemo(() => {
     const groups = [];
-    const seenGroupKeys = new Set();
+    const mainCategories = categories.filter((cat) => !cat.parentCategory);
 
-    // 1. Group by Series / Deity (Primary Showcase Axis)
-    const deityMap = new Map(); // normalized lowerCase -> formatted Name
+    mainCategories.forEach((mainCat) => {
+      const catIdStr = mainCat._id ? mainCat._id.toString() : "";
+      const catNameLower = (mainCat.name || "").toLowerCase().trim();
+      const catSlugLower = (mainCat.slug || "").toLowerCase().trim();
 
-    // Collect deities from products
-    products.forEach((p) => {
-      if (p.deity && typeof p.deity === "string") {
-        const clean = p.deity.trim();
-        if (clean && clean.toLowerCase() !== "general") {
-          const lower = clean.toLowerCase();
-          if (!deityMap.has(lower)) {
-            deityMap.set(lower, formatTitleCase(clean));
-          }
-        }
-      }
-    });
+      // Find any subcategories that belong to this main category
+      const childSubIds = new Set(
+        categories
+          .filter((c) => {
+            const pId = c.parentCategory?._id ? c.parentCategory._id.toString() : c.parentCategory?.toString?.();
+            return pId && pId === catIdStr;
+          })
+          .map((c) => c._id?.toString?.())
+          .filter(Boolean)
+      );
 
-    // Also collect deities from API list if any
-    (deities || []).forEach((d) => {
-      if (d && typeof d === "string") {
-        const clean = d.trim();
-        if (clean && clean.toLowerCase() !== "general") {
-          const lower = clean.toLowerCase();
-          if (!deityMap.has(lower)) {
-            deityMap.set(lower, formatTitleCase(clean));
-          }
-        }
-      }
-    });
-
-    // Build Series groups
-    deityMap.forEach((formattedName, lowerDeity) => {
-      const slug = lowerDeity.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-
-      // Find all matching products for this series
-      const seriesProducts = products.filter((p) => {
-        const pDeity = (p.deity || "").toLowerCase().trim();
-        if (pDeity === lowerDeity || pDeity.includes(lowerDeity) || lowerDeity.includes(pDeity)) {
-          return true;
-        }
-        if (Array.isArray(p.tags)) {
-          const hasTag = p.tags.some((t) => {
-            const cleanT = String(t).toLowerCase().trim();
-            return cleanT === lowerDeity || cleanT.includes(lowerDeity);
+      const catProducts = products.filter((p) => {
+        // 1. Direct category match
+        if (Array.isArray(p.category)) {
+          const matched = p.category.some((c) => {
+            const id = c?._id ? c._id.toString() : c?.toString?.();
+            const name = (c?.name || (typeof c === "string" ? c : "")).toLowerCase().trim();
+            const slug = (c?.slug || "").toLowerCase().trim();
+            return (catIdStr && id === catIdStr) || (catNameLower && name === catNameLower) || (catSlugLower && slug === catSlugLower);
           });
-          if (hasTag) return true;
+          if (matched) return true;
+        } else if (p.category) {
+          const id = p.category?._id ? p.category._id.toString() : p.category.toString?.();
+          const name = (p.category?.name || (typeof p.category === "string" ? p.category : "")).toLowerCase().trim();
+          if ((catIdStr && id === catIdStr) || (catNameLower && name === catNameLower)) return true;
         }
+
+        // 2. Child subcategory match
+        if (Array.isArray(p.subCategory)) {
+          const subMatched = p.subCategory.some((s) => {
+            const id = s?._id ? s._id.toString() : s?.toString?.();
+            return id && childSubIds.has(id);
+          });
+          if (subMatched) return true;
+        } else if (p.subCategory) {
+          const id = p.subCategory?._id ? p.subCategory._id.toString() : p.subCategory.toString?.();
+          if (id && childSubIds.has(id)) return true;
+        }
+
         return false;
       });
 
       // Deduplicate products by _id
-      const uniqueProductsMap = new Map();
-      seriesProducts.forEach((p) => {
-        const id = p._id ? p._id.toString() : p.slug;
-        if (id && !uniqueProductsMap.has(id)) {
-          uniqueProductsMap.set(id, p);
-        }
-      });
-      const uniqueProducts = Array.from(uniqueProductsMap.values());
-
-      if (uniqueProducts.length > 0) {
-        seenGroupKeys.add(lowerDeity);
-        groups.push({
-          id: `series-${slug}`,
-          name: formattedName,
-          title: `${formattedName} Series Collection`,
-          badge: `${formattedName} Series · Active Releases`,
-          slug: slug,
-          link: `/products?deity=${encodeURIComponent(formattedName)}`,
-          buttonText: `All ${formattedName} Products`,
-          products: uniqueProducts,
-        });
-      }
-    });
-
-    // 2. Add Subcategory groups (if not duplicate of any deity series)
-    const subCategories = categories.filter((cat) => cat.parentCategory);
-    const mainCategories = categories.filter((cat) => !cat.parentCategory);
-
-    subCategories.forEach((subCat) => {
-      const subNameLower = (subCat.name || "").toLowerCase().trim();
-      if (seenGroupKeys.has(subNameLower)) return;
-
-      const parentCat = mainCategories.find(
-        (m) =>
-          m._id?.toString() === subCat.parentCategory?._id?.toString() ||
-          m._id?.toString() === subCat.parentCategory?.toString()
-      );
-
-      const subIdStr = subCat._id ? subCat._id.toString() : "";
-
-      const subProducts = products.filter((p) => {
-        if (Array.isArray(p.subCategory)) {
-          return p.subCategory.some((s) => {
-            const id = s?._id ? s._id.toString() : s?.toString?.();
-            const name = String(typeof s === "string" ? s : s?.name || "").toLowerCase().trim();
-            return (subIdStr && id === subIdStr) || (subNameLower && name === subNameLower);
-          });
-        }
-        if (p.subCategory) {
-          const id = p.subCategory?._id ? p.subCategory._id.toString() : p.subCategory.toString?.();
-          return subIdStr && id === subIdStr;
-        }
-        return false;
-      });
-
-      // Deduplicate products
-      const uniqueSubProductsMap = new Map();
-      subProducts.forEach((p) => {
-        const id = p._id ? p._id.toString() : p.slug;
-        if (id && !uniqueSubProductsMap.has(id)) {
-          uniqueSubProductsMap.set(id, p);
-        }
-      });
-      const uniqueSubProducts = Array.from(uniqueSubProductsMap.values());
-
-      if (uniqueSubProducts.length > 0) {
-        seenGroupKeys.add(subNameLower);
-        groups.push({
-          id: `sub-${subCat._id}`,
-          name: subCat.name,
-          title: `${subCat.name} Collection`,
-          badge: `${parentCat ? `${parentCat.name} · ` : ""}${subCat.name} Subcategory · Active Releases`,
-          slug: subCat.slug,
-          link: parentCat
-            ? `/products?category=${encodeURIComponent(parentCat.slug || parentCat.name)}&subCategory=${encodeURIComponent(subCat.slug || subCat.name)}`
-            : `/products?subCategory=${encodeURIComponent(subCat.slug || subCat.name)}`,
-          buttonText: `All ${subCat.name} Products`,
-          products: uniqueSubProducts,
-        });
-      }
-    });
-
-    // 3. Add Main Category groups (if not duplicate of any deity series or subcategory)
-    mainCategories.forEach((mainCat) => {
-      const catNameLower = (mainCat.name || "").toLowerCase().trim();
-      if (seenGroupKeys.has(catNameLower)) return;
-
-      const catIdStr = mainCat._id ? mainCat._id.toString() : "";
-      const catProducts = products.filter((p) => {
-        if (Array.isArray(p.category)) {
-          return p.category.some((c) => {
-            const id = c?._id ? c._id.toString() : c?.toString?.();
-            const name = (c?.name || "").toLowerCase().trim();
-            return (catIdStr && id === catIdStr) || (catNameLower && name === catNameLower);
-          });
-        }
-        if (p.category) {
-          const id = p.category?._id ? p.category._id.toString() : p.category.toString?.();
-          return catIdStr && id === catIdStr;
-        }
-        return false;
-      });
-
       const uniqueCatProductsMap = new Map();
       catProducts.forEach((p) => {
         const id = p._id ? p._id.toString() : p.slug;
@@ -195,13 +90,12 @@ export default function HomeCategoryShowcase({ categories = [], products = [], d
       const uniqueCatProducts = Array.from(uniqueCatProductsMap.values());
 
       if (uniqueCatProducts.length > 0) {
-        seenGroupKeys.add(catNameLower);
         groups.push({
           id: `cat-${mainCat._id}`,
           name: mainCat.name,
           title: `${mainCat.name} Collection`,
-          badge: `${mainCat.name} Category · Active Releases`,
-          slug: mainCat.slug,
+          badge: `${mainCat.name} · Curated Editions`,
+          slug: mainCat.slug || mainCat.name,
           link: `/products?category=${encodeURIComponent(mainCat.slug || mainCat.name)}`,
           buttonText: `All ${mainCat.name} Products`,
           products: uniqueCatProducts,
@@ -209,7 +103,7 @@ export default function HomeCategoryShowcase({ categories = [], products = [], d
       }
     });
 
-    // Fallback: If no groups matched but products exist
+    // Fallback: If categories have no products assigned yet, show all products
     if (groups.length === 0 && products.length > 0) {
       groups.push({
         id: "all",
@@ -224,7 +118,7 @@ export default function HomeCategoryShowcase({ categories = [], products = [], d
     }
 
     return groups;
-  }, [categories, products, deities]);
+  }, [categories, products]);
 
   // Randomize up to 4 distinct products from within that group on mount
   useEffect(() => {
