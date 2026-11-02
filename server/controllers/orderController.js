@@ -7,7 +7,7 @@ const razorpay = require("../config/razorpay");
 const crypto = require("crypto");
 const { calculateCartDiscounts } = require("../utils/discountCalculator");
 const { syncExpiredPromotions } = require("../utils/promotionExpirySync");
-const { sendWhatsAppMessage } = require("../utils/whatsappService");
+const { sendWhatsAppMessage, sendWhatsAppTemplate } = require("../utils/whatsappService");
 
 /**
  * Automated WhatsApp Notification Dispatcher for Order Lifecycle Milestones
@@ -19,30 +19,55 @@ async function sendOrderStatusWhatsApp(order, newStatus) {
 
     const customerName = order.shippingAddress?.fullName || order.user?.name || "Customer";
     const awb = order.delhiveryWaybill || order.awbNumber || order.trackingId || "";
-    let messageText = "";
+    const trackingUrl = `https://murtipuja.com/track-order?orderId=${order.orderNumber}`;
 
     switch (newStatus) {
       case "confirmed":
-        messageText = `Namaste ${customerName}, aapka MurtiPuja order #${order.orderNumber} confirm ho gaya hai! Total: ₹${order.totalAmount}. Hamari team jald hi aapki murti dispatch karegi. Live tracking: https://murtipuja.com/track-order?orderId=${order.orderNumber}`;
+      case "placed":
+        // Template: order_confirmed ({{1}}: Name, {{2}}: OrderID, {{3}}: Amount, {{4}}: TrackingUrl)
+        await sendWhatsAppTemplate(phone, "order_confirmed", [
+          customerName,
+          order.orderNumber,
+          order.totalAmount,
+          trackingUrl,
+        ]);
         break;
+
       case "shipped":
-        messageText = `Namaste ${customerName}, aapka MurtiPuja order #${order.orderNumber} dispatch ho chuka hai! Courier: ${order.courierPartner || "Delhivery Express"}${awb ? `, AWB: ${awb}` : ""}. Live tracking link: https://murtipuja.com/track-order?orderId=${order.orderNumber}`;
+        // Template: order_shipped ({{1}}: Name, {{2}}: OrderID, {{3}}: Courier, {{4}}: AWB, {{5}}: TrackingUrl)
+        await sendWhatsAppTemplate(phone, "order_shipped", [
+          customerName,
+          order.orderNumber,
+          order.courierPartner || "Delhivery Express",
+          awb || "Tracking in Progress",
+          trackingUrl,
+        ]);
         break;
-      case "out_for_delivery":
-        messageText = `Namaste ${customerName}, aapka MurtiPuja order #${order.orderNumber} aaj deliver hone ke liye nikal chuka hai (Out for Delivery). Kripya delivery partner se sampark rakhein.`;
-        break;
+
       case "delivered":
-        messageText = `Namaste ${customerName}, aapka MurtiPuja order #${order.orderNumber} successfully deliver ho gaya hai! MurtiPuja se judne ke liye aabhar. Kripya parcel open karte waqt unboxing video zaroor banayein.`;
+        // Template: order_delivered ({{1}}: Name, {{2}}: OrderID)
+        await sendWhatsAppTemplate(phone, "order_delivered", [
+          customerName,
+          order.orderNumber,
+        ]);
         break;
+
+      case "out_for_delivery":
+        await sendWhatsAppMessage(
+          phone,
+          `Namaste ${customerName}, aapka MurtiPuja order #${order.orderNumber} aaj deliver hone ke liye nikal chuka hai (Out for Delivery). Kripya delivery partner se sampark rakhein.`
+        );
+        break;
+
       case "cancelled":
-        messageText = `Namaste ${customerName}, aapka MurtiPuja order #${order.orderNumber} cancel ho gaya hai. Yadi aapne online payment kiya tha to refund 3-5 business days me aapke source account me credit ho jayega.`;
+        await sendWhatsAppMessage(
+          phone,
+          `Namaste ${customerName}, aapka MurtiPuja order #${order.orderNumber} cancel ho gaya hai. Yadi aapne online payment kiya tha to refund 3-5 business days me aapke source account me credit ho jayega.`
+        );
         break;
+
       default:
         break;
-    }
-
-    if (messageText) {
-      await sendWhatsAppMessage(phone, messageText);
     }
   } catch (err) {
     console.warn(`[WhatsApp Notification] Failed for order ${order.orderNumber} (${newStatus}):`, err.message);
