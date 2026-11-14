@@ -342,4 +342,17 @@ export function getVariantGalleryMedia(variant, allVariants = [], productImages 
   return [];
 }
 
+/** Admin Team Management */
+export async function getAdminTeam() {
+  return await api.get("/api/auth/admins");
+}
+
+export async function addAdminUser(data) {
+  return await api.post("/api/auth/admins", data);
+}
+
+export async function removeAdminUser(id) {
+  return await api.delete(`/api/auth/admins/${id}`);
+}
+
 export default api;

@@ -64,6 +64,9 @@ import api, {
   deleteVideo,
   reorderVideos,
   formatImageUrl,
+  getAdminTeam,
+  addAdminUser,
+  removeAdminUser,
 } from "@/lib/api";
 
 export default function AdminPage() {
@@ -294,6 +297,59 @@ export default function AdminPage() {
   const [quickPurposeSlug, setQuickPurposeSlug] = useState("");
   const [quickPurposeLoading, setQuickPurposeLoading] = useState(false);
 
+  // Admin Team Management State
+  const [adminTeam, setAdminTeam] = useState([]);
+  const [newAdminPhone, setNewAdminPhone] = useState("");
+  const [newAdminName, setNewAdminName] = useState("");
+  const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [adminSubmitting, setAdminSubmitting] = useState(false);
+
+  async function handleAddAdmin(e) {
+    e.preventDefault();
+    setActionError("");
+    setActionSuccess("");
+
+    const clean = newAdminPhone.replace(/\D/g, "");
+    if (clean.length < 10) {
+      setActionError("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+
+    setAdminSubmitting(true);
+    try {
+      const res = await addAdminUser({
+        phone: clean.slice(-10),
+        name: newAdminName.trim() || undefined,
+        email: newAdminEmail.trim() || undefined,
+      });
+      setActionSuccess(res.data?.message || "Admin access granted successfully!");
+      setNewAdminPhone("");
+      setNewAdminName("");
+      setNewAdminEmail("");
+      
+      const teamRes = await getAdminTeam();
+      setAdminTeam(teamRes.data || []);
+    } catch (err) {
+      setActionError(err.response?.data?.message || "Failed to add admin user.");
+    } finally {
+      setAdminSubmitting(false);
+    }
+  }
+
+  async function handleRemoveAdmin(adminId, phone) {
+    if (!window.confirm(`Are you sure you want to revoke admin access for ${phone}?`)) return;
+    setActionError("");
+    setActionSuccess("");
+
+    try {
+      const res = await removeAdminUser(adminId);
+      setActionSuccess(res.data?.message || "Admin access revoked.");
+      setAdminTeam(adminTeam.filter((a) => a._id !== adminId));
+    } catch (err) {
+      setActionError(err.response?.data?.message || "Failed to revoke admin access.");
+    }
+  }
+
   function fetchDashboardData() {
     setLoading(true);
     Promise.all([
@@ -311,8 +367,9 @@ export default function AdminPage() {
       getTags().catch(() => ({ data: [] })),
       getDeities().catch(() => ({ data: [] })),
       getPurposes().catch(() => ({ data: [] })),
+      getAdminTeam().catch(() => ({ data: [] })),
     ])
-      .then(([statsRes, ordersRes, catRes, finishRes, prodRes, comboRes, couponRes, offerRes, navRes, bannerRes, videoRes, tagsRes, deitiesRes, purposesRes]) => {
+      .then(([statsRes, ordersRes, catRes, finishRes, prodRes, comboRes, couponRes, offerRes, navRes, bannerRes, videoRes, tagsRes, deitiesRes, purposesRes, teamRes]) => {
         setStats(statsRes.data);
         setOrders(ordersRes.data);
         setCategories(catRes.data || []);
@@ -324,6 +381,7 @@ export default function AdminPage() {
         setNavMenuItems(navRes.data?.data || []);
         setBanners(bannerRes.data?.data || bannerRes.data || []);
         setVideoReels(videoRes.data?.data || videoRes.data || []);
+        setAdminTeam(teamRes.data || []);
         if (tagsRes?.data && Array.isArray(tagsRes.data) && tagsRes.data.length > 0) {
           setTagObjects(tagsRes.data);
           const names = tagsRes.data.map((t) => (typeof t === "string" ? t : t.name)).filter(Boolean);
@@ -2629,6 +2687,37 @@ export default function AdminPage() {
                 }`}
               >
                 6
+              </span>
+            </button>
+          </div>
+
+          {/* Section 5: Access & Security */}
+          <div className="space-y-1.5">
+            <p className="text-[9px] uppercase font-black tracking-widest text-charcoal/40 px-3 pb-0.5">
+              Access & Security
+            </p>
+
+            <button
+              onClick={() => { setActiveTab("admins"); setSelectedOrder(null); setMobileSidebarOpen(false); }}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all bg-white ${
+                activeTab === "admins"
+                  ? "text-maroon font-black border-2 border-maroon shadow-xs ring-2 ring-maroon/10"
+                  : "text-charcoal/80 font-bold border border-slate-200 hover:border-slate-300 hover:bg-slate-50 hover:text-black shadow-2xs"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                {activeTab === "admins" && <span className="w-1.5 h-4 bg-maroon rounded-full shrink-0"></span>}
+                <span className="text-sm">🛡️</span>
+                <span>Manage Admins</span>
+              </div>
+              <span
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  activeTab === "admins"
+                    ? "bg-maroon/10 text-maroon border-maroon/20 font-black"
+                    : "bg-slate-100 text-charcoal/70 border-slate-200"
+                }`}
+              >
+                {adminTeam.length}
               </span>
             </button>
           </div>
@@ -7886,6 +7975,184 @@ export default function AdminPage() {
         {/* Dynamic Pages CMS Tab */}
         {activeTab === "pages" && (
           <PagesCmsManager />
+        )}
+
+        {/* Manage Admins Tab */}
+        {activeTab === "admins" && (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🛡️</span>
+                  <h2 className="text-lg font-black text-charcoal uppercase tracking-wider">
+                    Admin Team Management
+                  </h2>
+                  <span className="text-[10px] bg-maroon/10 text-maroon font-bold px-2 py-0.5 rounded-full border border-maroon/20">
+                    {adminTeam.length} Active {adminTeam.length === 1 ? "Admin" : "Admins"}
+                  </span>
+                </div>
+                <p className="text-xs text-charcoal/60 mt-1">
+                  Add trusted team members by their mobile number. They can log in via OTP at <span className="font-mono text-maroon font-bold">murtipuja.com/login</span> to access this dashboard.
+                </p>
+              </div>
+            </div>
+
+            {/* Add Admin Form Card */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
+              <h3 className="text-sm font-black text-charcoal uppercase tracking-wider mb-4 flex items-center gap-2">
+                <span>➕</span> Add New Administrator
+              </h3>
+
+              <form onSubmit={handleAddAdmin} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-charcoal/70 mb-1.5">
+                    Mobile Number <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-charcoal/50">
+                      +91
+                    </span>
+                    <input
+                      type="tel"
+                      value={newAdminPhone}
+                      onChange={(e) => setNewAdminPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      placeholder="7990138678"
+                      maxLength={10}
+                      required
+                      className="w-full pl-12 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold focus:border-maroon focus:outline-none transition-colors"
+                    />
+                  </div>
+                  <p className="text-[10px] text-charcoal/40 mt-1">Enter 10-digit Indian mobile number</p>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-charcoal/70 mb-1.5">
+                    Full Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newAdminName}
+                    onChange={(e) => setNewAdminName(e.target.value)}
+                    placeholder="e.g. Kevin Patoliya"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:border-maroon focus:outline-none transition-colors"
+                  />
+                  <p className="text-[10px] text-charcoal/40 mt-1">Name displayed in dashboard</p>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-charcoal/70 mb-1.5">
+                    Email Address (Optional)
+                  </label>
+                  <input
+                    type="email"
+                    value={newAdminEmail}
+                    onChange={(e) => setNewAdminEmail(e.target.value)}
+                    placeholder="admin@murtipuja.com"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:border-maroon focus:outline-none transition-colors"
+                  />
+                  <p className="text-[10px] text-charcoal/40 mt-1">For notifications and records</p>
+                </div>
+
+                <div className="md:col-span-3 flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    disabled={adminSubmitting}
+                    className="bg-maroon hover:bg-maroon-dark text-white font-extrabold text-xs uppercase tracking-wider px-6 py-2.5 rounded-xl transition-all shadow-xs flex items-center gap-2 disabled:opacity-60 cursor-pointer"
+                  >
+                    {adminSubmitting ? "Granting Access..." : "🛡️ Grant Admin Access"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Current Admins List Table */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="text-sm font-black text-charcoal uppercase tracking-wider">
+                  Current Administrators ({adminTeam.length})
+                </h3>
+                <span className="text-[10px] text-charcoal/50">
+                  Full panel access & permissions
+                </span>
+              </div>
+
+              {adminTeam.length === 0 ? (
+                <div className="p-8 text-center text-xs text-charcoal/50">
+                  No administrators found.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100 text-[10px] uppercase font-bold text-charcoal/60">
+                        <th className="p-4">Administrator</th>
+                        <th className="p-4">Mobile Number</th>
+                        <th className="p-4">Email</th>
+                        <th className="p-4">Role</th>
+                        <th className="p-4">Date Added</th>
+                        <th className="p-4 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {adminTeam.map((admin) => {
+                        const isSelf = user?._id === admin._id || user?.phone === admin.phone;
+                        return (
+                          <tr key={admin._id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="p-4 font-bold text-charcoal">
+                              <div className="flex items-center gap-2.5">
+                                <span className="w-8 h-8 rounded-full bg-maroon/10 text-maroon font-black flex items-center justify-center text-xs">
+                                  {(admin.name || "A")[0].toUpperCase()}
+                                </span>
+                                <div>
+                                  <span className="font-extrabold block text-charcoal">
+                                    {admin.name || "Unnamed Admin"}
+                                  </span>
+                                  {isSelf && (
+                                    <span className="text-[9px] bg-green-100 text-green-800 font-extrabold px-1.5 py-0.5 rounded">
+                                      YOU
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4 font-mono font-bold text-charcoal/80">
+                              +91 {admin.phone}
+                            </td>
+                            <td className="p-4 text-charcoal/60">
+                              {admin.email || "—"}
+                            </td>
+                            <td className="p-4">
+                              <span className="bg-amber-50 text-amber-900 border border-amber-200 font-extrabold text-[10px] px-2 py-0.5 rounded-full uppercase">
+                                Administrator
+                              </span>
+                            </td>
+                            <td className="p-4 text-charcoal/50 text-[11px]">
+                              {admin.createdAt ? new Date(admin.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                            </td>
+                            <td className="p-4 text-right">
+                              {isSelf ? (
+                                <span className="text-[11px] text-charcoal/40 font-medium italic">
+                                  Current Session
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => handleRemoveAdmin(admin._id, admin.phone)}
+                                  className="text-red-600 hover:text-red-800 text-[11px] font-bold uppercase tracking-wider hover:underline cursor-pointer"
+                                >
+                                  Revoke Access
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </main>
     </div>

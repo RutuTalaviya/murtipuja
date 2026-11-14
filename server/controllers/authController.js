@@ -418,6 +418,104 @@ async function setDefaultAddress(req, res, next) {
   }
 }
 
+/**
+ * GET /api/auth/admins
+ * List all users with role "admin"
+ */
+async function getAdmins(req, res, next) {
+  try {
+    const admins = await User.find({ role: "admin" })
+      .select("name email phone role createdAt updatedAt")
+      .sort({ createdAt: -1 });
+    return res.status(200).json(admins);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /api/auth/admins
+ * Promote or create an admin by mobile number
+ * body: { phone, name, email }
+ */
+async function addAdmin(req, res, next) {
+  try {
+    const { phone, name, email } = req.body;
+    if (!phone) {
+      return res.status(400).json({ message: "Mobile number is required" });
+    }
+
+    const cleanPhone = String(phone).replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      return res.status(400).json({ message: "Please provide a valid 10-digit mobile number" });
+    }
+    const standardPhone = cleanPhone.length === 10 ? cleanPhone : cleanPhone.slice(-10);
+
+    let user = await User.findOne({
+      $or: [{ phone: standardPhone }, { phone: `91${standardPhone}` }]
+    });
+
+    if (user) {
+      user.role = "admin";
+      user.phoneVerified = true;
+      if (name && name.trim()) user.name = name.trim();
+      if (email && email.trim()) user.email = email.trim().toLowerCase();
+      await user.save();
+    } else {
+      user = await User.create({
+        phone: standardPhone,
+        name: name?.trim() || "Admin",
+        email: email?.trim()?.toLowerCase() || undefined,
+        role: "admin",
+        phoneVerified: true,
+        authProvider: "otp"
+      });
+    }
+
+    return res.status(200).json({
+      message: `Admin access granted to ${user.phone}`,
+      admin: {
+        _id: user._id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * DELETE /api/auth/admins/:id
+ * Revoke admin access (demote back to customer)
+ */
+async function removeAdmin(req, res, next) {
+  try {
+    const targetUserId = req.params.id;
+
+    if (req.user._id.toString() === targetUserId) {
+      return res.status(400).json({ message: "You cannot revoke your own admin access." });
+    }
+
+    const user = await User.findById(targetUserId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.role = "customer";
+    await user.save();
+
+    return res.status(200).json({
+      message: `Admin access revoked for ${user.phone}. Role changed to customer.`
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -429,5 +527,8 @@ module.exports = {
   updateAddress,
   deleteAddress,
   setDefaultAddress,
+  getAdmins,
+  addAdmin,
+  removeAdmin,
 };
 

@@ -11,8 +11,11 @@ const {
   updateAddress,
   deleteAddress,
   setDefaultAddress,
+  getAdmins,
+  addAdmin,
+  removeAdmin,
 } = require("../controllers/authController");
-const { protect } = require("../middleware/auth");
+const { protect, adminOnly } = require("../middleware/auth");
 const { otpRequestLimiter, otpVerifyLimiter } = require("../middleware/rateLimiter");
 
 router.post("/send-otp", otpRequestLimiter, sendOtp);
@@ -27,6 +30,11 @@ router.post("/addresses", protect, addAddress);
 router.put("/addresses/:id", protect, updateAddress);
 router.delete("/addresses/:id", protect, deleteAddress);
 router.put("/addresses/:id/default", protect, setDefaultAddress);
+
+// Admin Team management routes (Admin only)
+router.get("/admins", protect, adminOnly, getAdmins);
+router.post("/admins", protect, adminOnly, addAdmin);
+router.delete("/admins/:id", protect, adminOnly, removeAdmin);
 
 module.exports = router;
 
