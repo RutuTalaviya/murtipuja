@@ -56,6 +56,7 @@ connectDB().then(() => {
 
 
 const app = express();
+app.set("trust proxy", 1);
 
 const allowedOrigins = [
   "http://localhost:3000",

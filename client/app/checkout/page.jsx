@@ -170,7 +170,7 @@ export default function CheckoutPage() {
       await sendOtp(phone);
       setOtpSent(true);
     } catch (err) {
-      setAuthError("Could not send OTP. Try again.");
+      setAuthError(err.response?.data?.message || "Could not send OTP. Try again.");
     } finally {
       setAuthLoading(false);
     }
@@ -189,7 +189,7 @@ export default function CheckoutPage() {
       const res = await verifyOtp(phone, otp);
       login(res.data.token, res.data.user);
     } catch (err) {
-      setAuthError("Incorrect OTP");
+      setAuthError(err.response?.data?.message || "Incorrect OTP. Try again.");
     } finally {
       setAuthLoading(false);
     }
