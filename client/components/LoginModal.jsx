@@ -110,7 +110,7 @@ export default function LoginModal() {
       }
       setStep("otp");
       setCooldown(RESEND_COOLDOWN);
-      setSuccessMsg(`OTP sent to +91 ${phone}`);
+      setSuccessMsg(res.data?.message || `OTP sent to your WhatsApp on +91 ${phone}`);
       setTimeout(() => setSuccessMsg(""), 4000);
     } catch (err) {
       setError(err.response?.data?.message || "Could not send OTP. Please try again.");
@@ -338,10 +338,11 @@ export default function LoginModal() {
               <h2 className="text-2xl sm:text-[25px] font-black tracking-tight text-black leading-tight">
                 Enter OTP
               </h2>
-              <p className="text-xs text-neutral-500 font-medium mt-1.5 max-w-[270px] mx-auto leading-relaxed">
-                Code sent to <span className="font-bold text-black">+91 {phone}</span>
+              <p className="text-xs text-neutral-500 font-medium mt-1.5 max-w-[280px] mx-auto leading-relaxed">
+                Code sent to your WhatsApp on <span className="font-bold text-black">+91 {phone}</span>
               </p>
             </div>
+
 
             {/* OTP Form */}
             <form onSubmit={handleVerifyOtp} className="space-y-3 my-1">

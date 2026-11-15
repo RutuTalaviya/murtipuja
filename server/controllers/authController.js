@@ -9,8 +9,11 @@ const {
   compareOtp,
   getExpiryDate,
   sendOtpSms,
+  sendOtpWhatsApp,
+  sendOtpDispatch,
   OtpDeliveryError,
 } = require("../utils/otpService");
+
 
 const PHONE_REGEX = /^[6-9]\d{9}$/; // basic Indian 10-digit mobile validation
 
@@ -50,13 +53,17 @@ async function sendOtp(req, res, next) {
 
     console.log(`\n========================================\n🔑 [MURTIPUJA OTP] Phone: +91 ${phone}\n👉 Generated OTP: ${otp}\n👉 Testing Master OTP: 123456\n========================================\n`);
 
+    // Fetch existing customer name if available
+    const existingUser = await User.findOne({ phone }).select("name");
+    const customerName = existingUser?.name || "Customer";
+
     try {
-      await sendOtpSms(phone, otp);
-    } catch (smsError) {
-      console.error(`[OTP Error] Failed to send SMS to ${phone}:`, smsError.message, smsError.providerResponse || "");
+      await sendOtpDispatch(phone, otp, customerName);
+    } catch (deliveryError) {
+      console.error(`[OTP Error] Failed to send OTP to ${phone}:`, deliveryError.message, deliveryError.providerResponse || "");
       
       if (process.env.NODE_ENV !== "production" || process.env.ALLOW_DEV_FALLBACK === "true") {
-        console.warn(`[OTP NOTE] SMS failed (${smsError.message}), but allowing generated OTP for testing.`);
+        console.warn(`[OTP NOTE] Delivery failed (${deliveryError.message}), but allowing generated OTP for testing.`);
         return res.status(200).json({
           message: `OTP sent (Dev/Log mode: ${otp})`,
           devOtp: otp,
@@ -65,14 +72,15 @@ async function sendOtp(req, res, next) {
 
       // In production, return clean descriptive message
       return res.status(400).json({
-        message: smsError.message || "Could not deliver OTP. Please check your SMS provider setup.",
+        message: deliveryError.message || "Could not deliver OTP. Please check your connection and try again.",
       });
     }
 
     return res.status(200).json({
-      message: "OTP sent successfully",
+      message: "OTP sent successfully to your WhatsApp",
       ...(process.env.NODE_ENV !== "production" ? { devOtp: otp } : {}),
     });
+
   } catch (error) {
     console.error("[sendOtp unhandled error]:", error);
     return res.status(400).json({ message: error.message || "Failed to process OTP request" });

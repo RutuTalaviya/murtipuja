@@ -117,12 +117,54 @@ async function sendOtpSms(phone, otp) {
     // Write OTP to fallback log on server so admin can always see it
     const fs = require("fs");
     const path = require("path");
-    try {
-      fs.writeFileSync(path.join(__dirname, "..", "otp.log"), `OTP for ${phone}: ${otp} (at ${new Date().toISOString()})\n`);
-    } catch (e) {}
-
     const friendlyMsg = error.response?.data?.message || error.message || "Failed to send OTP via SMS";
     throw new OtpDeliveryError(friendlyMsg, error.response?.data);
+  }
+}
+
+const { sendWhatsAppTemplate, WhatsAppDeliveryError } = require("./whatsappService");
+
+
+/**
+ * Sends OTP via MSG91 WhatsApp API using approved template.
+ * Template: customer_access_code
+ * Variable 1 (body_1): customerName
+ * Variable 2 (body_2): OTP code
+ */
+async function sendOtpWhatsApp(phone, otp, customerName = "Customer") {
+  const templateName = process.env.MSG91_WHATSAPP_OTP_TEMPLATE || "customer_access_code";
+  const nameToUse = customerName && customerName.trim() ? customerName.trim() : "Customer";
+
+  try {
+    const result = await sendWhatsAppTemplate(phone, templateName, [nameToUse, otp]);
+    return result;
+  } catch (err) {
+    console.error("[WhatsApp OTP Failure]:", err.message);
+    throw new OtpDeliveryError(err.message || "Failed to deliver OTP via WhatsApp", err.providerResponse);
+  }
+}
+
+/**
+ * Master OTP dispatcher:
+ * Routes to WhatsApp by default (DLT-free, instant 1-2 sec delivery)
+ * Falls back to SMS if explicitly configured.
+ */
+async function sendOtpDispatch(phone, otp, customerName = "Customer") {
+  const channel = (process.env.OTP_CHANNEL || "WHATSAPP").toUpperCase();
+
+  if (channel === "SMS") {
+    return await sendOtpSms(phone, otp);
+  }
+
+  // Primary: WhatsApp
+  try {
+    return await sendOtpWhatsApp(phone, otp, customerName);
+  } catch (wpError) {
+    console.warn(`[OTP Dispatch] WhatsApp delivery failed (${wpError.message}).`);
+    if (process.env.MSG91_TEMPLATE_ID && process.env.ENABLE_SMS_FALLBACK === "true") {
+      return await sendOtpSms(phone, otp);
+    }
+    throw wpError;
   }
 }
 
@@ -132,6 +174,9 @@ module.exports = {
   compareOtp,
   getExpiryDate,
   sendOtpSms,
+  sendOtpWhatsApp,
+  sendOtpDispatch,
   OtpDeliveryError,
   OTP_LENGTH,
 };
+

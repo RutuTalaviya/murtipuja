@@ -377,7 +377,7 @@ export default function CheckoutPage() {
             ) : (
               <div className="space-y-4">
                 <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">
-                  Quick OTP verification is required to place your order. No passwords needed.
+                  Quick WhatsApp OTP verification is required to place your order. No passwords needed.
                 </p>
                 {!otpSent ? (
                   <form onSubmit={handleSendOtp} className="flex gap-2">
@@ -403,11 +403,15 @@ export default function CheckoutPage() {
                   </form>
                 ) : (
                   <form onSubmit={handleVerifyOtp} className="space-y-3">
+                    <p className="text-xs text-neutral-600 font-medium">
+                      Code sent to your WhatsApp on <span className="font-bold text-black">+91 {phone}</span>
+                    </p>
                     <div className="flex gap-2">
                       <input
                         type="text"
                         maxLength={6}
                         placeholder="Enter 6-digit OTP"
+
                         value={otp}
                         onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                         className="flex-1 text-center tracking-[0.2em] px-3 py-2.5 border-2 border-black rounded-none outline-none focus:bg-neutral-50 text-sm font-bold text-black"
