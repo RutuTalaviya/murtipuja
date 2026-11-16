@@ -2,15 +2,95 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useWishlist } from "@/context/WishlistContext";
 import SearchModal from "./SearchModal";
 import api, { getCategories, getCategoryTree, getNavMenu, getActiveCoupons, getActiveOffers } from "@/lib/api";
 
+function checkItemActive(item, pathname, searchParams) {
+  if (!item?.url || item.url === "#") return false;
+
+  const [itemBase, itemQueryString] = item.url.split("?");
+
+  if (!itemQueryString) {
+    if (itemBase === "/") {
+      return pathname === "/";
+    }
+    if (itemBase === "/products") {
+      if (pathname !== "/products") return false;
+      // "All Murtis" is active ONLY if no specific filter (category, tag, sale, purpose, deity) is applied
+      const hasSpecificFilter = Boolean(
+        searchParams?.get("category") ||
+        searchParams?.get("subCategory") ||
+        searchParams?.get("tag") ||
+        searchParams?.get("tags") ||
+        searchParams?.get("onsale") === "true" ||
+        searchParams?.get("purpose") ||
+        searchParams?.get("deity") ||
+        searchParams?.get("series")
+      );
+      return !hasSpecificFilter;
+    }
+    return pathname === itemBase || (itemBase !== "/" && pathname?.startsWith(itemBase + "/"));
+  }
+
+  // When item.url has query parameters:
+  if (pathname !== itemBase) return false;
+
+  const itemParams = new URLSearchParams(itemQueryString);
+
+  // 1. Check Category
+  if (itemParams.has("category")) {
+    const itemCat = decodeURIComponent(itemParams.get("category")).trim().toLowerCase().replace(/[-_\s]+/g, "");
+    const curCat = decodeURIComponent(searchParams?.get("category") || "").trim().toLowerCase().replace(/[-_\s]+/g, "");
+    if (!curCat || itemCat !== curCat) return false;
+
+    if (itemParams.has("subCategory")) {
+      const itemSub = decodeURIComponent(itemParams.get("subCategory")).trim().toLowerCase().replace(/[-_\s]+/g, "");
+      const curSub = decodeURIComponent(searchParams?.get("subCategory") || "").trim().toLowerCase().replace(/[-_\s]+/g, "");
+      return itemSub === curSub;
+    }
+    return true;
+  }
+
+  // 2. Check Tag / Bestseller
+  if (itemParams.has("tag") || itemParams.has("tags")) {
+    const itemTag = decodeURIComponent(itemParams.get("tag") || itemParams.get("tags")).trim().toLowerCase();
+    const curTag = decodeURIComponent(searchParams?.get("tag") || searchParams?.get("tags") || "").trim().toLowerCase();
+    return Boolean(curTag && itemTag === curTag);
+  }
+
+  // 3. Check OnSale
+  if (itemParams.has("onsale")) {
+    return searchParams?.get("onsale") === itemParams.get("onsale");
+  }
+
+  // 4. Check Purpose
+  if (itemParams.has("purpose")) {
+    const itemPurp = decodeURIComponent(itemParams.get("purpose")).trim().toLowerCase().replace(/[-_\s]+/g, "");
+    const curPurp = decodeURIComponent(searchParams?.get("purpose") || "").trim().toLowerCase().replace(/[-_\s]+/g, "");
+    return Boolean(curPurp && itemPurp === curPurp);
+  }
+
+  // 5. Check Deity / Series
+  if (itemParams.has("deity") || itemParams.has("series")) {
+    const itemDeity = decodeURIComponent(itemParams.get("deity") || itemParams.get("series")).trim().toLowerCase();
+    const curDeity = decodeURIComponent(searchParams?.get("deity") || searchParams?.get("series") || "").trim().toLowerCase();
+    return Boolean(curDeity && itemDeity === curDeity);
+  }
+
+  // 6. Generic check
+  for (const [key, val] of itemParams.entries()) {
+    if (searchParams?.get(key) !== val) return false;
+  }
+  return true;
+}
+
 export default function Navbar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { itemCount, setCartDrawerOpen } = useCart();
   const { user, logout, openLoginModal } = useAuth();
   const { wishlist } = useWishlist();
@@ -337,10 +417,7 @@ export default function Navbar() {
           {/* Center: Desktop Navigation Links (Fully Dynamic with Orange Hover & Active Highlight) */}
           <nav className="hidden md:flex items-center gap-6 lg:gap-8 text-[11.5px] font-bold uppercase tracking-widest text-neutral-600">
             {navItems.map((item) => {
-              const isItemActive =
-                item.url &&
-                item.url !== "#" &&
-                (pathname === item.url || (item.url !== "/" && pathname?.startsWith(item.url)));
+              const isItemActive = checkItemActive(item, pathname, searchParams);
 
               if (item.isDropdown) {
                 const isCatDropdown = item.dropdownType === "categories";
@@ -357,7 +434,7 @@ export default function Navbar() {
                     <button
                       className={`flex items-center gap-1 transition-colors uppercase ${
                         isItemDropdownOpen || isItemActive
-                          ? "text-orange-600 font-black"
+                          ? "text-orange-600 font-black border-b-2 border-orange-500 -mb-[2px]"
                           : "text-neutral-700 hover:text-orange-500 font-bold"
                       }`}
                     >
@@ -399,28 +476,43 @@ export default function Navbar() {
                                 <span>All {item.title}</span>
                                 <span className="text-sm font-bold">→</span>
                               </Link>
-                              {item.subcategories.map((sub) => (
-                                <Link
-                                  key={sub._id}
-                                  href={sub.url}
-                                  className="block px-4 py-2 hover:bg-orange-500 hover:text-white text-black text-xs font-bold transition-colors uppercase tracking-wider"
-                                >
-                                  {sub.title}
-                                </Link>
-                              ))}
+                              {item.subcategories.map((sub) => {
+                                const isSubActive = checkItemActive(sub, pathname, searchParams);
+                                return (
+                                  <Link
+                                    key={sub._id}
+                                    href={sub.url}
+                                    className={`block px-4 py-2 text-xs font-bold transition-colors uppercase tracking-wider ${
+                                      isSubActive
+                                        ? "bg-orange-500 text-white font-black"
+                                        : "hover:bg-orange-500 hover:text-white text-black"
+                                    }`}
+                                  >
+                                    {sub.title}
+                                  </Link>
+                                );
+                              })}
                             </>
                           ) : isCatDropdown ? (
                             <>
                               {categories.length > 0 ? (
-                                categories.slice(0, 8).map((cat) => (
-                                  <Link
-                                    key={cat._id}
-                                    href={`/products?category=${encodeURIComponent(cat.slug || cat.name)}`}
-                                    className="block px-4 py-2 hover:bg-orange-500 hover:text-white text-black text-xs font-bold transition-colors uppercase tracking-wider"
-                                  >
-                                    {cat.name}
-                                  </Link>
-                                ))
+                                categories.slice(0, 8).map((cat) => {
+                                  const catUrl = `/products?category=${encodeURIComponent(cat.slug || cat.name)}`;
+                                  const isCatActive = checkItemActive({ url: catUrl }, pathname, searchParams);
+                                  return (
+                                    <Link
+                                      key={cat._id}
+                                      href={catUrl}
+                                      className={`block px-4 py-2 text-xs font-bold transition-colors uppercase tracking-wider ${
+                                        isCatActive
+                                          ? "bg-orange-500 text-white font-black"
+                                          : "hover:bg-orange-500 hover:text-white text-black"
+                                      }`}
+                                    >
+                                      {cat.name}
+                                    </Link>
+                                  );
+                                })
                               ) : (
                                 <span className="block px-4 py-2 text-neutral-400 text-xs font-semibold">Loading...</span>
                               )}
@@ -434,20 +526,27 @@ export default function Navbar() {
                               </Link>
                             </>
                           ) : isSubItemsDropdown ? (
-                            item.subItems.map((sub, idx) => (
-                              <Link
-                                key={sub._id || idx}
-                                href={sub.url || "#"}
-                                className="flex items-center justify-between px-4 py-2 hover:bg-orange-500 hover:text-white text-black text-xs font-bold transition-colors uppercase tracking-wider"
-                              >
-                                <span>{sub.title}</span>
-                                {sub.badge && (
-                                  <span className="bg-orange-500 text-white text-[7.5px] font-extrabold px-1 py-0.2 border border-black">
-                                    {sub.badge}
-                                  </span>
-                                )}
-                              </Link>
-                            ))
+                            item.subItems.map((sub, idx) => {
+                              const isSubActive = checkItemActive(sub, pathname, searchParams);
+                              return (
+                                <Link
+                                  key={sub._id || idx}
+                                  href={sub.url || "#"}
+                                  className={`flex items-center justify-between px-4 py-2 text-xs font-bold transition-colors uppercase tracking-wider ${
+                                    isSubActive
+                                      ? "bg-orange-500 text-white font-black"
+                                      : "hover:bg-orange-500 hover:text-white text-black"
+                                  }`}
+                                >
+                                  <span>{sub.title}</span>
+                                  {sub.badge && (
+                                    <span className="bg-orange-500 text-white text-[7.5px] font-extrabold px-1 py-0.2 border border-black">
+                                      {sub.badge}
+                                    </span>
+                                  )}
+                                </Link>
+                              );
+                            })
                           ) : (
                             <Link
                               href={item.url || "/products"}
@@ -800,10 +899,7 @@ export default function Navbar() {
             {/* Drawer Navigation Links (Dynamic with Orange Highlight) */}
             <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
               {navItems.map((item) => {
-                const isItemActive =
-                  item.url &&
-                  item.url !== "#" &&
-                  (pathname === item.url || (item.url !== "/" && pathname?.startsWith(item.url)));
+                const isItemActive = checkItemActive(item, pathname, searchParams);
 
                 if (item.isDropdown) {
                   const isCatDropdown = item.dropdownType === "categories";
@@ -816,7 +912,7 @@ export default function Navbar() {
                         onClick={() => toggleMobileAccordion(item._id)}
                         className={`w-full flex justify-between items-center text-xs font-bold uppercase tracking-wider py-2 transition-all ${
                           isAccordionOpen || isItemActive
-                            ? "text-orange-600 font-extrabold"
+                            ? "text-orange-600 font-extrabold border-l-2 border-orange-500 pl-2"
                             : "text-black hover:text-orange-500"
                         }`}
                       >
@@ -854,30 +950,45 @@ export default function Navbar() {
                               >
                                 All {item.title} →
                               </Link>
-                              {item.subcategories.map((sub) => (
-                                <Link
-                                  key={sub._id}
-                                  href={sub.url}
-                                  onClick={() => setMobileMenuOpen(false)}
-                                  className="block text-xs text-black/80 hover:text-orange-500 transition-colors uppercase tracking-wider py-0.5"
-                                >
-                                  {sub.title}
-                                </Link>
-                              ))}
+                              {item.subcategories.map((sub) => {
+                                const isSubActive = checkItemActive(sub, pathname, searchParams);
+                                return (
+                                  <Link
+                                    key={sub._id}
+                                    href={sub.url}
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className={`block text-xs uppercase tracking-wider py-0.5 transition-colors ${
+                                      isSubActive
+                                        ? "text-orange-600 font-extrabold"
+                                        : "text-black/80 hover:text-orange-500"
+                                    }`}
+                                  >
+                                    {sub.title}
+                                  </Link>
+                                );
+                              })}
                             </>
                           ) : isCatDropdown ? (
                             <>
                               {categories.length > 0 ? (
-                                categories.slice(0, 8).map((cat) => (
-                                  <Link
-                                    key={cat._id}
-                                    href={`/products?category=${encodeURIComponent(cat.slug || cat.name)}`}
-                                    onClick={() => setMobileMenuOpen(false)}
-                                    className="block text-xs text-black/80 hover:text-orange-500 transition-colors uppercase tracking-wider py-0.5"
-                                  >
-                                    {cat.name}
-                                  </Link>
-                                ))
+                                categories.slice(0, 8).map((cat) => {
+                                  const catUrl = `/products?category=${encodeURIComponent(cat.slug || cat.name)}`;
+                                  const isCatActive = checkItemActive({ url: catUrl }, pathname, searchParams);
+                                  return (
+                                    <Link
+                                      key={cat._id}
+                                      href={catUrl}
+                                      onClick={() => setMobileMenuOpen(false)}
+                                      className={`block text-xs uppercase tracking-wider py-0.5 transition-colors ${
+                                        isCatActive
+                                          ? "text-orange-600 font-extrabold"
+                                          : "text-black/80 hover:text-orange-500"
+                                      }`}
+                                    >
+                                      {cat.name}
+                                    </Link>
+                                  );
+                                })
                               ) : (
                                 <span className="block text-xs text-black/40 font-semibold">Loading...</span>
                               )}
@@ -892,21 +1003,28 @@ export default function Navbar() {
                               </Link>
                             </>
                           ) : isSubItemsDropdown ? (
-                            item.subItems.map((sub, idx) => (
-                              <Link
-                                key={sub._id || idx}
-                                href={sub.url || "#"}
-                                onClick={() => setMobileMenuOpen(false)}
-                                className="flex items-center justify-between text-xs text-black/80 hover:text-orange-500 transition-colors uppercase tracking-wider"
-                              >
-                                <span>{sub.title}</span>
-                                {sub.badge && (
-                                  <span className="bg-orange-500 text-white text-[7px] font-bold px-1 py-0.2 border border-black">
-                                    {sub.badge}
-                                  </span>
-                                )}
-                              </Link>
-                            ))
+                            item.subItems.map((sub, idx) => {
+                              const isSubActive = checkItemActive(sub, pathname, searchParams);
+                              return (
+                                <Link
+                                  key={sub._id || idx}
+                                  href={sub.url || "#"}
+                                  onClick={() => setMobileMenuOpen(false)}
+                                  className={`flex items-center justify-between text-xs transition-colors uppercase tracking-wider ${
+                                    isSubActive
+                                      ? "text-orange-600 font-extrabold"
+                                      : "text-black/80 hover:text-orange-500"
+                                  }`}
+                                >
+                                  <span>{sub.title}</span>
+                                  {sub.badge && (
+                                    <span className="bg-orange-500 text-white text-[7px] font-bold px-1 py-0.2 border border-black">
+                                      {sub.badge}
+                                    </span>
+                                  )}
+                                </Link>
+                              );
+                            })
                           ) : (
                             <Link
                               href={item.url || "/products"}

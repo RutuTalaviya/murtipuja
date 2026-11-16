@@ -194,6 +194,7 @@ async function getProducts(req, res, next) {
 
     // Tag / Tags filter
     const rawTag = req.query.tag || req.query.tags;
+    let isBestsellerFilter = false;
     if (rawTag) {
       const tagList = Array.isArray(rawTag)
         ? rawTag
@@ -203,12 +204,23 @@ async function getProducts(req, res, next) {
             .filter(Boolean);
 
       if (tagList.length > 0) {
+        isBestsellerFilter = tagList.some((t) => /bestseller/i.test(t));
         const patterns = tagList.map((t) => {
           const formatted = t.replace(/[-_]/g, " ").trim();
           const raw = t.trim();
           return new RegExp(`^(${escapeRegex(formatted)}|${escapeRegex(raw)})$`, "i");
         });
-        conditions.push({ tags: { $in: patterns } });
+
+        if (isBestsellerFilter) {
+          conditions.push({
+            $or: [
+              { tags: { $in: patterns } },
+              { isFeatured: true },
+            ],
+          });
+        } else {
+          conditions.push({ tags: { $in: patterns } });
+        }
       }
     }
 
@@ -262,6 +274,40 @@ async function getProducts(req, res, next) {
         .lean(),
       Product.countDocuments(filter),
     ]);
+
+    // Graceful fallback for Bestseller if no products are explicitly tagged or marked featured yet:
+    if (products.length === 0 && isBestsellerFilter) {
+      const fallbackConditions = conditions.filter((c) => {
+        if (c.$or && Array.isArray(c.$or)) {
+          return !c.$or.some((item) => item.isFeatured === true);
+        }
+        return true;
+      });
+
+      const fallbackFilter = {};
+      if (fallbackConditions.length === 1) {
+        Object.assign(fallbackFilter, fallbackConditions[0]);
+      } else if (fallbackConditions.length > 1) {
+        fallbackFilter.$and = fallbackConditions;
+      }
+
+      const [fallbackProducts, fallbackTotal] = await Promise.all([
+        Product.find(fallbackFilter)
+          .select("title slug deity basePrice images isOnSale isFeatured category subCategory variants ratingsAverage ratingsCount tags purpose")
+          .populate("category", "name slug icon parentCategory")
+          .populate("subCategory", "name slug icon parentCategory")
+          .sort("-ratingsCount -ratingsAverage -createdAt")
+          .skip((pageNum - 1) * limitNum)
+          .limit(limitNum)
+          .lean(),
+        Product.countDocuments(fallbackFilter),
+      ]);
+
+      if (fallbackProducts.length > 0) {
+        products = fallbackProducts;
+        total = fallbackTotal;
+      }
+    }
 
     // If random sort, shuffle products array
     if (isRandomSort && products.length > 1) {

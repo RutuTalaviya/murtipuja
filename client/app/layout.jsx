@@ -1,4 +1,5 @@
 import "./globals.css";
+import { Suspense } from "react";
 import { Space_Grotesk, Plus_Jakarta_Sans } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
 import { WishlistProvider } from "@/context/WishlistContext";
@@ -165,7 +166,9 @@ export default function RootLayout({ children }) {
         <AuthProvider>
           <WishlistProvider>
             <CartProvider>
-              <Navbar />
+              <Suspense fallback={<div className="h-16 bg-white border-b-2 border-black" />}>
+                <Navbar />
+              </Suspense>
               <CartDrawer />
               <LoginModal />
               <div className="flex-1 bg-transparent">{children}</div>

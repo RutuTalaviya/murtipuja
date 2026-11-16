@@ -141,7 +141,7 @@ export default async function ProductsPage({ searchParams }) {
       {
         label: `All ${activeCategoryParam.replace(/[-_]/g, " ")}`,
         href: `/products?category=${encodeURIComponent(activeCategoryParam)}`,
-        active: !params.subCategory && !params.deity,
+        active: !params.subCategory && !params.deity && !params.tag && !params.tags,
       },
       ...subCats.map((sub) => ({
         label: sub.name,
@@ -171,12 +171,29 @@ export default async function ProductsPage({ searchParams }) {
       return true;
     });
   } else {
-    // When viewing all products or filtered by series: show Deity Series quick tabs!
+    // When viewing all products or filtered by tag/series: show quick tabs!
+    const isAllReleasesActive =
+      !params.purpose &&
+      !params.onsale &&
+      !params.category &&
+      !params.deity &&
+      !params.series &&
+      !params.subCategory &&
+      !params.sort &&
+      !params.tag &&
+      !params.tags &&
+      !params.search;
+
     const rawTabs = [
       {
         label: "All Releases",
         href: "/products",
-        active: !params.purpose && !params.onsale && !params.category && !params.deity && !params.series && !params.subCategory && !params.sort,
+        active: isAllReleasesActive,
+      },
+      {
+        label: "Bestsellers",
+        href: "/products?tag=Bestseller",
+        active: activeTagParam?.toLowerCase() === "bestseller",
       },
       ...allDeities.map((deityName) => ({
         label: `${deityName} Series`,
@@ -189,6 +206,14 @@ export default async function ProductsPage({ searchParams }) {
         active: params.onsale === "true",
       },
     ];
+
+    if (activeTagParam && activeTagParam.toLowerCase() !== "bestseller") {
+      rawTabs.splice(2, 0, {
+        label: activeTagParam,
+        href: `/products?tag=${encodeURIComponent(activeTagParam)}`,
+        active: true,
+      });
+    }
 
     const seenLabels = new Set();
     QUICK_PURPOSE_TABS = rawTabs.filter((tab) => {
