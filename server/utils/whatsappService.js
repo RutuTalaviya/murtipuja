@@ -67,8 +67,9 @@ async function sendWhatsAppTemplate(phone, templateName, params = []) {
 
   try {
     const response = await axios.post(
-      "https://control.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk",
+      "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/",
       {
+
         integrated_number: process.env.MSG91_WHATSAPP_NUMBER,
         content_type: "template",
         payload: {
