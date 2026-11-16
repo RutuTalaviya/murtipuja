@@ -38,7 +38,7 @@ async function createDelhiveryShipment(order, user = {}) {
   }
 
   const baseUrl = getBaseUrl();
-  const pickupLocation = process.env.DELHIVERY_PICKUP_LOCATION || "Surat Studio";
+  const pickupLocation = process.env.DELHIVERY_PICKUP_LOCATION || "prada";
 
   // Calculate package weight & dimensions
   // Default: 500 grams per murti, 15x15x15 cm box
@@ -65,14 +65,14 @@ async function createDelhiveryShipment(order, user = {}) {
         return_city: process.env.DELHIVERY_RETURN_CITY || "Surat",
         return_state: process.env.DELHIVERY_RETURN_STATE || "Gujarat",
         return_country: "India",
-        return_add: process.env.DELHIVERY_RETURN_ADDRESS || "C-504 Yamuna Palace, Satellite Rd, Sudama Chowk, Mota Varachha, Surat, Gujarat 394101",
+        return_add: process.env.DELHIVERY_RETURN_ADDRESS || "C-504, stair no. -1, Yamuna Palace, Satellite Rd, Sudama Chowk, Mota Varachha, Surat, Gujarat 394101",
         return_name: process.env.DELHIVERY_RETURN_NAME || "MurtiPuja Studio",
         return_phone: process.env.DELHIVERY_RETURN_PHONE || "+918866445729",
         products_desc: productsDesc,
         order_date: new Date(order.createdAt).toISOString().slice(0, 19).replace("T", " "),
         total_amount: Number(order.totalAmount || 0),
         cod_amount: 0,
-        seller_add: process.env.DELHIVERY_RETURN_ADDRESS || "C-504 Yamuna Palace, Satellite Rd, Sudama Chowk, Mota Varachha, Surat, Gujarat 394101",
+        seller_add: process.env.DELHIVERY_RETURN_ADDRESS || "C-504, stair no. -1, Yamuna Palace, Satellite Rd, Sudama Chowk, Mota Varachha, Surat, Gujarat 394101",
         seller_name: "MurtiPuja",
         seller_inv: order.orderNumber,
         quantity: String(totalItems),

@@ -91,7 +91,7 @@ export default function ContactPage() {
     email: "support@murtipuja.com",
     phone: "+91 88664 45729",
     whatsapp: "+91 88664 45729",
-    address: "MurtiPuja Headquarters, Ring Road, Textile & Diamond City, Surat - 395007, Gujarat, India",
+    address: "MurtiPuja Studio, C-504, stair no. -1, Yamuna Palace, Satellite Rd, Sudama Chowk, Mota Varachha, Surat - 394101, Gujarat, India",
     openingHours: "Mon–Sat · 10am–7pm IST",
     supportHours: "Replies within 24 working hours",
   };

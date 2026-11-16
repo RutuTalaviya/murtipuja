@@ -516,7 +516,7 @@ export default function PagesCmsManager() {
                       })
                     }
                     className="w-full px-4 py-2.5 border-2 border-neutral-200 rounded-none bg-white text-xs font-bold text-black outline-none focus:border-black leading-relaxed"
-                    placeholder="MurtiPuja Headquarters, Ring Road, Surat, Gujarat - 395007, India"
+                    placeholder="MurtiPuja Studio, C-504, stair no. -1, Yamuna Palace, Satellite Rd, Sudama Chowk, Mota Varachha, Surat - 394101, Gujarat, India"
                   />
                 </div>
 

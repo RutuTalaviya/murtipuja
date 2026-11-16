@@ -111,16 +111,16 @@ const organizationJsonLd = {
   description: "India's premier 0.1mm micro-precision 3D-sculpted sacred Hindu idols studio in Surat, Gujarat.",
   address: {
     "@type": "PostalAddress",
-    streetAddress: "Ring Road, Textile & Diamond City",
+    streetAddress: "C-504, stair no. -1, Yamuna Palace, Satellite Rd, Sudama Chowk, Mota Varachha",
     addressLocality: "Surat",
     addressRegion: "Gujarat",
-    postalCode: "395007",
+    postalCode: "394101",
     addressCountry: "IN",
   },
   contactPoint: [
     {
       "@type": "ContactPoint",
-      telephone: "+91-9664737035",
+      telephone: "+91-8866445729",
       contactType: "customer service",
       areaServed: "IN",
       availableLanguage: ["en", "hi", "gu"],

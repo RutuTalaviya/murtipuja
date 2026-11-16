@@ -133,7 +133,7 @@ export default function OrderInvoicePage() {
             </div>
             <p className="text-[11px] text-neutral-600 font-medium mt-1">Divine Gifts for a Better Life · 0.1mm Precision Icons</p>
             <p className="text-[10px] text-neutral-500 mt-0.5">
-              Surat Studio: C-504 Yamuna Palace, Satellite Rd, Mota Varachha, Surat - 394101, Gujarat, India
+              Surat Studio: C-504, stair no. -1, Yamuna Palace, Satellite Rd, Sudama Chowk, Mota Varachha, Surat - 394101, Gujarat, India
             </p>
             <p className="text-[10px] text-neutral-500">
               Email: support@murtipuja.com | Phone: +91 88664 45729 | Web: https://murtipuja.com

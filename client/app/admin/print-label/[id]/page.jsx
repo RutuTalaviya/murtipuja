@@ -261,7 +261,7 @@ export default function PrintLabelPage() {
             <span>ORDER ID: {order.orderNumber}</span>
           </div>
           <div className="text-[9px] font-bold leading-tight mt-0.5">
-            <span className="font-extrabold uppercase">Murtipuja Studio</span>, Ring Road, Textile & Diamond Hub, Surat, Gujarat - 395007. (Ph: +91 88664 45729)
+            <span className="font-extrabold uppercase">Murtipuja Studio</span>, C-504, stair no. -1, Yamuna Palace, Satellite Rd, Sudama Chowk, Mota Varachha, Surat, Gujarat - 394101. (Ph: +91 88664 45729)
           </div>
         </div>
 
