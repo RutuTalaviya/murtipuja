@@ -127,9 +127,8 @@ const organizationJsonLd = {
     },
   ],
   sameAs: [
-    "https://instagram.com/murtipuja",
-    "https://facebook.com/murtipuja",
-    "https://youtube.com/@murtipuja",
+    "https://www.instagram.com/murtipuja_official",
+    "https://www.facebook.com/profile.php?id=61596081839933",
   ],
 };
 
