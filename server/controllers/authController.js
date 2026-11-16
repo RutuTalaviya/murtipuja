@@ -51,7 +51,7 @@ async function sendOtp(req, res, next) {
       );
     } catch (e) {}
 
-    console.log(`\n========================================\n🔑 [MURTIPUJA OTP] Phone: +91 ${phone}\n👉 Generated OTP: ${otp}\n👉 Testing Master OTP: 123456\n========================================\n`);
+    console.log(`\n========================================\n🔑 [MURTIPUJA OTP] Phone: +91 ${phone}\n👉 Generated OTP: ${otp}\n========================================\n`);
 
     // Fetch existing customer name if available
     const existingUser = await User.findOne({ phone }).select("name");
@@ -101,30 +101,24 @@ async function verifyOtp(req, res, next) {
 
     const otpRecord = await Otp.findOne({ phone }).sort({ createdAt: -1 });
 
-    // Master testing OTP is enabled by default for seamless setup (set ENABLE_MASTER_OTP=false in .env when in strict live production)
-    const isMasterOtpEnabled = process.env.ENABLE_MASTER_OTP !== "false";
-    const isMasterOtp = isMasterOtpEnabled && (otp === "123456" || otp === "999999" || (process.env.MASTER_OTP && otp === process.env.MASTER_OTP));
+    if (!otpRecord || new Date() > new Date(otpRecord.expiresAt)) {
+      if (otpRecord) await Otp.deleteMany({ phone });
+      return res.status(400).json({
+        expired: true,
+        message: "OTP has expired. Please click 'Resend OTP' to request a new code.",
+      });
+    }
 
-    if (!isMasterOtp) {
-      if (!otpRecord || new Date() > new Date(otpRecord.expiresAt)) {
-        if (otpRecord) await Otp.deleteMany({ phone });
-        return res.status(400).json({
-          expired: true,
-          message: "OTP has expired. Please click 'Resend OTP' to request a new code.",
-        });
-      }
+    if (otpRecord.attempts >= 5) {
+      await Otp.deleteMany({ phone });
+      return res.status(429).json({ message: "Too many incorrect attempts. Please request a new OTP." });
+    }
 
-      if (otpRecord.attempts >= 5) {
-        await Otp.deleteMany({ phone });
-        return res.status(429).json({ message: "Too many incorrect attempts. Please request a new OTP." });
-      }
-
-      const isMatch = await compareOtp(otp, otpRecord.hashedOtp);
-      if (!isMatch) {
-        otpRecord.attempts += 1;
-        await otpRecord.save();
-        return res.status(400).json({ message: "Incorrect OTP" });
-      }
+    const isMatch = await compareOtp(otp, otpRecord.hashedOtp);
+    if (!isMatch) {
+      otpRecord.attempts += 1;
+      await otpRecord.save();
+      return res.status(400).json({ message: "Incorrect OTP" });
     }
 
     // OTP correct — clean up, then find or create the user
