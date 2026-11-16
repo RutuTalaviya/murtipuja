@@ -129,6 +129,7 @@ const organizationJsonLd = {
   sameAs: [
     "https://www.instagram.com/murtipuja_official",
     "https://www.facebook.com/profile.php?id=61596081839933",
+    "https://www.youtube.com/@murtipuja_official",
   ],
 };
 
