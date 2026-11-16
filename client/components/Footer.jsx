@@ -23,7 +23,7 @@ const SOCIALS = [
   },
   {
     name: "WhatsApp",
-    href: "https://wa.me/917990138678?text=Hi%20MurtiPuja%20Support,%20I%20have%20an%20inquiry.",
+    href: "https://wa.me/918866445729?text=Hi%20MurtiPuja%20Support,%20I%20have%20an%20inquiry.",
     svg: (
       <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24">
         <path d="M12.031 0C5.394 0 .016 5.378.016 12.016c0 2.122.554 4.19 1.609 6.015L0 24l6.164-1.616A11.96 11.96 0 0012.031 24c6.637 0 12.016-5.378 12.016-12.016 0-6.638-5.379-12.016-12.016-12.016zm0 22.029c-1.802 0-3.568-.484-5.116-1.401l-.367-.218-3.799.996 1.014-3.702-.239-.38a9.997 9.997 0 01-1.532-5.308c0-5.534 4.505-10.038 10.039-10.038 5.534 0 10.039 4.504 10.039 10.038 0 5.535-4.505 10.04-10.039 10.04zm5.503-7.514c-.302-.152-1.787-.882-2.064-.983-.277-.101-.479-.152-.68.152-.202.303-.781.983-.958 1.185-.176.202-.353.227-.655.076s-1.274-.47-2.426-1.498c-.897-.799-1.502-1.787-1.678-2.09-.176-.303-.019-.467.133-.618.136-.135.302-.353.454-.53.151-.177.202-.303.302-.505.101-.202.051-.379-.025-.53s-.68-1.641-.933-2.247c-.246-.59-.496-.51-.68-.519l-.58-.01c-.202 0-.53.076-.807.379-.277.303-1.059 1.035-1.059 2.524s1.084 2.928 1.236 3.13c.151.202 2.134 3.259 5.17 4.571.722.312 1.286.499 1.726.638.725.23 1.385.198 1.906.12.58-.087 1.787-.731 2.039-1.438.252-.707.252-1.313.176-1.439-.075-.126-.277-.202-.579-.354z" />
@@ -106,17 +106,6 @@ export default function Footer() {
               <li><Link href="/shipping-policy" className="hover:text-gold transition-colors">Shipping Policy</Link></li>
               <li><Link href="/refund-policy" className="hover:text-gold transition-colors">Return Policy</Link></li>
               <li><Link href="/faqs" className="hover:text-gold transition-colors">FAQs</Link></li>
-              <li>
-                <a
-                  href="https://wa.me/917990138678?text=Hi%20MurtiPuja%20Support,%20I%20have%20an%20inquiry."
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-gold transition-colors text-gold inline-flex items-center gap-1.5"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Chat on WhatsApp
-                </a>
-              </li>
             </ul>
           </div>
 

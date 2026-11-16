@@ -136,7 +136,7 @@ export default function OrderInvoicePage() {
               Surat Studio: C-504 Yamuna Palace, Satellite Rd, Mota Varachha, Surat - 394101, Gujarat, India
             </p>
             <p className="text-[10px] text-neutral-500">
-              Email: support@murtipuja.com | Phone: +91 79901 38678 | Web: https://murtipuja.com
+              Email: support@murtipuja.com | Phone: +91 88664 45729 | Web: https://murtipuja.com
             </p>
           </div>
 

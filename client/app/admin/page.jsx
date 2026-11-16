@@ -8017,7 +8017,7 @@ export default function AdminPage() {
                       type="tel"
                       value={newAdminPhone}
                       onChange={(e) => setNewAdminPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      placeholder="7990138678"
+                      placeholder="8866445729"
                       maxLength={10}
                       required
                       className="w-full pl-12 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold focus:border-maroon focus:outline-none transition-colors"

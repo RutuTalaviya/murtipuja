@@ -250,8 +250,8 @@ export default function ShippingPolicyPage() {
               <div className="space-y-2 text-xs font-bold pt-2 border-t border-stone-100">
                 <p className="flex items-center justify-between">
                   <span className="text-neutral-500">Phone / WhatsApp:</span>
-                  <a href="tel:+917990138678" className="text-neutral-900 hover:underline font-extrabold">
-                    +91 79901 38678
+                  <a href="tel:+918866445729" className="text-neutral-900 hover:underline font-extrabold">
+                    +91 88664 45729
                   </a>
                 </p>
                 <p className="flex items-center justify-between">
@@ -263,7 +263,7 @@ export default function ShippingPolicyPage() {
               </div>
 
               <a
-                href="https://wa.me/917990138678"
+                href="https://wa.me/918866445729"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block w-full py-3 bg-black hover:bg-gold hover:text-black text-white text-center text-xs font-extrabold uppercase tracking-wider transition-colors shadow-sm"

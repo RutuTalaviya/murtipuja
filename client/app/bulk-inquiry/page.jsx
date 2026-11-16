@@ -160,7 +160,7 @@ function BulkInquiryContent() {
       .filter(Boolean)
       .join("\n");
 
-    const waUrl = `https://wa.me/917990138678?text=${encodeURIComponent(waText)}`;
+    const waUrl = `https://wa.me/918866445729?text=${encodeURIComponent(waText)}`;
 
     // Open WhatsApp in new tab
     if (typeof window !== "undefined") {
@@ -199,12 +199,12 @@ function BulkInquiryContent() {
 
           {/* Quick Direct WhatsApp Chat */}
           <a
-            href="https://wa.me/917990138678?text=Hi%20MurtiPuja,%20I%20have%20an%20urgent%20bulk%20inquiry."
+            href="https://wa.me/918866445729?text=Hi%20MurtiPuja,%20I%20have%20an%20urgent%20bulk%20inquiry."
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0a5c36] hover:bg-[#074729] text-white text-xs font-bold uppercase tracking-wider shadow-sm transition-all flex-shrink-0"
           >
-            <span>💬 Direct WhatsApp Support: +91 79901 38678</span>
+            <span>💬 Direct WhatsApp Support: +91 88664 45729</span>
           </a>
         </div>
 
@@ -247,14 +247,14 @@ function BulkInquiryContent() {
 
               <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
                 <a
-                  href={`https://wa.me/917990138678?text=${encodeURIComponent(
+                  href={`https://wa.me/918866445729?text=${encodeURIComponent(
                     `🙏 Namaste MurtiPuja, following up on bulk inquiry for ${formData.deity} (${formData.quantity} units).`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full sm:w-auto px-6 py-3.5 bg-[#0a5c36] hover:bg-[#074729] text-white text-xs font-bold uppercase tracking-wider inline-flex items-center justify-center gap-2 shadow-sm transition-all"
                 >
-                  <span>💬 Open WhatsApp Chat (+91 79901 38678)</span>
+                  <span>💬 Open WhatsApp Chat (+91 88664 45729)</span>
                 </a>
 
                 <button

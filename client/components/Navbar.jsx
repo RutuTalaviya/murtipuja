@@ -1068,8 +1068,8 @@ export default function Navbar() {
                   <p className="text-[10px] uppercase font-bold tracking-widest text-black font-extrabold">Need Help?</p>
                   <p className="text-xs flex flex-wrap gap-1 text-black/70">
                     <span>Call:</span>
-                    <a href="tel:+917990138678" className="font-semibold text-black hover:text-orange-500 underline">
-                      +91 79901 38678
+                    <a href="tel:+918866445729" className="font-semibold text-black hover:text-orange-500 underline">
+                      +91 88664 45729
                     </a>
                   </p>
                   <p className="text-xs text-black/70 truncate">

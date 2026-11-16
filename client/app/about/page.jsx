@@ -56,7 +56,7 @@ export default function AboutUsPage() {
   };
 
   const contactInfo = pageData?.contactInfo || {
-    phone: "+91 79901 38678",
+    phone: "+91 88664 45729",
     email: "support@murtipuja.com",
     address: "MurtiPuja Studio, Ring Road, Surat, Gujarat - 395002",
   };

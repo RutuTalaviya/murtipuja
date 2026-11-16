@@ -55,7 +55,7 @@ const DEFAULT_PAGES = {
     contactInfo: {
       email: "support@murtipuja.com",
       phone: "+91 96647 37035",
-      whatsapp: "+91 79901 38678",
+      whatsapp: "+91 88664 45729",
       address: "MurtiPuja Headquarters, Ring Road, Textile & Diamond City, Surat - 395007, Gujarat, India",
       openingHours: "Mon–Sat · 10am–7pm IST",
       supportHours: "Monday to Saturday, 10 AM to 7 PM",
@@ -74,7 +74,7 @@ const DEFAULT_PAGES = {
     contactInfo: {
       email: "support@murtipuja.com",
       phone: "+91 96647 37035",
-      whatsapp: "+91 79901 38678",
+      whatsapp: "+91 88664 45729",
       address: "MurtiPuja Headquarters, Ring Road, Textile & Diamond City, Surat - 395007, Gujarat, India",
       openingHours: "Mon–Sat · 10am–7pm IST",
       supportHours: "Monday to Saturday, 10 AM to 7 PM",
@@ -245,7 +245,7 @@ const DEFAULT_PAGES = {
       {
         category: "Support & Studio Contact",
         question: "How do I contact customer support?",
-        answer: "Our studio concierge team in Surat is available Monday to Saturday from 10:00 AM to 7:00 PM IST. You can reach us via Phone/WhatsApp at +91 79901 38678 / +91 96647 37035, or via email at support@murtipuja.com.",
+        answer: "Our studio concierge team in Surat is available Monday to Saturday from 10:00 AM to 7:00 PM IST. You can reach us via Phone/WhatsApp at +91 88664 45729 / +91 96647 37035, or via email at support@murtipuja.com.",
       },
       {
         category: "Support & Studio Contact",

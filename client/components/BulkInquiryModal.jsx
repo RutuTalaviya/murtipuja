@@ -100,7 +100,7 @@ export default function BulkInquiryModal({
       `🔗 *Product Link:* https://murtipuja.com/products/${product?.slug || ""}`,
     ].filter(Boolean).join("\n");
 
-    const waUrl = `https://wa.me/917990138678?text=${encodeURIComponent(waText)}`;
+    const waUrl = `https://wa.me/918866445729?text=${encodeURIComponent(waText)}`;
 
     // Open WhatsApp in new tab
     if (typeof window !== "undefined") {
@@ -143,12 +143,12 @@ export default function BulkInquiryModal({
             </p>
             <div className="pt-3 flex flex-col sm:flex-row gap-2.5 justify-center">
               <a
-                href="https://wa.me/917990138678"
+                href="https://wa.me/918866445729"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 bg-[#25D366] text-white px-5 py-3 border border-black font-extrabold uppercase tracking-widest text-xs hover:bg-[#1ebd5a] transition-colors"
               >
-                <span>💬 Chat on WhatsApp (+91 79901 38678)</span>
+                <span>💬 Chat on WhatsApp (+91 88664 45729)</span>
               </a>
               <button
                 type="button"

@@ -398,7 +398,7 @@ export default function RefundPolicyPage() {
                 Connect directly with our Surat studio team on WhatsApp Mon–Sat (10 AM – 7 PM IST).
               </p>
               <a
-                href="https://wa.me/917990138678?text=Hi%20MurtiPuja%20Support,%20I%20have%20questions%20about%20return%20rules."
+                href="https://wa.me/918866445729?text=Hi%20MurtiPuja%20Support,%20I%20have%20questions%20about%20return%20rules."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block w-full bg-black hover:bg-gold hover:text-black text-white text-center py-3 text-xs font-extrabold uppercase tracking-wider transition-colors shadow-sm"

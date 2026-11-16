@@ -134,7 +134,7 @@ const DEFAULT_FAQ_SECTIONS = [
     questions: [
       {
         q: "How do I contact customer support?",
-        a: "Our studio concierge team in Surat is available Monday to Saturday from 10:00 AM to 7:00 PM IST. You can reach us via Phone/WhatsApp at +91 79901 38678 / +91 96647 37035, or via email at support@murtipuja.com.",
+        a: "Our studio concierge team in Surat is available Monday to Saturday from 10:00 AM to 7:00 PM IST. You can reach us via Phone/WhatsApp at +91 88664 45729 / +91 96647 37035, or via email at support@murtipuja.com.",
       },
       {
         q: "Do you have an offline showroom or store?",
@@ -479,7 +479,7 @@ export default function FaqsPage() {
                   Contact Support
                 </Link>
                 <a
-                  href="https://wa.me/917990138678"
+                  href="https://wa.me/918866445729"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full sm:w-auto text-center px-6 py-3.5 bg-transparent hover:bg-white/10 text-white font-extrabold text-xs uppercase tracking-wider border border-white transition-colors"

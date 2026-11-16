@@ -89,8 +89,8 @@ export default function ContactPage() {
 
   const contactInfo = pageData?.contactInfo || {
     email: "support@murtipuja.com",
-    phone: "+91 79901 38678",
-    whatsapp: "+91 79901 38678",
+    phone: "+91 88664 45729",
+    whatsapp: "+91 88664 45729",
     address: "MurtiPuja Headquarters, Ring Road, Textile & Diamond City, Surat - 395007, Gujarat, India",
     openingHours: "Mon–Sat · 10am–7pm IST",
     supportHours: "Replies within 24 working hours",

@@ -67,7 +67,7 @@ async function createDelhiveryShipment(order, user = {}) {
         return_country: "India",
         return_add: process.env.DELHIVERY_RETURN_ADDRESS || "C-504 Yamuna Palace, Satellite Rd, Sudama Chowk, Mota Varachha, Surat, Gujarat 394101",
         return_name: process.env.DELHIVERY_RETURN_NAME || "MurtiPuja Studio",
-        return_phone: process.env.DELHIVERY_RETURN_PHONE || "+917990138678",
+        return_phone: process.env.DELHIVERY_RETURN_PHONE || "+918866445729",
         products_desc: productsDesc,
         order_date: new Date(order.createdAt).toISOString().slice(0, 19).replace("T", " "),
         total_amount: Number(order.totalAmount || 0),

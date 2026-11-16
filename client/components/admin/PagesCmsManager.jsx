@@ -478,7 +478,7 @@ export default function PagesCmsManager() {
                       })
                     }
                     className="w-full px-4 py-2.5 border-2 border-neutral-200 rounded-none bg-white text-xs font-bold text-black outline-none focus:border-black"
-                    placeholder="+91 79901 38678"
+                    placeholder="+91 88664 45729"
                   />
                 </div>
 
