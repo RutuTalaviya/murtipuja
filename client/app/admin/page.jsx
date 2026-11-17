@@ -3087,9 +3087,9 @@ export default function AdminPage() {
                 </div>
 
                 <div className="text-xs text-neutral-700 bg-white/80 border border-amber-200 rounded-lg p-3 space-y-1">
-                  <p><strong>Pickup Warehouse:</strong> Surat Studio (Mota Varachha, Surat)</p>
-                  <p><strong>Deliver To:</strong> {shippingModalOrder.shippingAddress?.name || "Customer"} · {shippingModalOrder.shippingAddress?.city}, {shippingModalOrder.shippingAddress?.state} ({shippingModalOrder.shippingAddress?.pincode})</p>
-                  <p><strong>Customer Phone:</strong> {shippingModalOrder.shippingAddress?.phone || "N/A"}</p>
+                  <p><strong>Pickup Facility:</strong> prada · Surat Studio (Mota Varachha, Surat - 394101)</p>
+                  <p><strong>Deliver To:</strong> {shippingModalOrder.user?.name || shippingModalOrder.shippingAddress?.name || "Customer"} · {shippingModalOrder.shippingAddress?.city}, {shippingModalOrder.shippingAddress?.state} ({shippingModalOrder.shippingAddress?.pincode})</p>
+                  <p><strong>Customer Phone:</strong> {shippingModalOrder.shippingAddress?.phone || shippingModalOrder.user?.phone || "N/A"}</p>
                 </div>
 
                 {shippingModalOrder.delhiveryWaybill ? (
