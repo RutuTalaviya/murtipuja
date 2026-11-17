@@ -13,6 +13,7 @@ import api, {
   pushOrderToDelhivery,
   syncDelhiveryTracking,
   getDelhiveryLabel,
+  scheduleDelhiveryPickup,
   getCategories,
   createCategory,
   updateCategory,
@@ -413,7 +414,14 @@ export default function AdminPage() {
   }, [user, authLoading]);
 
   function openTrackingModal(order, defaultStatus) {
-    setShippingModalOrder(order);
+    let fullOrder = order;
+    if (!order.user || typeof order.user === "string" || !order.user.name) {
+      const match = orders.find((o) => o._id === order._id && o.user && typeof o.user === "object");
+      if (match && match.user) {
+        fullOrder = { ...order, user: match.user };
+      }
+    }
+    setShippingModalOrder(fullOrder);
     setShippingStatus(defaultStatus || order.orderStatus || "shipped");
     setShippingAwb(order.delhiveryWaybill || order.awbNumber || order.trackingId || "");
     setShippingCourier("Delhivery");
@@ -435,7 +443,16 @@ export default function AdminPage() {
       };
       const res = await updateOrderStatus(shippingModalOrder._id, payload);
       const updatedOrder = res.data;
-      setOrders(orders.map((o) => (o._id === updatedOrder._id ? updatedOrder : o)));
+      setOrders((prev) =>
+        prev.map((o) => {
+          if (o._id === updatedOrder._id) {
+            const existingUser = o.user && typeof o.user === "object" ? o.user : null;
+            const newUser = updatedOrder.user && typeof updatedOrder.user === "object" ? updatedOrder.user : existingUser;
+            return { ...o, ...updatedOrder, user: newUser };
+          }
+          return o;
+        })
+      );
       setShippingModalOrder(null);
       // Refresh dashboard analytics
       const statsRes = await getAdminDashboard();
@@ -449,6 +466,7 @@ export default function AdminPage() {
   }
 
   const [delhiveryLoadingId, setDelhiveryLoadingId] = useState(null);
+  const [delhiveryPickupLoadingId, setDelhiveryPickupLoadingId] = useState(null);
 
   async function handlePushToDelhivery(orderId) {
     setActionError("");
@@ -457,9 +475,22 @@ export default function AdminPage() {
     try {
       const res = await pushOrderToDelhivery(orderId);
       const updatedOrder = res.data.order;
-      setOrders((prev) => prev.map((o) => (o._id === orderId ? updatedOrder : o)));
+      setOrders((prev) =>
+        prev.map((o) => {
+          if (o._id === orderId) {
+            const existingUser = o.user && typeof o.user === "object" ? o.user : null;
+            const newUser = updatedOrder.user && typeof updatedOrder.user === "object" ? updatedOrder.user : existingUser;
+            return { ...o, ...updatedOrder, user: newUser };
+          }
+          return o;
+        })
+      );
       if (shippingModalOrder && shippingModalOrder._id === orderId) {
-        setShippingModalOrder(updatedOrder);
+        setShippingModalOrder((prev) => ({
+          ...prev,
+          ...updatedOrder,
+          user: (updatedOrder.user && typeof updatedOrder.user === "object") ? updatedOrder.user : prev?.user,
+        }));
         setShippingAwb(updatedOrder.delhiveryWaybill || updatedOrder.awbNumber || "");
         setShippingCourier("Delhivery");
         setShippingStatus(updatedOrder.orderStatus || "shipped");
@@ -481,9 +512,22 @@ export default function AdminPage() {
     try {
       const res = await syncDelhiveryTracking(orderId);
       const updatedOrder = res.data.order;
-      setOrders((prev) => prev.map((o) => (o._id === orderId ? updatedOrder : o)));
+      setOrders((prev) =>
+        prev.map((o) => {
+          if (o._id === orderId) {
+            const existingUser = o.user && typeof o.user === "object" ? o.user : null;
+            const newUser = updatedOrder.user && typeof updatedOrder.user === "object" ? updatedOrder.user : existingUser;
+            return { ...o, ...updatedOrder, user: newUser };
+          }
+          return o;
+        })
+      );
       if (shippingModalOrder && shippingModalOrder._id === orderId) {
-        setShippingModalOrder(updatedOrder);
+        setShippingModalOrder((prev) => ({
+          ...prev,
+          ...updatedOrder,
+          user: (updatedOrder.user && typeof updatedOrder.user === "object") ? updatedOrder.user : prev?.user,
+        }));
         setShippingAwb(updatedOrder.delhiveryWaybill || updatedOrder.awbNumber || "");
         setShippingStatus(updatedOrder.orderStatus || "shipped");
       }
@@ -492,6 +536,40 @@ export default function AdminPage() {
       setActionError(err.response?.data?.message || "Failed to sync tracking from Delhivery.");
     } finally {
       setDelhiveryLoadingId(null);
+    }
+  }
+
+  async function handleScheduleDelhiveryPickup(orderId) {
+    setActionError("");
+    setActionSuccess("");
+    setDelhiveryPickupLoadingId(orderId);
+    try {
+      const res = await scheduleDelhiveryPickup(orderId);
+      const updatedOrder = res.data.order;
+      if (updatedOrder) {
+        setOrders((prev) =>
+          prev.map((o) => {
+            if (o._id === updatedOrder._id) {
+              const existingUser = o.user && typeof o.user === "object" ? o.user : null;
+              const newUser = updatedOrder.user && typeof updatedOrder.user === "object" ? updatedOrder.user : existingUser;
+              return { ...o, ...updatedOrder, user: newUser };
+            }
+            return o;
+          })
+        );
+        if (shippingModalOrder && shippingModalOrder._id === orderId) {
+          setShippingModalOrder((prev) => ({
+            ...prev,
+            ...updatedOrder,
+            user: (updatedOrder.user && typeof updatedOrder.user === "object") ? updatedOrder.user : prev?.user,
+          }));
+        }
+      }
+      setActionSuccess(res.data.message || "Doorstep courier pickup scheduled with Delhivery!");
+    } catch (err) {
+      setActionError(err.response?.data?.message || "Failed to schedule Delhivery pickup.");
+    } finally {
+      setDelhiveryPickupLoadingId(null);
     }
   }
 
@@ -3088,8 +3166,13 @@ export default function AdminPage() {
 
                 <div className="text-xs text-neutral-700 bg-white/80 border border-amber-200 rounded-lg p-3 space-y-1">
                   <p><strong>Pickup Facility:</strong> prada · Surat Studio (Mota Varachha, Surat - 394101)</p>
-                  <p><strong>Deliver To:</strong> {shippingModalOrder.user?.name || shippingModalOrder.shippingAddress?.name || "Customer"} · {shippingModalOrder.shippingAddress?.city}, {shippingModalOrder.shippingAddress?.state} ({shippingModalOrder.shippingAddress?.pincode})</p>
-                  <p><strong>Customer Phone:</strong> {shippingModalOrder.shippingAddress?.phone || shippingModalOrder.user?.phone || "N/A"}</p>
+                  <p><strong>Deliver To:</strong> {shippingModalOrder.user?.name || shippingModalOrder.shippingAddress?.fullName || shippingModalOrder.shippingAddress?.name || "Customer"} · {shippingModalOrder.shippingAddress?.city}, {shippingModalOrder.shippingAddress?.state} ({shippingModalOrder.shippingAddress?.pincode})</p>
+                  <p><strong>Customer Phone:</strong> {shippingModalOrder.user?.phone || shippingModalOrder.shippingAddress?.phone || "N/A"}</p>
+                  {shippingModalOrder.delhiveryPickupStatus && (
+                    <p className="text-emerald-800 font-bold">
+                      <strong>Doorstep Pickup:</strong> ✓ {shippingModalOrder.delhiveryPickupStatus} {shippingModalOrder.delhiveryPickupId ? `(ID: ${shippingModalOrder.delhiveryPickupId})` : ""}
+                    </p>
+                  )}
                 </div>
 
                 {shippingModalOrder.delhiveryWaybill ? (
@@ -3106,9 +3189,34 @@ export default function AdminPage() {
                         onClick={() => handlePrintDelhiveryLabel(shippingModalOrder._id)}
                         disabled={delhiveryLoadingId === `label_${shippingModalOrder._id}`}
                         className="px-4 py-2 bg-neutral-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                        title="Open official Delhivery barcode shipping label PDF"
                       >
                         {delhiveryLoadingId === `label_${shippingModalOrder._id}` ? "Fetching..." : "📄 Print Delhivery Label (PDF)"}
                       </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleScheduleDelhiveryPickup(shippingModalOrder._id)}
+                        disabled={delhiveryPickupLoadingId === shippingModalOrder._id}
+                        className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 ${
+                          shippingModalOrder.delhiveryPickupStatus === "Scheduled"
+                            ? "bg-emerald-100 border border-emerald-400 text-emerald-950 hover:bg-emerald-200"
+                            : "bg-amber-600 hover:bg-amber-700 text-white"
+                        }`}
+                        title="Request Delhivery courier van to pick up parcel from Surat Studio"
+                      >
+                        {delhiveryPickupLoadingId === shippingModalOrder._id ? (
+                          <>
+                            <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                            Scheduling...
+                          </>
+                        ) : shippingModalOrder.delhiveryPickupStatus === "Scheduled" ? (
+                          "✓ Pickup Scheduled"
+                        ) : (
+                          "🚚 Request Doorstep Pickup"
+                        )}
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => handleSyncDelhivery(shippingModalOrder._id)}
@@ -3124,6 +3232,7 @@ export default function AdminPage() {
                           "🔄 Sync Live Tracking"
                         )}
                       </button>
+
                       <a
                         href={`https://www.delhivery.com/track/package/${shippingModalOrder.delhiveryWaybill}`}
                         target="_blank"
@@ -3132,6 +3241,15 @@ export default function AdminPage() {
                       >
                         <span>Tracking Portal ↗</span>
                       </a>
+
+                      <button
+                        type="button"
+                        onClick={() => window.open(`/admin/print-label/${shippingModalOrder._id}`, "_blank")}
+                        className="px-2.5 py-2 text-neutral-500 hover:text-black text-xs font-semibold underline"
+                        title="Print Studio Thermal 4x6 Label as backup"
+                      >
+                        Thermal Slip
+                      </button>
                     </div>
                   </div>
                 ) : (

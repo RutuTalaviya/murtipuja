@@ -24,6 +24,7 @@ const {
   pushOrderToDelhivery,
   syncDelhiveryTracking,
   getDelhiveryLabel,
+  scheduleDelhiveryPickupHandler,
   handleDelhiveryWebhook,
   discardPendingOrder,
 } = require("../controllers/orderController");
@@ -65,6 +66,7 @@ router.post("/admin/orders/:id/generate-label", protect, adminOnly, generateShip
 router.post("/admin/orders/:id/delhivery/ship", protect, adminOnly, pushOrderToDelhivery);
 router.post("/admin/orders/:id/delhivery/track", protect, adminOnly, syncDelhiveryTracking);
 router.get("/admin/orders/:id/delhivery/label", protect, adminOnly, getDelhiveryLabel);
+router.post("/admin/orders/:id/delhivery/pickup", protect, adminOnly, scheduleDelhiveryPickupHandler);
 
 // Logistics Webhooks (Public)
 router.post("/shipping/shiprocket/webhook", handleShiprocketWebhook);

@@ -246,16 +246,91 @@ async function generateDelhiveryLabel(waybill) {
   }
 
   try {
-    // Delhivery packing slip URL
-    const labelUrl = `${baseUrl}/api/p/packing_slip?wbns=${encodeURIComponent(waybill)}&pdf=true`;
+    // Delhivery Packing Slip API requires Token and returns JSON containing pre-signed S3 pdf_download_link
+    const response = await axios.get(`${baseUrl}/api/p/packing_slip?wbns=${encodeURIComponent(waybill)}&pdf=true`, {
+      headers: {
+        Authorization: `Token ${token}`,
+        Accept: "application/json",
+      },
+      timeout: 15000,
+    });
+
+    const data = response.data;
+    const s3PdfUrl = data?.packages?.[0]?.pdf_download_link;
+
+    if (!s3PdfUrl) {
+      throw new Error("Delhivery did not return a valid PDF download link.");
+    }
+
     return {
       success: true,
       waybill,
-      labelUrl,
+      labelUrl: s3PdfUrl,
     };
   } catch (error) {
-    console.error("Delhivery Label Error:", error.message);
-    throw new Error("Failed to generate Delhivery shipping label");
+    const errData = error.response?.data;
+    const errMsg = (typeof errData === "object" ? (errData.detail || errData.message || JSON.stringify(errData)) : errData) || error.message;
+    console.error("Delhivery Label Error:", errData || error.message);
+    throw new Error(errMsg || "Failed to generate Delhivery shipping label");
+  }
+}
+
+/**
+ * Request / Schedule Doorstep Courier Pickup with Delhivery
+ * @param {Object} options - { pickupDate, pickupTime, pickupLocation, packageCount }
+ */
+async function requestDelhiveryPickup(options = {}) {
+  const token = getApiToken();
+  const baseUrl = getBaseUrl();
+
+  if (!token || token.includes("your_delhivery_api_token")) {
+    return {
+      success: true,
+      isMock: true,
+      message: "[MOCK] Delhivery courier pickup scheduled successfully.",
+      pickupToken: "MOCK_PK_" + Date.now(),
+    };
+  }
+
+  const pickupLocation = options.pickupLocation || process.env.DELHIVERY_PICKUP_LOCATION || "prada";
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const pickupDate = options.pickupDate || todayStr;
+  const pickupTime = options.pickupTime || "16:00:00";
+  const expectedPackageCount = Number(options.packageCount || 1);
+
+  try {
+    const response = await axios.post(
+      `${baseUrl}/fm/request/new/`,
+      {
+        pickup_time: pickupTime,
+        pickup_date: pickupDate,
+        pickup_location: pickupLocation,
+        expected_package_count: expectedPackageCount,
+      },
+      {
+        headers: {
+          Authorization: `Token ${token}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 15000,
+      }
+    );
+
+    const resData = response.data;
+    console.log("Delhivery Pickup Request Response:", JSON.stringify(resData));
+
+    return {
+      success: true,
+      data: resData,
+      message: resData.pr_status || "Delhivery courier pickup request scheduled successfully!",
+      pickupToken: resData.pr_id || resData.incoming_center_name || "",
+    };
+  } catch (error) {
+    const errData = error.response?.data;
+    const errMsg = (typeof errData === "object" ? (errData.prepaid || errData.message || errData.error || JSON.stringify(errData)) : errData) || error.message;
+    console.error("Delhivery Pickup Error:", errData || error.message);
+    throw new Error(errMsg);
   }
 }
 
@@ -364,6 +439,7 @@ module.exports = {
   createDelhiveryShipment,
   trackDelhiveryShipment,
   generateDelhiveryLabel,
+  requestDelhiveryPickup,
   checkDelhiveryPincode,
   autoSyncActiveDelhiveryOrders,
 };

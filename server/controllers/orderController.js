@@ -887,12 +887,13 @@ async function updateOrderStatus(req, res, next) {
     }
 
     await order.save();
+    const populatedOrder = await Order.findById(order._id).populate("user", "name phone email");
 
     if (status && status !== previousStatus) {
-      sendOrderStatusWhatsApp(order, status);
+      sendOrderStatusWhatsApp(populatedOrder, status);
     }
 
-    return res.status(200).json(order);
+    return res.status(200).json(populatedOrder);
   } catch (error) {
     next(error);
   }
@@ -1511,7 +1512,15 @@ async function pushOrderToDelhivery(req, res, next) {
         order.statusHistory.push({ status: "shipped", updatedAt: new Date() });
       }
       await order.save();
-      sendOrderStatusWhatsApp(order, "shipped");
+      const populatedOrder = await Order.findById(order._id).populate("user", "name phone email");
+      sendOrderStatusWhatsApp(populatedOrder, "shipped");
+
+      return res.status(200).json({
+        success: true,
+        message: `Shipment booked with Delhivery One! Waybill AWB: ${order.delhiveryWaybill}`,
+        order: populatedOrder,
+        shipmentRes,
+      });
     }
 
     return res.status(200).json({
@@ -1585,10 +1594,11 @@ async function syncDelhiveryTracking(req, res, next) {
       }
     }
 
+    const populatedOrder = await Order.findById(order._id).populate("user", "name phone email");
     return res.status(200).json({
       success: true,
       message: `Delhivery tracking synced: ${order.delhiveryStatus || order.orderStatus}`,
-      order,
+      order: populatedOrder,
       trackData,
     });
   } catch (error) {
@@ -1626,6 +1636,52 @@ async function getDelhiveryLabel(req, res, next) {
     });
   } catch (error) {
     next(error);
+  }
+}
+
+/**
+ * POST /api/admin/orders/:id/delhivery/pickup
+ * Schedule Doorstep courier pickup for Delhivery order
+ */
+async function scheduleDelhiveryPickupHandler(req, res, next) {
+  try {
+    const order = await Order.findById(req.params.id).populate("user");
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const waybill = order.delhiveryWaybill || order.awbNumber;
+    if (!waybill) {
+      return res.status(400).json({ message: "Please book shipment with Delhivery first to generate AWB before scheduling pickup." });
+    }
+
+    const delhivery = require("../utils/delhivery");
+    const pickupRes = await delhivery.requestDelhiveryPickup({
+      pickupLocation: process.env.DELHIVERY_PICKUP_LOCATION || "prada",
+      packageCount: 1,
+    });
+
+    order.delhiveryPickupStatus = "Scheduled";
+    if (pickupRes.pickupToken) {
+      order.delhiveryPickupId = String(pickupRes.pickupToken);
+    }
+    await order.save();
+    const populatedOrder = await Order.findById(order._id).populate("user", "name phone email");
+
+    return res.status(200).json({
+      success: true,
+      message: pickupRes.message || "Courier pickup request scheduled successfully with Delhivery!",
+      order: populatedOrder,
+      pickupRes,
+    });
+  } catch (error) {
+    const errMsg = error.message || "Failed to schedule Delhivery pickup.";
+    if (errMsg.toLowerCase().includes("wallet balance") || errMsg.toLowerCase().includes("prepaid") || errMsg.toLowerCase().includes("less than 500")) {
+      return res.status(400).json({
+        message: `Delhivery Wallet Alert: ${errMsg}. Doorstep pickup schedule karne ke liye one.delhivery.com par minimum ₹500 wallet balance hona zaroori hai.`,
+      });
+    }
+    return res.status(400).json({ message: errMsg });
   }
 }
 
@@ -1700,6 +1756,7 @@ module.exports = {
   pushOrderToDelhivery,
   syncDelhiveryTracking,
   getDelhiveryLabel,
+  scheduleDelhiveryPickupHandler,
   handleDelhiveryWebhook,
   discardPendingOrder,
 };

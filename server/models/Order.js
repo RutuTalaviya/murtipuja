@@ -12,6 +12,9 @@ const orderItemSchema = new mongoose.Schema({
 });
 
 const addressSchema = new mongoose.Schema({
+  fullName: { type: String },
+  name: { type: String },
+  phone: { type: String },
   addressLine1: { type: String, required: true },
   addressLine2: { type: String },
   city: { type: String, required: true },
@@ -64,6 +67,8 @@ const orderSchema = new mongoose.Schema(
     delhiveryLastLocation: { type: String },
     delhiveryExpectedDelivery: { type: Date },
     delhiveryLabelUrl: { type: String },
+    delhiveryPickupStatus: { type: String },
+    delhiveryPickupId: { type: String },
     delhiveryScans: [
       {
         scanDateTime: { type: Date },

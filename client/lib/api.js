@@ -160,6 +160,7 @@ export const generateShiprocketLabel = (id) => api.post(`/api/admin/orders/${id}
 export const pushOrderToDelhivery = (id) => api.post(`/api/admin/orders/${id}/delhivery/ship`);
 export const syncDelhiveryTracking = (id) => api.post(`/api/admin/orders/${id}/delhivery/track`);
 export const getDelhiveryLabel = (id) => api.get(`/api/admin/orders/${id}/delhivery/label`);
+export const scheduleDelhiveryPickup = (id) => api.post(`/api/admin/orders/${id}/delhivery/pickup`);
 
 // Wishlist
 export const toggleWishlist = (productId) => api.post("/api/auth/wishlist/toggle", { productId });
