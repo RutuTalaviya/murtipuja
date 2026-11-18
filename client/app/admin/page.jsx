@@ -3492,15 +3492,25 @@ export default function AdminPage() {
               </div>
 
               {/* Courier Instructions & Wallet Rule Notice */}
-              <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-[11px] text-neutral-600 space-y-1">
-                <p className="font-bold text-neutral-800 flex items-center gap-1">
-                  <span>💡</span> Delhivery courier boy aapke Surat Studio aayega:
+              <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-3.5 text-xs text-neutral-700 space-y-1.5">
+                <p className="font-bold text-neutral-900 flex items-center gap-1.5">
+                  <span>💡</span> Doorstep Courier Pickup Instructions:
                 </p>
-                <p>• Aapko parcel deliver karne kahin jane ki zaroorat nahi hai.</p>
-                <p>• Parcel par Delhivery shipping label (barcode) chipka kar ready rakhein.</p>
-                <p className="text-amber-900 font-semibold pt-0.5 border-t border-neutral-200/60">
-                  • Delhivery Wallet Note: Pickup confirm hone ke liye one.delhivery.com wallet me minimum ₹500 balance hona anivarya hai.
-                </p>
+                <p>• Delhivery courier executive will arrive at your Surat Studio to collect the parcel.</p>
+                <p>• Affix the official Delhivery barcode shipping label onto the packed box prior to pickup.</p>
+                <div className="pt-2 mt-1 border-t border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <p className="text-amber-900 font-medium text-[11px]">
+                    • <strong>Delhivery Prepaid Rule:</strong> A minimum wallet balance of <strong>₹500</strong> is required on Delhivery One to dispatch courier pickup.
+                  </p>
+                  <a
+                    href="https://one.delhivery.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-[11px] font-bold shadow-xs whitespace-nowrap transition-colors"
+                  >
+                    Recharge Wallet ↗
+                  </a>
+                </div>
               </div>
 
               {/* Modal Actions */}

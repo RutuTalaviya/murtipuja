@@ -55,14 +55,14 @@ async function sendOrderStatusWhatsApp(order, newStatus) {
       case "out_for_delivery":
         await sendWhatsAppMessage(
           phone,
-          `Namaste ${customerName}, aapka MurtiPuja order #${order.orderNumber} aaj deliver hone ke liye nikal chuka hai (Out for Delivery). Kripya delivery partner se sampark rakhein.`
+          `Hello ${customerName}, your MurtiPuja order #${order.orderNumber} is out for delivery today. Please keep in touch with the courier delivery partner.`
         );
         break;
 
       case "cancelled":
         await sendWhatsAppMessage(
           phone,
-          `Namaste ${customerName}, aapka MurtiPuja order #${order.orderNumber} cancel ho gaya hai. Yadi aapne online payment kiya tha to refund 3-5 business days me aapke source account me credit ho jayega.`
+          `Hello ${customerName}, your MurtiPuja order #${order.orderNumber} has been cancelled. If you made an online payment, a full refund will be credited to your original payment source within 3-5 business days.`
         );
         break;
 
@@ -1686,7 +1686,7 @@ async function scheduleDelhiveryPickupHandler(req, res, next) {
     const errMsg = error.message || "Failed to schedule Delhivery pickup.";
     if (errMsg.toLowerCase().includes("wallet balance") || errMsg.toLowerCase().includes("prepaid") || errMsg.toLowerCase().includes("less than 500")) {
       return res.status(400).json({
-        message: `Delhivery Wallet Alert: ${errMsg}. Doorstep pickup schedule karne ke liye one.delhivery.com par minimum ₹500 wallet balance hona zaroori hai.`,
+        message: `Delhivery Wallet Alert: ${errMsg}. A minimum balance of ₹500 is required in your one.delhivery.com wallet to schedule doorstep courier pickup. Please recharge your Delhivery One wallet.`,
       });
     }
     return res.status(400).json({ message: errMsg });
