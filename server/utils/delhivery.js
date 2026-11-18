@@ -41,9 +41,33 @@ async function createDelhiveryShipment(order, user = {}) {
   const pickupLocation = process.env.DELHIVERY_PICKUP_LOCATION || "prada";
 
   // Calculate package weight & dimensions
-  // Default: 500 grams per murti, 15x15x15 cm box
-  const totalItems = order.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
-  const packageWeightGrams = Math.max(500, totalItems * 450);
+  // Default: 500 grams minimum slab (Delhivery logistics standard)
+  const totalItems = (order.items || []).reduce((sum, item) => sum + (item.quantity || 1), 0);
+
+  let calculatedWeight = 0;
+  let boxLength = 15;
+  let boxWidth = 15;
+  let boxHeight = 15;
+
+  (order.items || []).forEach((item) => {
+    const sizeStr = (item.size || "").toLowerCase();
+    const qty = Number(item.quantity || 1);
+    if (sizeStr.includes("18") || sizeStr.includes("24")) {
+      calculatedWeight += 2500 * qty;
+      boxLength = Math.max(boxLength, 40);
+      boxWidth = Math.max(boxWidth, 30);
+      boxHeight = Math.max(boxHeight, 30);
+    } else if (sizeStr.includes("12") || sizeStr.includes("9")) {
+      calculatedWeight += 1000 * qty;
+      boxLength = Math.max(boxLength, 25);
+      boxWidth = Math.max(boxWidth, 20);
+      boxHeight = Math.max(boxHeight, 20);
+    } else {
+      calculatedWeight += 450 * qty;
+    }
+  });
+
+  const packageWeightGrams = Math.max(500, calculatedWeight || 500);
   const productsDesc = order.items.map((i) => `${i.title} (${i.size || "Standard"}/${i.finish || "Matte"}) x${i.quantity}`).join(", ").slice(0, 200);
 
   const customerName = (user.name || order.shippingAddress.name || "Customer").trim();
@@ -77,9 +101,9 @@ async function createDelhiveryShipment(order, user = {}) {
         seller_inv: order.orderNumber,
         quantity: String(totalItems),
         waybill: "", // Auto-assigned by Delhivery
-        shipment_width: 15,
-        shipment_height: 15,
-        shipment_depth: 15,
+        shipment_length: boxLength,
+        shipment_width: boxWidth,
+        shipment_height: boxHeight,
         weight: packageWeightGrams,
         pickup_location: pickupLocation,
       },
