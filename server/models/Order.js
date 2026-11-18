@@ -69,6 +69,8 @@ const orderSchema = new mongoose.Schema(
     delhiveryLabelUrl: { type: String },
     delhiveryPickupStatus: { type: String },
     delhiveryPickupId: { type: String },
+    delhiveryPickupDate: { type: String },
+    delhiveryPickupSlot: { type: String },
     delhiveryScans: [
       {
         scanDateTime: { type: Date },

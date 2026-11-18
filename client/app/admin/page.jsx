@@ -95,6 +95,12 @@ export default function AdminPage() {
   const [shippingStatus, setShippingStatus] = useState("shipped");
   const [shippingSaving, setShippingSaving] = useState(false);
 
+  // Delhivery Doorstep Pickup Modal State
+  const [pickupModalOrder, setPickupModalOrder] = useState(null);
+  const [pickupDateOption, setPickupDateOption] = useState("tomorrow"); // "today" | "tomorrow" | "day_after"
+  const [pickupSlotTime, setPickupSlotTime] = useState("14:00:00 - 18:00:00");
+  const [pickupPackageCount, setPickupPackageCount] = useState(1);
+
   // Video Reels Management State
   const [videoReels, setVideoReels] = useState([]);
   const [videoLoading, setVideoLoading] = useState(false);
@@ -539,12 +545,48 @@ export default function AdminPage() {
     }
   }
 
-  async function handleScheduleDelhiveryPickup(orderId) {
+  function openPickupModal(order) {
+    setPickupModalOrder(order);
+    setPickupDateOption("tomorrow");
+    setPickupSlotTime("14:00:00 - 18:00:00");
+    setPickupPackageCount(1);
+  }
+
+  async function handleScheduleDelhiveryPickup(orderId, customOptions = null) {
     setActionError("");
     setActionSuccess("");
     setDelhiveryPickupLoadingId(orderId);
+
+    // Compute pickup date & time dynamically
+    let pickupDate = undefined;
+    let pickupTime = undefined;
+    let packageCount = 1;
+
+    if (customOptions) {
+      pickupDate = customOptions.pickupDate;
+      pickupTime = customOptions.pickupTime;
+      packageCount = customOptions.packageCount || 1;
+    } else if (pickupModalOrder && pickupModalOrder._id === orderId) {
+      const now = new Date();
+      if (pickupDateOption === "today") {
+        pickupDate = now.toISOString().slice(0, 10);
+      } else if (pickupDateOption === "tomorrow") {
+        const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        pickupDate = tomorrow.toISOString().slice(0, 10);
+      } else if (pickupDateOption === "day_after") {
+        const dayAfter = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+        pickupDate = dayAfter.toISOString().slice(0, 10);
+      }
+      pickupTime = pickupSlotTime.split(" - ")[0] || "14:00:00";
+      packageCount = pickupPackageCount || 1;
+    } else {
+      const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      pickupDate = tomorrow.toISOString().slice(0, 10);
+      pickupTime = "14:00:00";
+    }
+
     try {
-      const res = await scheduleDelhiveryPickup(orderId);
+      const res = await scheduleDelhiveryPickup(orderId, { pickupDate, pickupTime, packageCount });
       const updatedOrder = res.data.order;
       if (updatedOrder) {
         setOrders((prev) =>
@@ -565,6 +607,7 @@ export default function AdminPage() {
           }));
         }
       }
+      setPickupModalOrder(null);
       setActionSuccess(res.data.message || "Doorstep courier pickup scheduled with Delhivery!");
     } catch (err) {
       setActionError(err.response?.data?.message || "Failed to schedule Delhivery pickup.");
@@ -3066,6 +3109,26 @@ export default function AdminPage() {
                                     >
                                       📄 Label
                                     </button>
+
+                                    {o.delhiveryPickupStatus === "Scheduled" ? (
+                                      <button
+                                        onClick={() => openPickupModal(o)}
+                                        className="px-2.5 py-1.5 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-emerald-900 font-bold rounded-lg text-xs flex items-center gap-1 transition-all"
+                                        title={`Pickup Scheduled (${o.delhiveryPickupId || 'Confirmed'}). Click to view or reschedule.`}
+                                      >
+                                        ✓ Pickup Scheduled
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={() => openPickupModal(o)}
+                                        disabled={delhiveryPickupLoadingId === o._id}
+                                        className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs shadow-sm transition-all flex items-center gap-1 disabled:opacity-50"
+                                        title="Schedule Delhivery courier boy to pick up parcel from Surat Studio"
+                                      >
+                                        {delhiveryPickupLoadingId === o._id ? "Booking..." : "🚚 Request Pickup"}
+                                      </button>
+                                    )}
+
                                     <button
                                       onClick={() => handleSyncDelhivery(o._id)}
                                       disabled={delhiveryLoadingId === `sync_${o._id}`}
@@ -3073,6 +3136,14 @@ export default function AdminPage() {
                                       title="Sync live status and location from Delhivery"
                                     >
                                       {delhiveryLoadingId === `sync_${o._id}` ? "..." : "🔄 Sync"}
+                                    </button>
+
+                                    <button
+                                      onClick={() => openTrackingModal(o, o.orderStatus)}
+                                      className="px-2 py-1.5 bg-neutral-100 hover:bg-neutral-200 border border-neutral-300 text-neutral-700 font-bold rounded-lg text-xs transition-all"
+                                      title="Open Logistics & Dispatch details"
+                                    >
+                                      ⚙️
                                     </button>
                                   </>
                                 ) : (
@@ -3312,6 +3383,149 @@ export default function AdminPage() {
                   className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition-colors"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delhivery Doorstep Pickup Scheduling Modal */}
+        {pickupModalOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-neutral-200 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center text-amber-900 font-bold text-base shadow-xs">
+                    🚚
+                  </div>
+                  <div>
+                    <h3 className="font-display font-bold text-neutral-900 text-base">Schedule Delhivery Doorstep Pickup</h3>
+                    <p className="text-[11px] text-neutral-500 font-mono">
+                      Order #{pickupModalOrder.orderNumber} · AWB: {pickupModalOrder.delhiveryWaybill || pickupModalOrder.awbNumber}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setPickupModalOrder(null)}
+                  className="text-neutral-400 hover:text-black text-xl leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Pickup Facility & Consignee Summary */}
+              <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3.5 space-y-1.5 text-xs text-amber-950">
+                <div className="flex items-center justify-between font-bold text-amber-900">
+                  <span className="flex items-center gap-1">📍 Pickup Facility:</span>
+                  <span className="font-mono text-[11px] bg-amber-200/60 px-2 py-0.5 rounded border border-amber-300">prada</span>
+                </div>
+                <p className="text-[11px] text-amber-900/80">
+                  Surat Studio · C-504, Yamuna Palace, Satellite Rd, Sudama Chowk, Mota Varachha, Surat - 394101
+                </p>
+                <div className="pt-1.5 border-t border-amber-200/60 flex items-center justify-between text-[11px]">
+                  <span>Deliver To:</span>
+                  <span className="font-bold text-neutral-800">
+                    {pickupModalOrder.user?.name || pickupModalOrder.shippingAddress?.fullName || pickupModalOrder.shippingAddress?.name || "Customer"} · {pickupModalOrder.shippingAddress?.city} ({pickupModalOrder.shippingAddress?.pincode})
+                  </span>
+                </div>
+                {pickupModalOrder.delhiveryPickupStatus && (
+                  <div className="pt-1 text-[11px] font-bold text-emerald-800">
+                    Current Status: ✓ {pickupModalOrder.delhiveryPickupStatus} {pickupModalOrder.delhiveryPickupId ? `(Token: ${pickupModalOrder.delhiveryPickupId})` : ""}
+                  </div>
+                )}
+              </div>
+
+              {/* Pickup Date Selection */}
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-2">
+                  Select Pickup Date *
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: "tomorrow", label: "TOMORROW", sub: "Recommended" },
+                    { id: "today", label: "TODAY", sub: "Same Day" },
+                    { id: "day_after", label: "DAY AFTER", sub: "Later" },
+                  ].map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setPickupDateOption(d.id)}
+                      className={`p-2.5 rounded-xl border text-center transition-all ${
+                        pickupDateOption === d.id
+                          ? "border-amber-600 bg-amber-50 text-amber-950 ring-2 ring-amber-500/20 shadow-sm"
+                          : "border-neutral-200 hover:border-neutral-300 text-neutral-700 bg-white"
+                      }`}
+                    >
+                      <p className="text-xs font-black">{d.label}</p>
+                      <p className="text-[10px] text-neutral-500">{d.sub}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pickup Slot Selection */}
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-2">
+                  Select Pickup Time Slot *
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { slot: "14:00:00 - 18:00:00", label: "Afternoon", time: "2 PM - 6 PM" },
+                    { slot: "10:00:00 - 14:00:00", label: "Morning", time: "10 AM - 2 PM" },
+                    { slot: "18:00:00 - 21:00:00", label: "Evening", time: "6 PM - 9 PM" },
+                  ].map((s) => (
+                    <button
+                      key={s.slot}
+                      type="button"
+                      onClick={() => setPickupSlotTime(s.slot)}
+                      className={`p-2.5 rounded-xl border text-center transition-all ${
+                        pickupSlotTime === s.slot
+                          ? "border-amber-600 bg-amber-50 text-amber-950 ring-2 ring-amber-500/20 shadow-sm"
+                          : "border-neutral-200 hover:border-neutral-300 text-neutral-700 bg-white"
+                      }`}
+                    >
+                      <p className="text-xs font-bold">{s.label}</p>
+                      <p className="text-[10px] text-neutral-500 font-mono">{s.time}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Courier Instructions & Wallet Rule Notice */}
+              <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-[11px] text-neutral-600 space-y-1">
+                <p className="font-bold text-neutral-800 flex items-center gap-1">
+                  <span>💡</span> Delhivery courier boy aapke Surat Studio aayega:
+                </p>
+                <p>• Aapko parcel deliver karne kahin jane ki zaroorat nahi hai.</p>
+                <p>• Parcel par Delhivery shipping label (barcode) chipka kar ready rakhein.</p>
+                <p className="text-amber-900 font-semibold pt-0.5 border-t border-neutral-200/60">
+                  • Delhivery Wallet Note: Pickup confirm hone ke liye one.delhivery.com wallet me minimum ₹500 balance hona anivarya hai.
+                </p>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-200">
+                <button
+                  type="button"
+                  onClick={() => setPickupModalOrder(null)}
+                  className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleScheduleDelhiveryPickup(pickupModalOrder._id)}
+                  disabled={delhiveryPickupLoadingId === pickupModalOrder._id}
+                  className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-extrabold uppercase tracking-wide transition-all shadow-md flex items-center gap-2 disabled:opacity-50"
+                >
+                  {delhiveryPickupLoadingId === pickupModalOrder._id ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      Booking Pickup...
+                    </>
+                  ) : (
+                    "🚚 Confirm Doorstep Pickup"
+                  )}
                 </button>
               </div>
             </div>

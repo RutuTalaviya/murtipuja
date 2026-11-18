@@ -1656,21 +1656,29 @@ async function scheduleDelhiveryPickupHandler(req, res, next) {
     }
 
     const delhivery = require("../utils/delhivery");
+    const pickupDate = req.body?.pickupDate;
+    const pickupTime = req.body?.pickupTime || "16:00:00";
+    const packageCount = Number(req.body?.packageCount || 1);
+
     const pickupRes = await delhivery.requestDelhiveryPickup({
       pickupLocation: process.env.DELHIVERY_PICKUP_LOCATION || "prada",
-      packageCount: 1,
+      pickupDate,
+      pickupTime,
+      packageCount,
     });
 
     order.delhiveryPickupStatus = "Scheduled";
     if (pickupRes.pickupToken) {
       order.delhiveryPickupId = String(pickupRes.pickupToken);
     }
+    if (pickupDate) order.delhiveryPickupDate = pickupDate;
+    if (pickupTime) order.delhiveryPickupSlot = pickupTime;
     await order.save();
     const populatedOrder = await Order.findById(order._id).populate("user", "name phone email");
 
     return res.status(200).json({
       success: true,
-      message: pickupRes.message || "Courier pickup request scheduled successfully with Delhivery!",
+      message: pickupRes.message || "Doorstep courier pickup scheduled successfully with Delhivery!",
       order: populatedOrder,
       pickupRes,
     });
