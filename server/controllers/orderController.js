@@ -1567,6 +1567,13 @@ async function syncDelhiveryTracking(req, res, next) {
           activity: s.activity || "",
           instructions: s.instructions || "",
         }));
+
+        const isPickupScheduled =
+          trackData.statusCode === "FMPUR-101" ||
+          trackData.scans.some((s) => (s.activity || s.instructions || "").toLowerCase().includes("pickup scheduled"));
+        if (isPickupScheduled) {
+          order.delhiveryPickupStatus = "Scheduled";
+        }
       }
 
       // Auto-update order status based on Delhivery current status
