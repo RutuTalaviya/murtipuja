@@ -1848,7 +1848,23 @@ async function adminCancelOrderHandler(req, res, next) {
       }
     }
 
-    // 3. Update Order Record
+    // 3. Restore product inventory / variant stock
+    if (Array.isArray(order.items)) {
+      for (const item of order.items) {
+        if (item.product && item.variantSku) {
+          try {
+            await Product.updateOne(
+              { _id: item.product, "variants.sku": item.variantSku },
+              { $inc: { "variants.$.stock": item.quantity || 1 } }
+            );
+          } catch (stockErr) {
+            console.error(`[Admin Cancel] Failed to restock SKU ${item.variantSku}:`, stockErr.message);
+          }
+        }
+      }
+    }
+
+    // 4. Update Order Record
     order.orderStatus = "cancelled";
     order.cancellationReason = reason || "Cancelled by admin";
     order.cancelledBy = "admin";
