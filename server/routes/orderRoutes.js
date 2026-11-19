@@ -27,6 +27,7 @@ const {
   scheduleDelhiveryPickupHandler,
   handleDelhiveryWebhook,
   discardPendingOrder,
+  adminCancelOrderHandler,
 } = require("../controllers/orderController");
 const { protect, adminOnly, optionalAuth } = require("../middleware/auth");
 
@@ -52,6 +53,7 @@ router.post("/orders/:id/return-request/pay-difference", protect, payExchangeDif
 router.get("/admin/orders", protect, adminOnly, getAllOrders);
 router.put("/admin/orders/confirm-all", protect, adminOnly, confirmAllPlacedOrders);
 router.put("/orders/:id/status", protect, adminOnly, updateOrderStatus);
+router.post("/admin/orders/:id/cancel", protect, adminOnly, adminCancelOrderHandler);
 router.put("/orders/:id/return-request/review", protect, adminOnly, reviewReturnRequest);
 router.put("/orders/:id/return-request/receive", protect, adminOnly, markReturnReceived);
 router.get("/admin/dashboard", protect, adminOnly, getAdminDashboard);

@@ -14,6 +14,7 @@ import api, {
   syncDelhiveryTracking,
   getDelhiveryLabel,
   scheduleDelhiveryPickup,
+  adminCancelOrder,
   getCategories,
   createCategory,
   updateCategory,
@@ -107,6 +108,12 @@ export default function AdminPage() {
   const [packageLength, setPackageLength] = useState("15");
   const [packageWidth, setPackageWidth] = useState("15");
   const [packageHeight, setPackageHeight] = useState("15");
+
+  // Cancel Order & Refund Modal State
+  const [cancelModalOrder, setCancelModalOrder] = useState(null);
+  const [cancelReason, setCancelReason] = useState("Customer requested cancellation");
+  const [cancelAutoRefund, setCancelAutoRefund] = useState(true);
+  const [cancelLoadingId, setCancelLoadingId] = useState(null);
 
   // Video Reels Management State
   const [videoReels, setVideoReels] = useState([]);
@@ -653,6 +660,55 @@ export default function AdminPage() {
       setActionError(err.response?.data?.message || "Failed to generate Delhivery label.");
     } finally {
       setDelhiveryLoadingId(null);
+    }
+  }
+
+  function openCancelModal(order) {
+    setCancelModalOrder(order);
+    const isPrepaid = order.paymentStatus === "paid" || (order.paymentInfo && order.paymentInfo.razorpayPaymentId);
+    setCancelAutoRefund(Boolean(isPrepaid));
+    setCancelReason("Customer requested cancellation");
+  }
+
+  async function handleConfirmAdminCancel() {
+    if (!cancelModalOrder) return;
+    const orderId = cancelModalOrder._id;
+    setActionError("");
+    setActionSuccess("");
+    setCancelLoadingId(orderId);
+    try {
+      const res = await adminCancelOrder(orderId, {
+        reason: cancelReason || "Cancelled by store admin",
+        autoRefund: cancelAutoRefund,
+      });
+      const updatedOrder = res.data.order;
+      if (updatedOrder) {
+        setOrders((prev) =>
+          prev.map((o) => {
+            if (o._id === orderId) {
+              const existingUser = o.user && typeof o.user === "object" ? o.user : null;
+              const newUser = updatedOrder.user && typeof updatedOrder.user === "object" ? updatedOrder.user : existingUser;
+              return { ...o, ...updatedOrder, user: newUser };
+            }
+            return o;
+          })
+        );
+        if (shippingModalOrder && shippingModalOrder._id === orderId) {
+          setShippingModalOrder((prev) => ({
+            ...prev,
+            ...updatedOrder,
+            user: (updatedOrder.user && typeof updatedOrder.user === "object") ? updatedOrder.user : prev?.user,
+          }));
+        }
+      }
+      setCancelModalOrder(null);
+      setActionSuccess(res.data.message || `Order #${cancelModalOrder.orderNumber} has been cancelled successfully.`);
+      const statsRes = await getAdminDashboard();
+      setStats(statsRes.data);
+    } catch (err) {
+      setActionError(err.response?.data?.message || "Failed to cancel order.");
+    } finally {
+      setCancelLoadingId(null);
     }
   }
 
@@ -3195,6 +3251,18 @@ export default function AdminPage() {
                               </button>
                             )}
 
+                            {/* Cancel Order Button (for non-delivered / non-cancelled orders) */}
+                            {o.orderStatus !== "cancelled" && o.orderStatus !== "delivered" && o.orderStatus !== "returned" && (
+                              <button
+                                onClick={() => openCancelModal(o)}
+                                disabled={cancelLoadingId === o._id}
+                                className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 border border-red-300 text-red-700 font-bold rounded-lg text-xs shadow-xs transition-all flex items-center gap-1 disabled:opacity-50"
+                                title="Cancel order, revoke Delhivery courier pickup, and auto-refund customer"
+                              >
+                                {cancelLoadingId === o._id ? "Cancelling..." : "✕ Cancel"}
+                              </button>
+                            )}
+
                             {/* Cancelled / Returned */}
                             {(o.orderStatus === "cancelled" || o.orderStatus === "returned") && (
                               <span className="text-xs font-bold text-neutral-400 capitalize">{o.orderStatus}</span>
@@ -3746,6 +3814,170 @@ export default function AdminPage() {
                     </>
                   ) : (
                     "🚚 Confirm Doorstep Pickup"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Order Cancellation & 100% Refund Modal */}
+        {cancelModalOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-neutral-200 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center text-red-700 font-bold text-base shadow-xs">
+                    ✕
+                  </div>
+                  <div>
+                    <h3 className="font-display font-bold text-neutral-900 text-base">
+                      Cancel Order & Process Refund
+                    </h3>
+                    <p className="text-[11px] text-neutral-500 font-mono">
+                      Order #{cancelModalOrder.orderNumber} · Customer: {cancelModalOrder.user?.name || cancelModalOrder.shippingAddress?.fullName || cancelModalOrder.shippingAddress?.name || "Customer"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setCancelModalOrder(null)}
+                  className="text-neutral-400 hover:text-black text-xl leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Order Info & Payment Breakdown */}
+              <div className="p-3.5 bg-neutral-50 rounded-xl border border-neutral-200 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-neutral-500 font-medium">Order Total:</span>
+                  <span className="font-black text-neutral-900 text-sm">₹{cancelModalOrder.totalAmount?.toLocaleString("en-IN")}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-neutral-500 font-medium">Payment Mode:</span>
+                  <span className="font-bold text-neutral-800 uppercase">
+                    {cancelModalOrder.paymentMethod || "Prepaid"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-neutral-500 font-medium">Payment Status:</span>
+                  <span className={`px-2 py-0.5 rounded text-[11px] font-bold uppercase ${
+                    cancelModalOrder.paymentStatus === "paid"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : cancelModalOrder.paymentStatus === "refunded"
+                      ? "bg-purple-100 text-purple-800"
+                      : "bg-amber-100 text-amber-800"
+                  }`}>
+                    {cancelModalOrder.paymentStatus || "pending"}
+                  </span>
+                </div>
+                {cancelModalOrder.delhiveryWaybill && (
+                  <div className="flex items-center justify-between pt-1 border-t border-neutral-200">
+                    <span className="text-neutral-500 font-medium">Delhivery Courier Waybill:</span>
+                    <span className="font-mono font-bold text-amber-900">🚚 #{cancelModalOrder.delhiveryWaybill}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Courier Cancellation Notice */}
+              {cancelModalOrder.delhiveryWaybill && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <span>🚚</span> Delhivery Courier Dispatch Notice:
+                  </p>
+                  <p className="text-[11px]">
+                    Delhivery Waybill <strong>#{cancelModalOrder.delhiveryWaybill}</strong> will be automatically marked as cancelled with Delhivery API. Courier pickup will not proceed.
+                  </p>
+                </div>
+              )}
+
+              {/* 100% Automated Razorpay Refund Toggle (if prepaid) */}
+              {(cancelModalOrder.paymentStatus === "paid" || cancelModalOrder.paymentInfo?.razorpayPaymentId) ? (
+                <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-2">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={cancelAutoRefund}
+                      onChange={(e) => setCancelAutoRefund(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <div>
+                      <p className="text-xs font-bold text-emerald-950">
+                        Initiate 100% Automated Refund via Razorpay (₹{cancelModalOrder.totalAmount?.toLocaleString("en-IN")})
+                      </p>
+                      <p className="text-[11px] text-emerald-800 leading-relaxed mt-0.5">
+                        Amount will be refunded directly to the customer's original payment method (UPI / Bank Account / Debit or Credit Card). No manual bank transfer or NEFT needed.
+                      </p>
+                      {cancelModalOrder.paymentInfo?.razorpayPaymentId && (
+                        <p className="text-[10px] font-mono text-emerald-700 mt-1">
+                          Source Payment ID: {cancelModalOrder.paymentInfo.razorpayPaymentId}
+                        </p>
+                      )}
+                    </div>
+                  </label>
+                </div>
+              ) : (
+                <div className="p-3 bg-neutral-100 border border-neutral-200 rounded-xl text-xs text-neutral-600">
+                  <p className="font-bold text-neutral-800">Payment Notice:</p>
+                  <p className="text-[11px] mt-0.5">
+                    This order is marked as Cash on Delivery (COD) or Unpaid. No online refund will be issued.
+                  </p>
+                </div>
+              )}
+
+              {/* Cancellation Reason Selection / Text */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider">
+                  Cancellation Reason *
+                </label>
+                <select
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="w-full bg-white border border-neutral-300 rounded-xl p-2.5 text-xs font-medium text-neutral-900 outline-none focus:border-red-600 cursor-pointer"
+                >
+                  <option value="Customer requested cancellation">Customer requested cancellation</option>
+                  <option value="Product out of stock / Damaged in quality check">Product out of stock / Damaged in quality check</option>
+                  <option value="Duplicate order placed by customer">Duplicate order placed by customer</option>
+                  <option value="Customer unreachable or delivery address incomplete">Customer unreachable or delivery address incomplete</option>
+                  <option value="Pricing or coupon discrepancy">Pricing or coupon discrepancy</option>
+                  <option value="Other / Store Admin Decision">Other / Store Admin Decision</option>
+                </select>
+                <input
+                  type="text"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Or enter custom reason..."
+                  className="w-full bg-white border border-neutral-300 rounded-xl p-2 text-xs font-normal text-neutral-900 outline-none focus:border-red-600"
+                />
+              </div>
+
+              {/* Customer WhatsApp Alert Notice */}
+              <p className="text-[11px] text-neutral-500 italic">
+                💬 An automated WhatsApp cancellation and refund confirmation update will be sent to the customer ({cancelModalOrder.shippingAddress?.phone || cancelModalOrder.user?.phone || "Customer"}).
+              </p>
+
+              {/* Modal Actions */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-200">
+                <button
+                  type="button"
+                  onClick={() => setCancelModalOrder(null)}
+                  className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition-colors"
+                >
+                  Keep Order
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmAdminCancel}
+                  disabled={cancelLoadingId === cancelModalOrder._id}
+                  className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-extrabold uppercase tracking-wide transition-all shadow-md flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                >
+                  {cancelLoadingId === cancelModalOrder._id ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      Cancelling & Refunding...
+                    </>
+                  ) : (
+                    "✕ Confirm Cancellation & Refund"
                   )}
                 </button>
               </div>

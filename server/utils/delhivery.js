@@ -456,11 +456,66 @@ async function autoSyncActiveDelhiveryOrders() {
   }
 }
 
+/**
+ * Cancel a manifested or in-transit shipment with Delhivery
+ * @param {string} waybill - Delhivery Waybill / AWB Number
+ */
+async function cancelDelhiveryShipment(waybill) {
+  const token = getApiToken();
+  const baseUrl = getBaseUrl();
+
+  if (!token || token.includes("your_delhivery_api_token")) {
+    return {
+      success: true,
+      isMock: true,
+      waybill,
+      message: `[MOCK] Delhivery shipment cancelled for waybill ${waybill}`,
+    };
+  }
+
+  try {
+    const response = await axios.post(
+      `${baseUrl}/api/p/edit`,
+      {
+        waybill,
+        cancellation: "true",
+      },
+      {
+        headers: {
+          Authorization: `Token ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        timeout: 15000,
+      }
+    );
+
+    const resData = response.data;
+    console.log("Delhivery Cancel Response:", JSON.stringify(resData));
+
+    return {
+      success: true,
+      waybill,
+      message: resData.message || resData.remarks || "Delhivery shipment cancelled successfully",
+      raw: resData,
+    };
+  } catch (error) {
+    const errDetails = error.response?.data || error.message;
+    console.error("Delhivery Cancel Error:", errDetails);
+    throw new Error(
+      typeof errDetails === "object"
+        ? errDetails.message || errDetails.error || JSON.stringify(errDetails)
+        : errDetails
+    );
+  }
+}
+
 module.exports = {
   createDelhiveryShipment,
   trackDelhiveryShipment,
   generateDelhiveryLabel,
   requestDelhiveryPickup,
+  cancelDelhiveryShipment,
   checkDelhiveryPincode,
   autoSyncActiveDelhiveryOrders,
 };

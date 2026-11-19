@@ -1761,6 +1761,138 @@ async function handleDelhiveryWebhook(req, res, next) {
   }
 }
 
+/**
+ * POST /api/admin/orders/:id/cancel
+ * Cancel order by Admin:
+ * 1. Cancels Delhivery shipment via /api/p/edit (if waybill exists)
+ * 2. If prepaid & autoRefund=true, initiates 100% Razorpay refund back to original payment method
+ * 3. Updates order status to 'cancelled' and payment status to 'refunded'
+ * 4. Sends automated WhatsApp notification to customer
+ */
+async function adminCancelOrderHandler(req, res, next) {
+  try {
+    const order = await Order.findById(req.params.id).populate("user", "name phone email");
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (order.orderStatus === "cancelled") {
+      return res.status(400).json({ message: "This order is already cancelled." });
+    }
+
+    const { reason = "Cancelled by admin", autoRefund = true } = req.body || {};
+    let cancellationNotes = [];
+
+    // 1. Cancel Delhivery Shipment if Waybill exists
+    const waybill = order.delhiveryWaybill || order.awbNumber;
+    let delhiveryCancelled = false;
+    if (waybill) {
+      try {
+        const delhivery = require("../utils/delhivery");
+        const cancelRes = await delhivery.cancelDelhiveryShipment(waybill);
+        delhiveryCancelled = true;
+        order.delhiveryStatus = "Cancelled";
+        cancellationNotes.push(`Delhivery shipment #${waybill} cancelled`);
+      } catch (delErr) {
+        console.warn(`[Admin Cancel] Delhivery cancel notice for AWB ${waybill}:`, delErr.message);
+        cancellationNotes.push(`Delhivery notice: ${delErr.message}`);
+      }
+    }
+
+    // 2. Process 100% Razorpay Refund if Prepaid
+    let refundInfo = null;
+    const isPrepaid = order.paymentStatus === "paid" || (order.paymentInfo && order.paymentInfo.razorpayPaymentId);
+    const paymentId = order.paymentInfo?.razorpayPaymentId;
+
+    if (isPrepaid && autoRefund && order.paymentStatus !== "refunded") {
+      if (paymentId) {
+        try {
+          const Razorpay = require("razorpay");
+          const razorpay = new Razorpay({
+            key_id: process.env.RAZORPAY_KEY_ID,
+            key_secret: process.env.RAZORPAY_KEY_SECRET,
+          });
+
+          if (
+            process.env.RAZORPAY_KEY_ID &&
+            !process.env.RAZORPAY_KEY_ID.includes("mock") &&
+            process.env.RAZORPAY_KEY_SECRET
+          ) {
+            refundInfo = await razorpay.payments.refund(paymentId, {
+              amount: Math.round(Number(order.totalAmount || 0) * 100),
+              speed: "optimum",
+              notes: {
+                reason: reason || "Admin order cancellation",
+                orderId: order._id.toString(),
+                orderNumber: order.orderNumber,
+              },
+            });
+            order.paymentStatus = "refunded";
+            if (!order.paymentInfo) order.paymentInfo = {};
+            order.paymentInfo.razorpayRefundId = refundInfo.id;
+            cancellationNotes.push(`100% refund processed via Razorpay (ID: ${refundInfo.id})`);
+          } else {
+            refundInfo = { id: `rfnd_mock_cancel_${Date.now()}`, simulated: true };
+            order.paymentStatus = "refunded";
+            if (!order.paymentInfo) order.paymentInfo = {};
+            order.paymentInfo.razorpayRefundId = refundInfo.id;
+            cancellationNotes.push(`[SIMULATED] 100% refund processed (ID: ${refundInfo.id})`);
+          }
+        } catch (refundErr) {
+          console.error("[Admin Cancel] Razorpay refund error:", refundErr.message);
+          order.paymentStatus = "refund_pending";
+          cancellationNotes.push(`Razorpay refund failed: ${refundErr.message}`);
+        }
+      } else {
+        cancellationNotes.push("Razorpay paymentId not found. Manual refund required.");
+      }
+    }
+
+    // 3. Update Order Record
+    order.orderStatus = "cancelled";
+    order.cancellationReason = reason || "Cancelled by admin";
+    order.cancelledBy = "admin";
+    order.cancelledAt = new Date();
+
+    if (Array.isArray(order.statusHistory)) {
+      order.statusHistory.push({
+        status: "cancelled",
+        comment: `Cancelled by admin: ${reason || "No reason specified"}. ${cancellationNotes.join(". ")}`,
+        updatedAt: new Date(),
+      });
+    }
+
+    await order.save();
+
+    // 4. Send WhatsApp Notification to Customer
+    try {
+      const customerPhone = order.shippingAddress?.phone || order.user?.phone;
+      const customerName = order.user?.name || order.shippingAddress?.name || "Customer";
+      if (customerPhone) {
+        let msg = `Hello ${customerName}, your MurtiPuja order #${order.orderNumber} has been cancelled by our store.`;
+        if (order.paymentStatus === "refunded") {
+          msg += ` A 100% refund of ₹${order.totalAmount} has been initiated directly to your original payment method (Refund ID: ${order.paymentInfo?.razorpayRefundId || "Completed"}). It will reflect in your UPI/Bank within 24–48 hours.`;
+        }
+        await sendWhatsAppMessage(customerPhone, msg);
+      }
+    } catch (msgErr) {
+      console.warn("[Admin Cancel] WhatsApp notification skipped:", msgErr.message);
+    }
+
+    const populatedOrder = await Order.findById(order._id).populate("user", "name phone email");
+
+    return res.status(200).json({
+      success: true,
+      message: `Order #${order.orderNumber} cancelled successfully. ${cancellationNotes.join(". ")}`,
+      order: populatedOrder,
+      delhiveryCancelled,
+      refundInfo,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   validateCoupon,
   createOrder,
@@ -1788,5 +1920,6 @@ module.exports = {
   scheduleDelhiveryPickupHandler,
   handleDelhiveryWebhook,
   discardPendingOrder,
+  adminCancelOrderHandler,
 };
 
