@@ -161,7 +161,8 @@ export const pushOrderToDelhivery = (id, data = {}) => api.post(`/api/admin/orde
 export const syncDelhiveryTracking = (id) => api.post(`/api/admin/orders/${id}/delhivery/track`);
 export const getDelhiveryLabel = (id) => api.get(`/api/admin/orders/${id}/delhivery/label`);
 export const scheduleDelhiveryPickup = (id, data = {}) => api.post(`/api/admin/orders/${id}/delhivery/pickup`, data);
-export const adminCancelOrder = (id, data = {}) => api.post(`/api/admin/orders/${id}/cancel`, data);
+export const cancelDelhiveryOrder = (id, data = {}) => api.post(`/api/admin/orders/${id}/delhivery/cancel`, data);
+export const adminCancelOrder = cancelDelhiveryOrder;
 
 // Wishlist
 export const toggleWishlist = (productId) => api.post("/api/auth/wishlist/toggle", { productId });

@@ -493,10 +493,14 @@ async function cancelDelhiveryShipment(waybill) {
     const resData = response.data;
     console.log("Delhivery Cancel Response:", JSON.stringify(resData));
 
+    const remarksMsg = Array.isArray(resData.remarks)
+      ? resData.remarks.join(", ")
+      : resData.remarks || resData.message || "Delhivery shipment cancelled successfully";
+
     return {
       success: true,
       waybill,
-      message: resData.message || resData.remarks || "Delhivery shipment cancelled successfully",
+      message: remarksMsg,
       raw: resData,
     };
   } catch (error) {

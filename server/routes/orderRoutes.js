@@ -69,6 +69,7 @@ router.post("/admin/orders/:id/delhivery/ship", protect, adminOnly, pushOrderToD
 router.post("/admin/orders/:id/delhivery/track", protect, adminOnly, syncDelhiveryTracking);
 router.get("/admin/orders/:id/delhivery/label", protect, adminOnly, getDelhiveryLabel);
 router.post("/admin/orders/:id/delhivery/pickup", protect, adminOnly, scheduleDelhiveryPickupHandler);
+router.post("/admin/orders/:id/delhivery/cancel", protect, adminOnly, adminCancelOrderHandler);
 
 // Logistics Webhooks (Public)
 router.post("/shipping/shiprocket/webhook", handleShiprocketWebhook);
