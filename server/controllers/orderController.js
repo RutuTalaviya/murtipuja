@@ -1820,9 +1820,8 @@ async function adminCancelOrderHandler(req, res, next) {
           ) {
             refundInfo = await razorpay.payments.refund(paymentId, {
               amount: Math.round(Number(order.totalAmount || 0) * 100),
-              speed: "optimum",
               notes: {
-                reason: reason || "Admin order cancellation",
+                reason: (reason || "Admin order cancellation").slice(0, 255),
                 orderId: order._id.toString(),
                 orderNumber: order.orderNumber,
               },
@@ -1839,9 +1838,15 @@ async function adminCancelOrderHandler(req, res, next) {
             cancellationNotes.push(`[SIMULATED] 100% refund processed (ID: ${refundInfo.id})`);
           }
         } catch (refundErr) {
-          console.error("[Admin Cancel] Razorpay refund error:", refundErr.message);
-          order.paymentStatus = "refund_pending";
-          cancellationNotes.push(`Razorpay refund failed: ${refundErr.message}`);
+          const errMsg = refundErr.error?.description || refundErr.message || String(refundErr);
+          console.error("[Admin Cancel] Razorpay refund error:", errMsg);
+          if (errMsg.toLowerCase().includes("already") && errMsg.toLowerCase().includes("refund")) {
+            order.paymentStatus = "refunded";
+            cancellationNotes.push("Payment was already refunded on Razorpay");
+          } else {
+            order.paymentStatus = "refund_pending";
+            cancellationNotes.push(`Razorpay refund notice: ${errMsg}`);
+          }
         }
       } else {
         cancellationNotes.push("Razorpay paymentId not found. Manual refund required.");

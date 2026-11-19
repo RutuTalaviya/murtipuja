@@ -33,7 +33,7 @@ const orderSchema = new mongoose.Schema(
     paymentMethod: { type: String, default: "razorpay" },
     paymentStatus: {
       type: String,
-      enum: ["pending", "paid", "failed", "refunded"],
+      enum: ["pending", "paid", "failed", "refunded", "refund_pending", "refund_failed"],
       default: "pending",
     },
     paymentInfo: {
@@ -89,6 +89,7 @@ const orderSchema = new mongoose.Schema(
     statusHistory: [
       {
         status: { type: String, required: true },
+        comment: { type: String },
         updatedAt: { type: Date, default: Date.now },
       },
     ],
