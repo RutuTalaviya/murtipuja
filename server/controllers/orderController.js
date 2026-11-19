@@ -1498,7 +1498,13 @@ async function pushOrderToDelhivery(req, res, next) {
     }
 
     const delhivery = require("../utils/delhivery");
-    const shipmentRes = await delhivery.createDelhiveryShipment(order, order.user);
+    const packageDetails = {
+      weight: req.body?.weight,
+      length: req.body?.length,
+      width: req.body?.width,
+      height: req.body?.height,
+    };
+    const shipmentRes = await delhivery.createDelhiveryShipment(order, order.user, packageDetails);
 
     if (shipmentRes.waybill) {
       order.delhiveryWaybill = shipmentRes.waybill;
@@ -1506,6 +1512,14 @@ async function pushOrderToDelhivery(req, res, next) {
       order.trackingId = shipmentRes.waybill;
       order.courierPartner = shipmentRes.courierPartner || "Delhivery Express";
       order.delhiveryStatus = shipmentRes.status || "Manifested";
+      if (shipmentRes.packageDetails) {
+        order.packageWeight = shipmentRes.packageDetails.weight;
+        order.packageDimensions = {
+          length: shipmentRes.packageDetails.length,
+          width: shipmentRes.packageDetails.width,
+          height: shipmentRes.packageDetails.height,
+        };
+      }
 
       if (order.orderStatus === "placed" || order.orderStatus === "confirmed") {
         order.orderStatus = "shipped";

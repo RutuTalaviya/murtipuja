@@ -21,7 +21,7 @@ function getApiToken() {
  * @param {Object} order - MurtiPuja Order document
  * @param {Object} user - Customer document
  */
-async function createDelhiveryShipment(order, user = {}) {
+async function createDelhiveryShipment(order, user = {}, packageDetails = {}) {
   const token = getApiToken();
 
   if (!token || token.includes("your_delhivery_api_token")) {
@@ -34,40 +34,25 @@ async function createDelhiveryShipment(order, user = {}) {
       courierPartner: "Delhivery Express",
       status: "Manifested",
       message: `[MOCK] Delhivery shipment booked for Order ${order.orderNumber}. Waybill: ${mockWaybill}`,
+      packageDetails: {
+        weight: Number(packageDetails.weight) || 500,
+        length: Number(packageDetails.length) || 15,
+        width: Number(packageDetails.width) || 15,
+        height: Number(packageDetails.height) || 15,
+      },
     };
   }
 
   const baseUrl = getBaseUrl();
   const pickupLocation = process.env.DELHIVERY_PICKUP_LOCATION || "prada";
 
-  // Calculate package weight & dimensions
-  // Default: 500 grams minimum slab (Delhivery logistics standard)
+  // Use admin-entered dimensions and weight if provided, else standard defaults
+  const boxLength = Math.max(1, Number(packageDetails.length) || 15);
+  const boxWidth = Math.max(1, Number(packageDetails.width) || 15);
+  const boxHeight = Math.max(1, Number(packageDetails.height) || 15);
+  const packageWeightGrams = Math.max(100, Number(packageDetails.weight) || 500);
+
   const totalItems = (order.items || []).reduce((sum, item) => sum + (item.quantity || 1), 0);
-
-  let calculatedWeight = 0;
-  let boxLength = 15;
-  let boxWidth = 15;
-  let boxHeight = 15;
-
-  (order.items || []).forEach((item) => {
-    const sizeStr = (item.size || "").toLowerCase();
-    const qty = Number(item.quantity || 1);
-    if (sizeStr.includes("18") || sizeStr.includes("24")) {
-      calculatedWeight += 2500 * qty;
-      boxLength = Math.max(boxLength, 40);
-      boxWidth = Math.max(boxWidth, 30);
-      boxHeight = Math.max(boxHeight, 30);
-    } else if (sizeStr.includes("12") || sizeStr.includes("9")) {
-      calculatedWeight += 1000 * qty;
-      boxLength = Math.max(boxLength, 25);
-      boxWidth = Math.max(boxWidth, 20);
-      boxHeight = Math.max(boxHeight, 20);
-    } else {
-      calculatedWeight += 450 * qty;
-    }
-  });
-
-  const packageWeightGrams = Math.max(500, calculatedWeight || 500);
   const productsDesc = order.items.map((i) => `${i.title} (${i.size || "Standard"}/${i.finish || "Matte"}) x${i.quantity}`).join(", ").slice(0, 200);
 
   const customerName = (user.name || order.shippingAddress.name || "Customer").trim();
@@ -143,6 +128,12 @@ async function createDelhiveryShipment(order, user = {}) {
         courierPartner: "Delhivery Express",
         remarks: pkg.remarks,
         rawResponse: resData,
+        packageDetails: {
+          weight: packageWeightGrams,
+          length: boxLength,
+          width: boxWidth,
+          height: boxHeight,
+        },
       };
     }
 
@@ -155,6 +146,12 @@ async function createDelhiveryShipment(order, user = {}) {
       waybill: resData.waybill || resData.upload_wbn,
       courierPartner: "Delhivery Express",
       rawResponse: resData,
+      packageDetails: {
+        weight: packageWeightGrams,
+        length: boxLength,
+        width: boxWidth,
+        height: boxHeight,
+      },
     };
   } catch (error) {
     const errDetails = error.response?.data || error.message;

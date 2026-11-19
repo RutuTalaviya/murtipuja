@@ -101,6 +101,13 @@ export default function AdminPage() {
   const [pickupSlotTime, setPickupSlotTime] = useState("14:00:00 - 18:00:00");
   const [pickupPackageCount, setPickupPackageCount] = useState(1);
 
+  // Delhivery Manual Box Dimensions & Weight State
+  const [shipModalOrder, setShipModalOrder] = useState(null);
+  const [packageWeight, setPackageWeight] = useState("500");
+  const [packageLength, setPackageLength] = useState("15");
+  const [packageWidth, setPackageWidth] = useState("15");
+  const [packageHeight, setPackageHeight] = useState("15");
+
   // Video Reels Management State
   const [videoReels, setVideoReels] = useState([]);
   const [videoLoading, setVideoLoading] = useState(false);
@@ -474,12 +481,26 @@ export default function AdminPage() {
   const [delhiveryLoadingId, setDelhiveryLoadingId] = useState(null);
   const [delhiveryPickupLoadingId, setDelhiveryPickupLoadingId] = useState(null);
 
-  async function handlePushToDelhivery(orderId) {
+  function openShipModal(order) {
+    setShipModalOrder(order);
+    setPackageWeight(order.packageWeight ? String(order.packageWeight) : "500");
+    setPackageLength(order.packageDimensions?.length ? String(order.packageDimensions.length) : "15");
+    setPackageWidth(order.packageDimensions?.width ? String(order.packageDimensions.width) : "15");
+    setPackageHeight(order.packageDimensions?.height ? String(order.packageDimensions.height) : "15");
+  }
+
+  async function handlePushToDelhivery(orderId, customPayload = null) {
     setActionError("");
     setActionSuccess("");
     setDelhiveryLoadingId(`ship_${orderId}`);
     try {
-      const res = await pushOrderToDelhivery(orderId);
+      const payload = customPayload || {
+        weight: Number(packageWeight) || 500,
+        length: Number(packageLength) || 15,
+        width: Number(packageWidth) || 15,
+        height: Number(packageHeight) || 15,
+      };
+      const res = await pushOrderToDelhivery(orderId, payload);
       const updatedOrder = res.data.order;
       setOrders((prev) =>
         prev.map((o) => {
@@ -501,6 +522,7 @@ export default function AdminPage() {
         setShippingCourier("Delhivery");
         setShippingStatus(updatedOrder.orderStatus || "shipped");
       }
+      setShipModalOrder(null);
       setActionSuccess(res.data.message || "Shipment booked with Delhivery One!");
       const statsRes = await getAdminDashboard();
       setStats(statsRes.data);
@@ -3045,10 +3067,15 @@ export default function AdminPage() {
                               {o.orderStatus === "placed" ? "⏳ Placed" : o.orderStatus === "confirmed" ? "✓ Confirmed" : o.orderStatus?.replace(/_/g, " ")}
                             </span>
                             {o.delhiveryWaybill && (
-                              <div className="flex items-center gap-1 pt-0.5">
-                                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-950 border border-amber-300" title={`Delhivery AWB: ${o.delhiveryWaybill}`}>
+                              <div className="flex flex-col gap-0.5 pt-0.5">
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-950 border border-amber-300 inline-block w-fit" title={`Delhivery AWB: ${o.delhiveryWaybill}`}>
                                   🚚 #{o.delhiveryWaybill}
                                 </span>
+                                {o.packageDimensions?.length && (
+                                  <span className="text-[9px] font-mono text-neutral-500 font-semibold">
+                                    📦 {o.packageDimensions.length}×{o.packageDimensions.width}×{o.packageDimensions.height}cm · {o.packageWeight || 500}g
+                                  </span>
+                                )}
                               </div>
                             )}
                           </div>
@@ -3070,21 +3097,11 @@ export default function AdminPage() {
                             {o.orderStatus === "confirmed" && (
                               <>
                                 <button
-                                  onClick={() => handlePushToDelhivery(o._id)}
-                                  disabled={delhiveryLoadingId === `ship_${o._id}`}
-                                  className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
-                                  title="Book courier pickup directly with Delhivery One"
+                                  onClick={() => openShipModal(o)}
+                                  className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs shadow-sm transition-all flex items-center gap-1.5"
+                                  title="Enter box dimensions & weight, and book shipment with Delhivery"
                                 >
-                                  {delhiveryLoadingId === `ship_${o._id}` ? (
-                                    <>
-                                      <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                      Booking...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <span>🚚</span> Ship with Delhivery
-                                    </>
-                                  )}
+                                  <span>🚚</span> Ship with Delhivery
                                 </button>
                                 <button
                                   onClick={() => openTrackingModal(o, "shipped")}
@@ -3324,25 +3341,77 @@ export default function AdminPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
-                    <p className="text-xs text-amber-950">
-                      Click below to generate Delhivery AWB and book courier pickup automatically.
+                  <div className="space-y-3 pt-2">
+                    <p className="text-xs font-bold text-neutral-800">
+                      Package Dimensions & Weight (Manual Entry):
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => handlePushToDelhivery(shippingModalOrder._id)}
-                      disabled={delhiveryLoadingId === `ship_${shippingModalOrder._id}`}
-                      className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-extrabold uppercase tracking-wide transition-all shadow-md whitespace-nowrap disabled:opacity-50 flex items-center gap-2"
-                    >
-                      {delhiveryLoadingId === `ship_${shippingModalOrder._id}` ? (
-                        <>
-                          <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                          Booking Pickup...
-                        </>
-                      ) : (
-                        "🚚 1-Click Ship with Delhivery"
-                      )}
-                    </button>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      <div>
+                        <label className="block text-[11px] font-bold text-neutral-600 mb-1">Weight (gm) *</label>
+                        <input
+                          type="number"
+                          min="100"
+                          step="50"
+                          value={packageWeight}
+                          onChange={(e) => setPackageWeight(e.target.value)}
+                          className="w-full bg-white border border-neutral-300 rounded-lg p-2 text-xs font-bold text-neutral-900 outline-none focus:border-amber-600"
+                          placeholder="500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-neutral-600 mb-1">Length (cm) *</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={packageLength}
+                          onChange={(e) => setPackageLength(e.target.value)}
+                          className="w-full bg-white border border-neutral-300 rounded-lg p-2 text-xs font-bold text-neutral-900 outline-none focus:border-amber-600"
+                          placeholder="15"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-neutral-600 mb-1">Width (cm) *</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={packageWidth}
+                          onChange={(e) => setPackageWidth(e.target.value)}
+                          className="w-full bg-white border border-neutral-300 rounded-lg p-2 text-xs font-bold text-neutral-900 outline-none focus:border-amber-600"
+                          placeholder="15"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-neutral-600 mb-1">Height (cm) *</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={packageHeight}
+                          onChange={(e) => setPackageHeight(e.target.value)}
+                          className="w-full bg-white border border-neutral-300 rounded-lg p-2 text-xs font-bold text-neutral-900 outline-none focus:border-amber-600"
+                          placeholder="15"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                      <span className="text-[11px] font-mono text-neutral-600 bg-neutral-100 px-2.5 py-1.5 rounded-lg border border-neutral-200">
+                        Box: {packageLength} × {packageWidth} × {packageHeight} cm · {packageWeight} gm
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handlePushToDelhivery(shippingModalOrder._id)}
+                        disabled={delhiveryLoadingId === `ship_${shippingModalOrder._id}`}
+                        className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-extrabold uppercase tracking-wide transition-all shadow-md whitespace-nowrap disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {delhiveryLoadingId === `ship_${shippingModalOrder._id}` ? (
+                          <>
+                            <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            Booking Shipment...
+                          </>
+                        ) : (
+                          "🚚 Ship with Delhivery"
+                        )}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -3383,6 +3452,148 @@ export default function AdminPage() {
                   className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition-colors"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delhivery Manual Package Dimensions & Weight Modal */}
+        {shipModalOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-neutral-200 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center text-amber-900 font-bold text-base shadow-xs">
+                    📦
+                  </div>
+                  <div>
+                    <h3 className="font-display font-bold text-neutral-900 text-base">Enter Package Dimensions & Weight</h3>
+                    <p className="text-[11px] text-neutral-500 font-mono">
+                      Order #{shipModalOrder.orderNumber} · Customer: {shipModalOrder.user?.name || shipModalOrder.shippingAddress?.fullName || shipModalOrder.shippingAddress?.name || "Customer"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShipModalOrder(null)}
+                  className="text-neutral-400 hover:text-black text-xl leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Order Items Snippet */}
+              <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3.5 space-y-1.5 text-xs text-amber-950">
+                <p className="font-bold text-amber-900">Items to Pack:</p>
+                <div className="space-y-1 text-[11px] text-amber-900/90">
+                  {(shipModalOrder.items || []).map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center">
+                      <span>• {item.title} ({item.size || "Standard"}/{item.finish || "Matte"})</span>
+                      <span className="font-bold">x{item.quantity || 1}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="pt-1.5 border-t border-amber-200/60 flex items-center justify-between text-[11px]">
+                  <span>Deliver To:</span>
+                  <span className="font-bold text-neutral-800">
+                    {shipModalOrder.shippingAddress?.city}, {shipModalOrder.shippingAddress?.state} ({shipModalOrder.shippingAddress?.pincode})
+                  </span>
+                </div>
+              </div>
+
+              {/* Dimensions & Weight Input Form */}
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
+                    Chargeable Weight (in grams) *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="100"
+                      step="50"
+                      value={packageWeight}
+                      onChange={(e) => setPackageWeight(e.target.value)}
+                      className="w-full bg-white border border-neutral-300 rounded-xl p-2.5 text-sm font-bold text-neutral-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
+                      placeholder="e.g. 500"
+                    />
+                    <span className="absolute right-3 top-2.5 text-xs font-bold text-neutral-400">grams</span>
+                  </div>
+                  <p className="text-[10px] text-neutral-500 mt-1">
+                    • Delhivery minimum chargeable bracket is 500 gm (0.5 kg).
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
+                    Box Dimensions (Length × Width × Height in cm) *
+                  </label>
+                  <div className="grid grid-cols-3 gap-2.5">
+                    <div>
+                      <span className="block text-[10px] font-bold text-neutral-500 mb-0.5">Length (cm)</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={packageLength}
+                        onChange={(e) => setPackageLength(e.target.value)}
+                        className="w-full bg-white border border-neutral-300 rounded-xl p-2.5 text-xs font-bold text-neutral-900 outline-none focus:border-amber-600"
+                        placeholder="15"
+                      />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-bold text-neutral-500 mb-0.5">Width (cm)</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={packageWidth}
+                        onChange={(e) => setPackageWidth(e.target.value)}
+                        className="w-full bg-white border border-neutral-300 rounded-xl p-2.5 text-xs font-bold text-neutral-900 outline-none focus:border-amber-600"
+                        placeholder="15"
+                      />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-bold text-neutral-500 mb-0.5">Height (cm)</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={packageHeight}
+                        onChange={(e) => setPackageHeight(e.target.value)}
+                        className="w-full bg-white border border-neutral-300 rounded-xl p-2.5 text-xs font-bold text-neutral-900 outline-none focus:border-amber-600"
+                        placeholder="15"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Box preview badge */}
+                <div className="p-2.5 bg-neutral-100 rounded-xl border border-neutral-200 text-center text-xs font-mono font-bold text-neutral-800">
+                  📦 Box Size: {packageLength || 0} × {packageWidth || 0} × {packageHeight || 0} cm · Weight: {packageWeight || 0} gm
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-200">
+                <button
+                  type="button"
+                  onClick={() => setShipModalOrder(null)}
+                  className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePushToDelhivery(shipModalOrder._id)}
+                  disabled={delhiveryLoadingId === `ship_${shipModalOrder._id}`}
+                  className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-extrabold uppercase tracking-wide transition-all shadow-md flex items-center gap-2 disabled:opacity-50"
+                >
+                  {delhiveryLoadingId === `ship_${shipModalOrder._id}` ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      Booking Shipment...
+                    </>
+                  ) : (
+                    "🚚 Confirm & Ship with Delhivery"
+                  )}
                 </button>
               </div>
             </div>

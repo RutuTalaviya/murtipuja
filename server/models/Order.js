@@ -71,6 +71,12 @@ const orderSchema = new mongoose.Schema(
     delhiveryPickupId: { type: String },
     delhiveryPickupDate: { type: String },
     delhiveryPickupSlot: { type: String },
+    packageWeight: { type: Number, default: 500 },
+    packageDimensions: {
+      length: { type: Number, default: 15 },
+      width: { type: Number, default: 15 },
+      height: { type: Number, default: 15 },
+    },
     delhiveryScans: [
       {
         scanDateTime: { type: Date },
